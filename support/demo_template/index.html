@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>markdown-it demo</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://cdn.jsdelivr.net/jquery/1.11.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/lodash/2.4.1/lodash.js"></script>
+    <script src="https://cdn.jsdelivr.net/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/bootstrap/3.2.0/css/bootstrap.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/highlight.js/9.1.0/styles/github.min.css">
+    <script src="markdown-it.js"></script>
+    <script src="https://unpkg.com/twemoji@14.0.2/dist/twemoji.min.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="index.css">
+    <script src="index.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <h1>
+        markdown-it <small>demo</small></h1>
+      <div class="form-inline demo-options">
+        <div class="checkbox not-strict">
+          <label class="_tip" title="enable html tags in source text">
+            <input id="html" type="checkbox"> html
+          </label>
+        </div>
+        <div class="checkbox not-strict">
+          <label class="_tip" title="produce xtml output (add / to single tags (&lt;br /&gt; instead of &lt;br&gt;)">
+            <input id="xhtmlOut" type="checkbox"> xhtmlOut
+          </label>
+        </div>
+        <div class="checkbox not-strict">
+          <label class="_tip" title="newlines in paragraphs are rendered as &lt;br&gt;">
+            <input id="breaks" type="checkbox"> breaks
+          </label>
+        </div>
+        <div class="checkbox not-strict">
+          <label class="_tip" title="autoconvert link-like texts to links">
+            <input id="linkify" type="checkbox"> linkify
+          </label>
+        </div>
+        <div class="checkbox not-strict">
+          <label class="_tip" title="do typographic replacements, (c) → © and so on">
+            <input id="typographer" type="checkbox"> typographer
+          </label>
+        </div>
+        <div class="checkbox not-strict">
+          <label class="_tip" title="enable output highlight for fenced blocks">
+            <input id="_highlight" type="checkbox"> highlight
+          </label>
+        </div>
+        <div class="form-group not-strict">
+          <input class="form-control _tip" id="langPrefix" type="input" placeholder="language prefix" title="css class language prefix for fenced code blocks">
+        </div>
+        <div class="checkbox">
+          <label class="_tip" title="force strict CommonMark mode - output will be equal to reference parser">
+            <input id="_strict" type="checkbox"> CommonMark strict
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="container full-height">
+      <div class="row full-height">
+        <div class="col-xs-6 full-height">
+          <div class="demo-control"><a class="source-clear" href="#">clear</a><a id="permalink" href="./" title="Share this snippet as link"><strong>permalink</strong></a></div>
+          <textarea class="source full-height"><!--SAMPLE--></textarea>
+        </div>
+        <section class="col-xs-6 full-height">
+          <div class="demo-control"><a href="#" data-result-as="html">html</a><a href="#" data-result-as="src">source</a><a href="#" data-result-as="debug">debug</a></div>
+          <div class="result-html full-height"></div>
+          <pre class="hljs result-src full-height"><code class="result-src-content full-height"></code></pre>
+          <pre class="hljs result-debug full-height"><code class="result-debug-content full-height"></code></pre>
+        </section>
+      </div>
+    </div>
+    <div class="gh-ribbon"><a href="https://github.com/markdown-it/markdown-it" target="_blank">Fork me on GitHub</a></div>
+  </body>
+</html>

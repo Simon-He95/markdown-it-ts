@@ -1,0 +1,1492 @@
+
+> markdown-it-ts@1.0.0 test
+> vitest
+
+
+[1m[44m DEV [49m[22m [34mv4.0.6 [39m[90m/Users/Simon/Github/markdown-it/markdown-it-ts[39m
+
+ [32m✓[39m test/core/text_join.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m test/core/replacements.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 2[2mms[22m[39m
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample block-bq-flat.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample block-bq-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample block-bq-nested.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample block-bq-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample block-code.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample block-code.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample block-fences.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample block-fences.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample block-heading.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample block-heading.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample block-hr.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample block-hr.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample block-html.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample block-html.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample block-lheading.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample block-lheading.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample block-list-flat.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample block-list-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample block-list-nested.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample block-list-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample block-ref-flat.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample block-ref-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample block-ref-list.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample block-ref-list.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample block-ref-nested.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample block-ref-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample block-tables.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample block-tables.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample inline-autolink.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample inline-autolink.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample inline-backticks.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample inline-backticks.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample inline-em-flat.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample inline-em-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample inline-em-nested.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample inline-em-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample inline-em-worst.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample inline-em-worst.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample inline-entity.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample inline-entity.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample inline-escape.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample inline-escape.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample inline-html.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample inline-html.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample inline-links-flat.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample inline-links-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample inline-links-nested.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample inline-links-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample inline-newlines.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample inline-newlines.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample lorem1.txt (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample lorem1.txt: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample rawtabs.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample rawtabs.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample block-bq-flat.md (or skip if missing deps)
+[22m[39mSkipping current for sample block-bq-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample block-bq-nested.md (or skip if missing deps)
+[22m[39mSkipping current for sample block-bq-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample block-code.md (or skip if missing deps)
+[22m[39mSkipping current for sample block-code.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample block-fences.md (or skip if missing deps)
+[22m[39mSkipping current for sample block-fences.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample block-heading.md (or skip if missing deps)
+[22m[39mSkipping current for sample block-heading.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample block-hr.md (or skip if missing deps)
+[22m[39mSkipping current for sample block-hr.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample block-html.md (or skip if missing deps)
+[22m[39mSkipping current for sample block-html.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample block-lheading.md (or skip if missing deps)
+[22m[39mSkipping current for sample block-lheading.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample block-list-flat.md (or skip if missing deps)
+[22m[39mSkipping current for sample block-list-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample block-list-nested.md (or skip if missing deps)
+[22m[39mSkipping current for sample block-list-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample block-ref-flat.md (or skip if missing deps)
+[22m[39mSkipping current for sample block-ref-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample block-ref-list.md (or skip if missing deps)
+[22m[39mSkipping current for sample block-ref-list.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample block-ref-nested.md (or skip if missing deps)
+[22m[39mSkipping current for sample block-ref-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample block-tables.md (or skip if missing deps)
+[22m[39mSkipping current for sample block-tables.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample inline-autolink.md (or skip if missing deps)
+[22m[39mSkipping current for sample inline-autolink.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample inline-backticks.md (or skip if missing deps)
+[22m[39mSkipping current for sample inline-backticks.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample inline-em-flat.md (or skip if missing deps)
+[22m[39mSkipping current for sample inline-em-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample inline-em-nested.md (or skip if missing deps)
+[22m[39mSkipping current for sample inline-em-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample inline-em-worst.md (or skip if missing deps)
+[22m[39mSkipping current for sample inline-em-worst.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample inline-entity.md (or skip if missing deps)
+[22m[39mSkipping current for sample inline-entity.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample inline-escape.md (or skip if missing deps)
+[22m[39mSkipping current for sample inline-escape.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample inline-html.md (or skip if missing deps)
+[22m[39mSkipping current for sample inline-html.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample inline-links-flat.md (or skip if missing deps)
+[22m[39mSkipping current for sample inline-links-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample inline-links-nested.md (or skip if missing deps)
+[22m[39mSkipping current for sample inline-links-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample inline-newlines.md (or skip if missing deps)
+[22m[39mSkipping current for sample inline-newlines.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample lorem1.txt (or skip if missing deps)
+[22m[39mSkipping current for sample lorem1.txt: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample rawtabs.md (or skip if missing deps)
+[22m[39mSkipping current for sample rawtabs.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample block-bq-flat.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample block-bq-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample block-bq-nested.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample block-bq-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample block-code.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample block-code.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample block-fences.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample block-fences.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample block-heading.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample block-heading.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample block-hr.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample block-hr.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample block-html.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample block-html.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample block-lheading.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample block-lheading.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample block-list-flat.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample block-list-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample block-list-nested.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample block-list-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample block-ref-flat.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample block-ref-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample block-ref-list.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample block-ref-list.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample block-ref-nested.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample block-ref-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample block-tables.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample block-tables.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample inline-autolink.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample inline-autolink.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample inline-backticks.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample inline-backticks.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample inline-em-flat.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample inline-em-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample inline-em-nested.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample inline-em-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample inline-em-worst.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample inline-em-worst.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample inline-entity.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample inline-entity.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample inline-escape.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample inline-escape.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample inline-html.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample inline-html.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample inline-links-flat.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample inline-links-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample inline-links-nested.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample inline-links-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample inline-newlines.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample inline-newlines.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample lorem1.txt (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample lorem1.txt: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample rawtabs.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample rawtabs.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample block-bq-flat.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample block-bq-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample block-bq-nested.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample block-bq-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample block-code.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample block-code.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstdout[2m | test/core/linkify.test.ts[2m > [22m[2mcore linkify[2m > [22m[2mconverts plain http url to link tokens
+[22m[39m{
+  state: [
+    {
+      type: [32m'paragraph'[39m,
+      content: [32m'Visit http://example.com now'[39m,
+      level: [33m0[39m
+    }
+  ]
+}
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample block-fences.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample block-fences.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample block-heading.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample block-heading.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample block-hr.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample block-hr.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample block-html.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample block-html.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+ [31m❯[39m test/core/linkify.test.ts [2m([22m[2m1 test[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 6[2mms[22m[39m
+[31m     [31m×[31m converts plain http url to link tokens[39m[32m 5[2mms[22m[39m
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample block-lheading.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample block-lheading.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample block-list-flat.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample block-list-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample block-list-nested.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample block-list-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample block-ref-flat.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample block-ref-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample block-ref-list.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample block-ref-list.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample block-ref-nested.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample block-ref-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample block-tables.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample block-tables.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample inline-autolink.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample inline-autolink.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample inline-backticks.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample inline-backticks.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample inline-em-flat.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample inline-em-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample inline-em-nested.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample inline-em-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample inline-em-worst.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample inline-em-worst.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample inline-entity.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample inline-entity.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample inline-escape.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample inline-escape.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample inline-html.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample inline-html.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample inline-links-flat.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample inline-links-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample inline-links-nested.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample inline-links-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample inline-newlines.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample inline-newlines.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample lorem1.txt (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample lorem1.txt: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample rawtabs.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample rawtabs.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample block-bq-flat.md (or skip if missing deps)
+[22m[39mSkipping marked for sample block-bq-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+ [31m❯[39m test/renderer.test.ts [2m([22m[2m2 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 9[2mms[22m[39m
+[31m     [31m×[31m renders emphasis inside paragraph[39m[32m 7[2mms[22m[39m
+     [32m✓[39m inline parse produces strong token[32m 2[2mms[22m[39m
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample block-bq-nested.md (or skip if missing deps)
+[22m[39mSkipping marked for sample block-bq-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample block-code.md (or skip if missing deps)
+[22m[39mSkipping marked for sample block-code.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample block-fences.md (or skip if missing deps)
+[22m[39mSkipping marked for sample block-fences.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample block-heading.md (or skip if missing deps)
+[22m[39mSkipping marked for sample block-heading.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample block-hr.md (or skip if missing deps)
+[22m[39mSkipping marked for sample block-hr.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample block-html.md (or skip if missing deps)
+[22m[39mSkipping marked for sample block-html.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample block-lheading.md (or skip if missing deps)
+[22m[39mSkipping marked for sample block-lheading.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample block-list-flat.md (or skip if missing deps)
+[22m[39mSkipping marked for sample block-list-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample block-list-nested.md (or skip if missing deps)
+[22m[39mSkipping marked for sample block-list-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample block-ref-flat.md (or skip if missing deps)
+[22m[39mSkipping marked for sample block-ref-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample block-ref-list.md (or skip if missing deps)
+[22m[39mSkipping marked for sample block-ref-list.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample block-ref-nested.md (or skip if missing deps)
+[22m[39mSkipping marked for sample block-ref-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample block-tables.md (or skip if missing deps)
+[22m[39mSkipping marked for sample block-tables.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample inline-autolink.md (or skip if missing deps)
+[22m[39mSkipping marked for sample inline-autolink.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample inline-backticks.md (or skip if missing deps)
+[22m[39mSkipping marked for sample inline-backticks.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample inline-em-flat.md (or skip if missing deps)
+[22m[39mSkipping marked for sample inline-em-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample inline-em-nested.md (or skip if missing deps)
+[22m[39mSkipping marked for sample inline-em-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample inline-em-worst.md (or skip if missing deps)
+[22m[39mSkipping marked for sample inline-em-worst.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample inline-entity.md (or skip if missing deps)
+[22m[39mSkipping marked for sample inline-entity.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample inline-escape.md (or skip if missing deps)
+[22m[39mSkipping marked for sample inline-escape.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample inline-html.md (or skip if missing deps)
+[22m[39mSkipping marked for sample inline-html.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample inline-links-flat.md (or skip if missing deps)
+[22m[39mSkipping marked for sample inline-links-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample inline-links-nested.md (or skip if missing deps)
+[22m[39mSkipping marked for sample inline-links-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample inline-newlines.md (or skip if missing deps)
+[22m[39mSkipping marked for sample inline-newlines.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample lorem1.txt (or skip if missing deps)
+[22m[39mSkipping marked for sample lorem1.txt: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample rawtabs.md (or skip if missing deps)
+[22m[39mSkipping marked for sample rawtabs.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+ [32m✓[39m test/benchmarks.test.ts [2m([22m[2m135 tests[22m[2m)[22m[32m 100[2mms[22m[39m
+ [32m✓[39m test/core/smartquotes.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m test/core/normalize.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 2[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 2 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m test/renderer.test.ts[2m > [22mrenderer[2m > [22mrenders emphasis inside paragraph
+[31m[1mAssertionError[22m: expected '<p>Hello *world* from markdown-it-ts<…' to be '<p>Hello <em>world</em> from markdown…' // Object.is equality[39m
+
+Expected: [32m"<p>Hello [7m<em>[27mworld[7m</em>[27m from markdown-it-ts</p>"[39m
+Received: [31m"<p>Hello [7m*[27mworld[7m*[27m from markdown-it-ts</p>"[39m
+
+[36m [2m❯[22m test/renderer.test.ts:[2m9:18[22m[39m
+    [90m  7| [39m    [35mconst[39m tokens [33m=[39m [34mparse[39m([32m'Hello *world* from markdown-it-ts'[39m)[33m;[39m
+    [90m  8| [39m    [35mconst[39m html [33m=[39m [34mrender[39m(tokens [35mas[39m any)[33m;[39m
+    [90m  9| [39m    expect(html).toBe('<p>Hello <em>world</em> from markdown-it-ts</p>…
+    [90m   | [39m                 [31m^[39m
+    [90m 10| [39m  })[33m;[39m
+    [90m 11| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/core/linkify.test.ts[2m > [22mcore linkify[2m > [22mconverts plain http url to link tokens
+[31m[1mAssertionError[22m: expected undefined to be defined[39m
+[36m [2m❯[22m test/core/linkify.test.ts:[2m11:20[22m[39m
+    [90m  9| [39m    [90m// find first inline token[39m
+    [90m 10| [39m    [35mconst[39m inline [33m=[39m state[33m.[39m[34mfind[39m((t[33m:[39m any) [33m=>[39m t[33m.[39mtype [33m===[39m [32m'inline'[39m)[33m;[39m
+    [90m 11| [39m    [34mexpect[39m(inline)[33m.[39m[34mtoBeDefined[39m()[33m;[39m
+    [90m   | [39m                   [31m^[39m
+    [90m 12| [39m    [35mconst[39m types [33m=[39m inline[33m.[39mchildren[33m.[39m[34mmap[39m((c[33m:[39m any) [33m=>[39m c[33m.[39mtype)[33m;[39m
+    [90m 13| [39m    [90m// should contain a link_open/text/link_close sequence[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m5 passed[39m[22m[90m (7)[39m
+[2m      Tests [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m140 passed[39m[22m[90m (142)[39m
+[2m   Start at [22m 16:47:35
+[2m   Duration [22m 304ms[2m (transform 359ms, setup 0ms, collect 476ms, tests 121ms, environment 1ms, prepare 31ms)[22m
+
+[1m[41m FAIL [49m[22m [31mTests failed. Watching for file changes...[39m
+       [2mpress [22m[1mh[22m[2m to show help[22m[2m, [22m[2mpress [22m[1mq[22m[2m to quit[22m
+
+[1m  Watch Usage[22m
+[2m  press [22m[0m[1ma[22m, [1mreturn[22m[0m[2m to rerun all tests[22m
+[2m  press [22m[0m[1mr[22m[0m[2m to rerun current pattern tests[22m
+[2m  press [22m[0m[1mf[22m[0m[2m to rerun only failed tests[22m
+[2m  press [22m[0m[1mu[22m[0m[2m to update snapshot[22m
+[2m  press [22m[0m[1mp[22m[0m[2m to filter by a filename[22m
+[2m  press [22m[0m[1mt[22m[0m[2m to filter by a test name regex pattern[22m
+[2m  press [22m[0m[1mw[22m[0m[2m to filter by a project name[22m
+[2m  press [22m[0m[1mb[22m[0m[2m to start the browser server if not started yet[22m
+[2m  press [22m[0m[1mq[22m[0m[2m to quit[22m
+c[3J[1m[44m RERUN [49m[22m [34m[2mrerun all tests [22m[39m
+
+ [32m✓[39m test/core/replacements.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m test/core/text_join.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 2[2mms[22m[39m
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample block-bq-flat.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample block-bq-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample block-bq-nested.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample block-bq-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample block-code.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample block-code.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample block-fences.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample block-fences.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample block-heading.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample block-heading.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample block-hr.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample block-hr.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample block-html.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample block-html.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample block-lheading.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample block-lheading.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample block-list-flat.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample block-list-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample block-list-nested.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample block-list-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample block-ref-flat.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample block-ref-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample block-ref-list.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample block-ref-list.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample block-ref-nested.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample block-ref-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample block-tables.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample block-tables.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample inline-autolink.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample inline-autolink.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample inline-backticks.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample inline-backticks.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstdout[2m | test/core/linkify.test.ts[2m > [22m[2mcore linkify[2m > [22m[2mconverts plain http url to link tokens
+[22m[39m{
+  state: [
+    {
+      type: [32m'paragraph'[39m,
+      content: [32m'Visit http://example.com now'[39m,
+      level: [33m0[39m
+    }
+  ]
+}
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample inline-em-flat.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample inline-em-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample inline-em-nested.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample inline-em-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample inline-em-worst.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample inline-em-worst.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample inline-entity.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample inline-entity.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample inline-escape.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample inline-escape.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample inline-html.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample inline-html.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample inline-links-flat.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample inline-links-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample inline-links-nested.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample inline-links-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample inline-newlines.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample inline-newlines.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample lorem1.txt (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample lorem1.txt: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+ [31m❯[39m test/core/linkify.test.ts [2m([22m[2m1 test[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 6[2mms[22m[39m
+[31m     [31m×[31m converts plain http url to link tokens[39m[32m 5[2mms[22m[39m
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: commonmark-reference[2m > [22m[2mcommonmark-reference should render sample rawtabs.md (or skip if missing deps)
+[22m[39mSkipping commonmark-reference for sample rawtabs.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/commonmark-reference/index.ts
+
+ [31m❯[39m test/renderer.test.ts [2m([22m[2m2 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 8[2mms[22m[39m
+[31m     [31m×[31m renders emphasis inside paragraph[39m[32m 6[2mms[22m[39m
+     [32m✓[39m inline parse produces strong token[32m 2[2mms[22m[39m
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample block-bq-flat.md (or skip if missing deps)
+[22m[39mSkipping current for sample block-bq-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample block-bq-nested.md (or skip if missing deps)
+[22m[39mSkipping current for sample block-bq-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample block-code.md (or skip if missing deps)
+[22m[39mSkipping current for sample block-code.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample block-fences.md (or skip if missing deps)
+[22m[39mSkipping current for sample block-fences.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample block-heading.md (or skip if missing deps)
+[22m[39mSkipping current for sample block-heading.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample block-hr.md (or skip if missing deps)
+[22m[39mSkipping current for sample block-hr.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample block-html.md (or skip if missing deps)
+[22m[39mSkipping current for sample block-html.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample block-lheading.md (or skip if missing deps)
+[22m[39mSkipping current for sample block-lheading.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample block-list-flat.md (or skip if missing deps)
+[22m[39mSkipping current for sample block-list-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample block-list-nested.md (or skip if missing deps)
+[22m[39mSkipping current for sample block-list-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample block-ref-flat.md (or skip if missing deps)
+[22m[39mSkipping current for sample block-ref-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample block-ref-list.md (or skip if missing deps)
+[22m[39mSkipping current for sample block-ref-list.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample block-ref-nested.md (or skip if missing deps)
+[22m[39mSkipping current for sample block-ref-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample block-tables.md (or skip if missing deps)
+[22m[39mSkipping current for sample block-tables.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample inline-autolink.md (or skip if missing deps)
+[22m[39mSkipping current for sample inline-autolink.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample inline-backticks.md (or skip if missing deps)
+[22m[39mSkipping current for sample inline-backticks.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample inline-em-flat.md (or skip if missing deps)
+[22m[39mSkipping current for sample inline-em-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample inline-em-nested.md (or skip if missing deps)
+[22m[39mSkipping current for sample inline-em-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample inline-em-worst.md (or skip if missing deps)
+[22m[39mSkipping current for sample inline-em-worst.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample inline-entity.md (or skip if missing deps)
+[22m[39mSkipping current for sample inline-entity.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample inline-escape.md (or skip if missing deps)
+[22m[39mSkipping current for sample inline-escape.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample inline-html.md (or skip if missing deps)
+[22m[39mSkipping current for sample inline-html.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample inline-links-flat.md (or skip if missing deps)
+[22m[39mSkipping current for sample inline-links-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample inline-links-nested.md (or skip if missing deps)
+[22m[39mSkipping current for sample inline-links-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample inline-newlines.md (or skip if missing deps)
+[22m[39mSkipping current for sample inline-newlines.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample lorem1.txt (or skip if missing deps)
+[22m[39mSkipping current for sample lorem1.txt: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current[2m > [22m[2mcurrent should render sample rawtabs.md (or skip if missing deps)
+[22m[39mSkipping current for sample rawtabs.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample block-bq-flat.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample block-bq-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample block-bq-nested.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample block-bq-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample block-code.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample block-code.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample block-fences.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample block-fences.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample block-heading.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample block-heading.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample block-hr.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample block-hr.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample block-html.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample block-html.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample block-lheading.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample block-lheading.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample block-list-flat.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample block-list-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample block-list-nested.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample block-list-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample block-ref-flat.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample block-ref-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample block-ref-list.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample block-ref-list.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample block-ref-nested.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample block-ref-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample block-tables.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample block-tables.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample inline-autolink.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample inline-autolink.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample inline-backticks.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample inline-backticks.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample inline-em-flat.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample inline-em-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample inline-em-nested.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample inline-em-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample inline-em-worst.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample inline-em-worst.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample inline-entity.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample inline-entity.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample inline-escape.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample inline-escape.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample inline-html.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample inline-html.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample inline-links-flat.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample inline-links-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample inline-links-nested.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample inline-links-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample inline-newlines.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample inline-newlines.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample lorem1.txt (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample lorem1.txt: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: current-commonmark[2m > [22m[2mcurrent-commonmark should render sample rawtabs.md (or skip if missing deps)
+[22m[39mSkipping current-commonmark for sample rawtabs.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/current-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample block-bq-flat.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample block-bq-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample block-bq-nested.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample block-bq-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample block-code.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample block-code.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample block-fences.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample block-fences.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample block-heading.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample block-heading.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample block-hr.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample block-hr.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample block-html.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample block-html.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample block-lheading.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample block-lheading.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample block-list-flat.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample block-list-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample block-list-nested.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample block-list-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample block-ref-flat.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample block-ref-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample block-ref-list.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample block-ref-list.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample block-ref-nested.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample block-ref-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample block-tables.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample block-tables.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample inline-autolink.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample inline-autolink.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample inline-backticks.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample inline-backticks.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample inline-em-flat.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample inline-em-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample inline-em-nested.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample inline-em-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample inline-em-worst.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample inline-em-worst.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample inline-entity.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample inline-entity.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample inline-escape.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample inline-escape.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample inline-html.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample inline-html.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample inline-links-flat.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample inline-links-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample inline-links-nested.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample inline-links-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample inline-newlines.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample inline-newlines.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample lorem1.txt (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample lorem1.txt: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: markdown-it-2.2.1-commonmark[2m > [22m[2mmarkdown-it-2.2.1-commonmark should render sample rawtabs.md (or skip if missing deps)
+[22m[39mSkipping markdown-it-2.2.1-commonmark for sample rawtabs.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/markdown-it-2.2.1-commonmark/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample block-bq-flat.md (or skip if missing deps)
+[22m[39mSkipping marked for sample block-bq-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample block-bq-nested.md (or skip if missing deps)
+[22m[39mSkipping marked for sample block-bq-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample block-code.md (or skip if missing deps)
+[22m[39mSkipping marked for sample block-code.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample block-fences.md (or skip if missing deps)
+[22m[39mSkipping marked for sample block-fences.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample block-heading.md (or skip if missing deps)
+[22m[39mSkipping marked for sample block-heading.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample block-hr.md (or skip if missing deps)
+[22m[39mSkipping marked for sample block-hr.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample block-html.md (or skip if missing deps)
+[22m[39mSkipping marked for sample block-html.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample block-lheading.md (or skip if missing deps)
+[22m[39mSkipping marked for sample block-lheading.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample block-list-flat.md (or skip if missing deps)
+[22m[39mSkipping marked for sample block-list-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample block-list-nested.md (or skip if missing deps)
+[22m[39mSkipping marked for sample block-list-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample block-ref-flat.md (or skip if missing deps)
+[22m[39mSkipping marked for sample block-ref-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample block-ref-list.md (or skip if missing deps)
+[22m[39mSkipping marked for sample block-ref-list.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample block-ref-nested.md (or skip if missing deps)
+[22m[39mSkipping marked for sample block-ref-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample block-tables.md (or skip if missing deps)
+[22m[39mSkipping marked for sample block-tables.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample inline-autolink.md (or skip if missing deps)
+[22m[39mSkipping marked for sample inline-autolink.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample inline-backticks.md (or skip if missing deps)
+[22m[39mSkipping marked for sample inline-backticks.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample inline-em-flat.md (or skip if missing deps)
+[22m[39mSkipping marked for sample inline-em-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample inline-em-nested.md (or skip if missing deps)
+[22m[39mSkipping marked for sample inline-em-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample inline-em-worst.md (or skip if missing deps)
+[22m[39mSkipping marked for sample inline-em-worst.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample inline-entity.md (or skip if missing deps)
+[22m[39mSkipping marked for sample inline-entity.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample inline-escape.md (or skip if missing deps)
+[22m[39mSkipping marked for sample inline-escape.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample inline-html.md (or skip if missing deps)
+[22m[39mSkipping marked for sample inline-html.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample inline-links-flat.md (or skip if missing deps)
+[22m[39mSkipping marked for sample inline-links-flat.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample inline-links-nested.md (or skip if missing deps)
+[22m[39mSkipping marked for sample inline-links-nested.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample inline-newlines.md (or skip if missing deps)
+[22m[39mSkipping marked for sample inline-newlines.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample lorem1.txt (or skip if missing deps)
+[22m[39mSkipping marked for sample lorem1.txt: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+[90mstderr[2m | test/benchmarks.test.ts[2m > [22m[2mbenchmarks: sanity checks[2m > [22m[2mimplementation: marked[2m > [22m[2mmarked should render sample rawtabs.md (or skip if missing deps)
+[22m[39mSkipping marked for sample rawtabs.md: import failed: Error: Cannot find module '../../../src/parse'
+Require stack:
+- /Users/Simon/Github/markdown-it/markdown-it-ts/benchmark/implementations/marked/index.ts
+
+ [32m✓[39m test/benchmarks.test.ts [2m([22m[2m135 tests[22m[2m)[22m[32m 62[2mms[22m[39m
+ [32m✓[39m test/core/smartquotes.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m test/core/normalize.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 2[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 2 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m test/renderer.test.ts[2m > [22mrenderer[2m > [22mrenders emphasis inside paragraph
+[31m[1mAssertionError[22m: expected '<p>Hello *world* from markdown-it-ts<…' to be '<p>Hello <em>world</em> from markdown…' // Object.is equality[39m
+
+Expected: [32m"<p>Hello [7m<em>[27mworld[7m</em>[27m from markdown-it-ts</p>"[39m
+Received: [31m"<p>Hello [7m*[27mworld[7m*[27m from markdown-it-ts</p>"[39m
+
+[36m [2m❯[22m test/renderer.test.ts:[2m9:18[22m[39m
+    [90m  7| [39m    [35mconst[39m tokens [33m=[39m [34mparse[39m([32m'Hello *world* from markdown-it-ts'[39m)[33m;[39m
+    [90m  8| [39m    [35mconst[39m html [33m=[39m [34mrender[39m(tokens [35mas[39m any)[33m;[39m
+    [90m  9| [39m    expect(html).toBe('<p>Hello <em>world</em> from markdown-it-ts</p>…
+    [90m   | [39m                 [31m^[39m
+    [90m 10| [39m  })[33m;[39m
+    [90m 11| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/core/linkify.test.ts[2m > [22mcore linkify[2m > [22mconverts plain http url to link tokens
+[31m[1mAssertionError[22m: expected undefined to be defined[39m
+[36m [2m❯[22m test/core/linkify.test.ts:[2m11:20[22m[39m
+    [90m  9| [39m    [90m// find first inline token[39m
+    [90m 10| [39m    [35mconst[39m inline [33m=[39m state[33m.[39m[34mfind[39m((t[33m:[39m any) [33m=>[39m t[33m.[39mtype [33m===[39m [32m'inline'[39m)[33m;[39m
+    [90m 11| [39m    [34mexpect[39m(inline)[33m.[39m[34mtoBeDefined[39m()[33m;[39m
+    [90m   | [39m                   [31m^[39m
+    [90m 12| [39m    [35mconst[39m types [33m=[39m inline[33m.[39mchildren[33m.[39m[34mmap[39m((c[33m:[39m any) [33m=>[39m c[33m.[39mtype)[33m;[39m
+    [90m 13| [39m    [90m// should contain a link_open/text/link_close sequence[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m5 passed[39m[22m[90m (7)[39m
+[2m      Tests [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m140 passed[39m[22m[90m (142)[39m
+[2m   Start at [22m 16:48:31
+[2m   Duration [22m 202ms
+
+[1m[41m FAIL [49m[22m [31mTests failed. Watching for file changes...[39m
+       [2mpress [22m[1mh[22m[2m to show help[22m[2m, [22m[2mpress [22m[1mq[22m[2m to quit[22m
+[31mCancelling test run. Press CTRL+c again to exit forcefully.
+[39m

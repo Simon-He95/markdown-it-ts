@@ -1,0 +1,48 @@
+{
+  "name": "markdown-it-ts",
+  "version": "0.0.0",
+  "description": "A TypeScript implementation of the markdown-it library with separate parse and render functionalities.",
+  "author": "Your Name",
+  "license": "MIT",
+  "keywords": [
+    "markdown",
+    "parser",
+    "renderer",
+    "typescript"
+  ],
+  "exports": {
+    "./parse": "./src/parse/index.ts",
+    "./render": "./src/render/index.ts"
+  },
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest",
+    "watch": "tsdown -w",
+    "doc": "node support/build_doc.mjs",
+    "gh-doc": "npm run doc && gh-pages -d apidoc -f",
+    "demo": "npm run lint && node support/build_demo.mjs",
+    "gh-demo": "npm run demo && gh-pages -d demo -f -b master -r git@github.com:markdown-it/markdown-it.github.io.git",
+    "lint": "eslint . --cache",
+    "lint:fix": "pnpm run lint --fix",
+    "typecheck": "vue-tsc --noEmit",
+    "release": "bumpp --commit --tag --push && pnpm publish"
+  },
+  "dependencies": {
+    "linkify-it": "^3.0.3",
+    "mdurl": "^1.0.1",
+    "punycode.js": "^2.3.1"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "^5.4.1",
+    "eslint": "^9.38.0",
+    "ts-node": "^10.9.2",
+    "tsdown": "^0.15.12",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.6",
+    "bumpp": "^8.2.1",
+    "vue-tsc": "^2.2.12"
+  }
+}
