@@ -1,4 +1,4 @@
-import type { Token } from '../common/token'
+import { Token } from '../common/token'
 
 export interface MarkdownItOptions {
   html?: boolean
@@ -17,12 +17,14 @@ export class State {
   public tokens: Token[]
   public inlineMode: boolean
   public md?: any
+  public Token: typeof Token
 
   constructor(src: string, env: Record<string, unknown> = {}) {
     this.src = src || ''
     this.env = env
     this.tokens = []
     this.inlineMode = false
+    this.Token = Token
   }
 }
 

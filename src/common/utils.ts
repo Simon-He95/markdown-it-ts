@@ -1,6 +1,37 @@
 // Common utility functions used across markdown-it
 
+import { decodeHTML } from 'entities'
+import * as mdurl from 'mdurl'
 import * as ucmicro from 'uc.micro'
+
+function _class(obj: unknown): string {
+  return Object.prototype.toString.call(obj)
+}
+
+export function isString(obj: unknown): obj is string {
+  return _class(obj) === '[object String]'
+}
+
+const _hasOwnProperty = Object.prototype.hasOwnProperty
+
+export function has(object: object, key: string | number | symbol): boolean {
+  return _hasOwnProperty.call(object, key)
+}
+
+// Merge objects
+export function assign<T extends Record<string, any>>(obj: T, ...sources: any[]): T {
+  sources.forEach((source) => {
+    if (!source)
+      return
+    if (typeof source !== 'object') {
+      throw new TypeError(`${String(source)}must be object`)
+    }
+    Object.keys(source).forEach((key) => {
+      ;(obj as any)[key] = (source as any)[key]
+    })
+  })
+  return obj
+}
 
 export function isSpace(code: number): boolean {
   return code === 0x09 || code === 0x20
@@ -90,3 +121,120 @@ export function normalizeReference(str: string): string {
 export function arrayReplaceAt<T>(src: T[], pos: number, newElements: T[]): T[] {
   return [...src.slice(0, pos), ...newElements, ...src.slice(pos + 1)]
 }
+
+export function isValidEntityCode(c: number): boolean {
+  // broken sequence
+  if (c >= 0xD800 && c <= 0xDFFF) {
+    return false
+  }
+  // never used
+  if (c >= 0xFDD0 && c <= 0xFDEF) {
+    return false
+  }
+  if ((c & 0xFFFF) === 0xFFFF || (c & 0xFFFF) === 0xFFFE) {
+    return false
+  }
+  // control codes
+  if (c >= 0x00 && c <= 0x08) {
+    return false
+  }
+  if (c === 0x0B) {
+    return false
+  }
+  if (c >= 0x0E && c <= 0x1F) {
+    return false
+  }
+  if (c >= 0x7F && c <= 0x9F) {
+    return false
+  }
+  // out of range
+  if (c > 0x10FFFF) {
+    return false
+  }
+  return true
+}
+
+export function fromCodePoint(c: number): string {
+  if (c > 0xFFFF) {
+    c -= 0x10000
+    const surrogate1 = 0xD800 + (c >> 10)
+    const surrogate2 = 0xDC00 + (c & 0x3FF)
+    return String.fromCharCode(surrogate1, surrogate2)
+  }
+  return String.fromCharCode(c)
+}
+
+/* eslint-disable regexp/no-useless-escape, regexp/no-unused-capturing-group, regexp/no-useless-non-capturing-group, regexp/prefer-d */
+const UNESCAPE_MD_RE = /\\([!"#$%&'()*+,\-\./:;<=>?@[\\\]^_`{|}~])/g
+const ENTITY_RE = /&([a-z#][a-z0-9]{1,31});/gi
+const UNESCAPE_ALL_RE = new RegExp(`${UNESCAPE_MD_RE.source}|${ENTITY_RE.source}`, 'gi')
+
+const DIGITAL_ENTITY_TEST_RE = /^#((?:x[a-f0-9]{1,8}|[0-9]{1,8}))$/i
+
+function replaceEntityPattern(match: string, name: string): string {
+  if (name.charCodeAt(0) === 0x23 /* # */ && DIGITAL_ENTITY_TEST_RE.test(name)) {
+    const code = name[1].toLowerCase() === 'x'
+      ? Number.parseInt(name.slice(2), 16)
+      : Number.parseInt(name.slice(1), 10)
+
+    if (isValidEntityCode(code)) {
+      return fromCodePoint(code)
+    }
+    return match
+  }
+
+  const decoded = decodeHTML(match)
+  if (decoded !== match)
+    return decoded
+  return match
+}
+
+export function unescapeMd(str: string): string {
+  if (!str.includes('\\'))
+    return str
+  return str.replace(UNESCAPE_MD_RE, '$1')
+}
+
+export function unescapeAll(str: string): string {
+  if (!str.includes('\\') && !str.includes('&'))
+    return str
+
+  return str.replace(UNESCAPE_ALL_RE, (match: string, escaped?: string, entity?: string) => {
+    if (escaped)
+      return escaped
+    // entity is defined because of alternation
+    return replaceEntityPattern(match, entity as string)
+  })
+}
+
+/* eslint-enable regexp/no-useless-escape, regexp/no-unused-capturing-group, regexp/no-useless-non-capturing-group, regexp/prefer-d */
+const HTML_ESCAPE_TEST_RE = /[&<>"]/
+const HTML_ESCAPE_REPLACE_RE = /[&<>"]/g
+const HTML_REPLACEMENTS: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+}
+
+function replaceUnsafeChar(ch: string): string {
+  return HTML_REPLACEMENTS[ch]
+}
+
+export function escapeHtml(str: string): string {
+  if (HTML_ESCAPE_TEST_RE.test(str)) {
+    return str.replace(HTML_ESCAPE_REPLACE_RE, replaceUnsafeChar)
+  }
+  return str
+}
+
+const REGEXP_ESCAPE_RE = /[.?*+^$[\]\\(){}|-]/g
+
+export function escapeRE(str: string): string {
+  return str.replace(REGEXP_ESCAPE_RE, '\\$&')
+}
+
+// Re-export libraries commonly used in both markdown-it and its plugins
+export const lib = { mdurl, ucmicro } as const
+
+export { mdurl, ucmicro }
