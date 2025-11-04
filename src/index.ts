@@ -36,7 +36,9 @@ const config: Record<string, Preset> = {
 }
 
 export type MarkdownItCore = ReturnType<typeof markdownit>
-export type MarkdownItPlugin = (md: MarkdownItCore, ...params: unknown[]) => unknown
+export type MarkdownItPluginFn = (md: MarkdownItCore, ...params: unknown[]) => unknown
+export type MarkdownItPluginModule = { default: MarkdownItPluginFn }
+export type MarkdownItPlugin = MarkdownItPluginFn | MarkdownItPluginModule
 
 export default function markdownit(presetName?: string | MarkdownItOptions, options?: MarkdownItOptions) {
   // defaults (core-only)
@@ -160,7 +162,19 @@ export default function markdownit(presetName?: string | MarkdownItOptions, opti
       return this
     },
     use(this: MarkdownItCore, plugin: MarkdownItPlugin, ...params: unknown[]) {
-      plugin(this, ...params)
+      const fn: MarkdownItPluginFn | undefined =
+        typeof plugin === 'function'
+          ? plugin
+          : (plugin && typeof (plugin as MarkdownItPluginModule).default === 'function'
+              ? (plugin as MarkdownItPluginModule).default
+              : undefined)
+
+      if (!fn)
+        throw new TypeError('MarkdownIt.use: plugin must be a function')
+
+  const args = [this, ...params] as Parameters<MarkdownItPluginFn>
+  const thisArg = typeof plugin === 'function' ? plugin : plugin
+  fn.apply(thisArg as unknown, args)
       return this
     },
     render(this: MarkdownItCore, src: string, env: Record<string, unknown> = {}) {

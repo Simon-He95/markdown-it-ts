@@ -34,6 +34,10 @@ export type RendererOptions = {
   breaks?: boolean;
 }
 
+export type MarkdownItPluginFn = (md: MarkdownIt, ...params: any[]) => void;
+export type MarkdownItPluginModule = { default: MarkdownItPluginFn };
+export type MarkdownItPlugin = MarkdownItPluginFn | MarkdownItPluginModule;
+
 export interface MarkdownIt {
   parse(src: string, env?: Record<string, unknown>): Token[];
   render(src: string, env?: Record<string, unknown>): string;
@@ -41,7 +45,7 @@ export interface MarkdownIt {
   set(options: MarkdownItOptions): this;
   enable(list: string | string[], ignoreInvalid?: boolean): this;
   disable(list: string | string[], ignoreInvalid?: boolean): this;
-  use(plugin: (md: MarkdownIt, ...params: any[]) => void, ...params: any[]): this;
+  use(plugin: MarkdownItPlugin, ...params: any[]): this;
   validateLink(url: string): boolean;
   normalizeLink(url: string): string;
   normalizeLinkText(url: string): string;
