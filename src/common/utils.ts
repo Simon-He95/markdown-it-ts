@@ -90,3 +90,82 @@ export function normalizeReference(str: string): string {
 export function arrayReplaceAt<T>(src: T[], pos: number, newElements: T[]): T[] {
   return [...src.slice(0, pos), ...newElements, ...src.slice(pos + 1)]
 }
+
+// String.fromCharCode() equivalent that works with astral plane characters
+export function fromCodePoint(c: number): string {
+  if (c > 0xFFFF) {
+    c -= 0x10000
+    const surrogate1 = 0xD800 + (c >> 10)
+    const surrogate2 = 0xDC00 + (c & 0x3FF)
+
+    return String.fromCharCode(surrogate1, surrogate2)
+  }
+  return String.fromCharCode(c)
+}
+
+// Check if entity code is valid
+export function isValidEntityCode(c: number): boolean {
+  // broken sequence
+  if (c >= 0xD800 && c <= 0xDFFF) {
+    return false
+  }
+  // never used
+  if (c >= 0xFDD0 && c <= 0xFDEF) {
+    return false
+  }
+  if ((c & 0xFFFF) === 0xFFFF || (c & 0xFFFF) === 0xFFFE) {
+    return false
+  }
+  // control codes
+  if (c >= 0x00 && c <= 0x08) {
+    return false
+  }
+  if (c === 0x0B) {
+    return false
+  }
+  if (c >= 0x0E && c <= 0x1F) {
+    return false
+  }
+  if (c >= 0x7F && c <= 0x9F) {
+    return false
+  }
+  // out of range
+  if (c > 0x10FFFF) {
+    return false
+  }
+  return true
+}
+
+// Object.assign polyfill for plugins that merge options
+export function assign(obj: any, ...args: any[]): any {
+  const sources = args
+
+  sources.forEach((source) => {
+    if (!source) {
+      return
+    }
+
+    if (typeof source !== 'object') {
+      throw new TypeError(`${source} must be object`)
+    }
+
+    Object.keys(source).forEach((key) => {
+      obj[key] = source[key]
+    })
+  })
+
+  return obj
+}
+
+// Escape special characters for use in regular expressions
+export function escapeRE(str: string): string {
+  return str.replace(/[.?*+^$[\]\\(){}|-]/g, '\\$&')
+}
+
+// Unescape markdown backslash sequences
+export function unescapeMd(str: string): string {
+  if (!str.includes('\\')) {
+    return str
+  }
+  return str.replace(/\\([!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])/g, '$1')
+}
