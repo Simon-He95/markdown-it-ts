@@ -1,145 +1,227 @@
-import type { RendererOptions, Token } from '../types'
+import type { Token } from '../common/token'
 import { escapeHtml, unescapeAll } from './utils'
 
-class Renderer {
-  private options: RendererOptions
+export interface RendererOptions {
+  langPrefix?: string
+  highlight?: ((str: string, lang: string, attrs: string) => string) | null
+  xhtmlOut?: boolean
+  breaks?: boolean
+}
 
-  constructor(options: RendererOptions = {}) {
-    this.options = {
-      langPrefix: 'language-',
-      ...options,
-    }
-  }
+export type RendererEnv = Record<string, unknown>
 
-  public render(tokens: Token[], options: RendererOptions = {}, _env: Record<string, unknown> = {}): string {
-    this.options = { ...this.options, ...options }
-    let output = ''
+export type RendererRule = (tokens: Token[], idx: number, options: RendererOptions, env: RendererEnv, self: Renderer) => string
 
-    tokens.forEach((token) => {
-      output += this.renderToken(token)
-    })
-
-    return output
-  }
-
-  private renderAttrs(token: Token): string {
-    if (!token.attrs || token.attrs.length === 0) {
-      return ''
-    }
-
-    return ` ${token.attrs
-      .map(([name, value]) => `${escapeHtml(name)}="${escapeHtml(value)}"`)
-      .join(' ')}`
-  }
-
-  private renderToken(token: Token): string {
-    switch (token.type) {
-      case 'paragraph_open':
-        return '<p>'
-      case 'paragraph_close':
-        return '</p>'
-      case 'paragraph':
-        // If paragraph has inline children, render them. Otherwise fall back
-        // to raw content.
-        if (Array.isArray(token.children) && token.children.length > 0) {
-          return `<p>${this.renderInline(token.children)}</p>`
-        }
-        return `<p>${token.content}</p>`
-      case 'heading':
-        return `<h${token.level}>${token.content}</h${token.level}>`
-      case 'inline':
-        return this.renderInline(token.children || [])
-      case 'code_block':
-        return `<pre${this.renderAttrs(token)}><code>${escapeHtml(token.content)}</code></pre>\n`
-      case 'fence':
-        return this.renderFence(token)
-      case 'code_inline':
-        return `<code${this.renderAttrs(token)}>${escapeHtml(token.content)}</code>`
-      // Add more cases for other token types as needed
-      default:
-        return ''
-    }
-  }
-
-  private attrIndex(token: Token, name: string): number {
-    if (!token.attrs)
-      return -1
-
-    for (let i = 0; i < token.attrs.length; i++) {
-      if (token.attrs[i][0] === name)
-        return i
-    }
-    return -1
-  }
-
-  private renderFence(token: Token): string {
+const defaultRules: Record<string, RendererRule> = {
+  code_inline(tokens, idx, _options, _env, self) {
+    const token = tokens[idx]
+    return `<code${self.renderAttrs(token)}>${escapeHtml(token.content)}</code>`
+  },
+  code_block(tokens, idx, _options, _env, self) {
+    const token = tokens[idx]
+    return `<pre${self.renderAttrs(token)}><code>${escapeHtml(token.content)}</code></pre>\n`
+  },
+  fence(tokens, idx, options, _env, self) {
+    const token = tokens[idx]
     const info = token.info ? unescapeAll(token.info).trim() : ''
     let langName = ''
     let langAttrs = ''
 
     if (info) {
-      const arr = info.split(/(\s+)/g)
-      langName = arr[0]
-      langAttrs = arr.slice(2).join('')
+      const parts = info.split(/(\s+)/g)
+      langName = parts[0]
+      langAttrs = parts.slice(2).join('')
     }
 
-    let highlighted: string
-    if (this.options.highlight) {
-      highlighted = this.options.highlight(token.content, langName, langAttrs) || escapeHtml(token.content)
-    }
-    else {
-      highlighted = escapeHtml(token.content)
-    }
+    const highlight = options.highlight
+    const highlighted = highlight ? (highlight(token.content, langName, langAttrs) || escapeHtml(token.content)) : escapeHtml(token.content)
 
-    // If highlighter already wrapped in <pre>, return as-is
-    if (highlighted.indexOf('<pre') === 0) {
+    if (highlighted.startsWith('<pre'))
       return `${highlighted}\n`
-    }
 
-    // If language exists, inject class
     if (info) {
-      const i = this.attrIndex(token, 'class')
-      const tmpAttrs = token.attrs ? token.attrs.slice() : []
+      const classIndex = typeof token.attrIndex === 'function' ? token.attrIndex('class') : -1
+      const tmpAttrs = token.attrs ? token.attrs.map(attr => attr.slice() as [string, string]) : []
 
-      if (i < 0) {
-        tmpAttrs.push(['class', (this.options.langPrefix || 'language-') + langName])
-      }
-      else {
-        tmpAttrs[i] = tmpAttrs[i].slice() as [string, string]
-        tmpAttrs[i][1] += ` ${this.options.langPrefix || 'language-'}${langName}`
-      }
+      const langClass = `${options.langPrefix || 'language-'}${langName}`
 
-      // Fake token just to render attributes
-      const tmpToken: Token = {
-        ...token,
-        attrs: tmpAttrs,
-      }
+      if (classIndex < 0)
+        tmpAttrs.push(['class', langClass])
+      else
+        tmpAttrs[classIndex][1] += ` ${langClass}`
 
-      return `<pre><code${this.renderAttrs(tmpToken)}>${highlighted}</code></pre>\n`
+      const tmpToken = { ...token, attrs: tmpAttrs } as Token
+      return `<pre><code${self.renderAttrs(tmpToken)}>${highlighted}</code></pre>\n`
     }
 
-    return `<pre><code${this.renderAttrs(token)}>${highlighted}</code></pre>\n`
+    return `<pre><code${self.renderAttrs(token)}>${highlighted}</code></pre>\n`
+  },
+  image(tokens, idx, options, env, self) {
+    const token = tokens[idx]
+    const altText = self.renderInlineAsText(token.children || [], options, env)
+    if (typeof token.attrIndex === 'function') {
+      const altIndex = token.attrIndex('alt')
+      if (altIndex >= 0 && token.attrs)
+        token.attrs[altIndex][1] = altText
+      else if (token.attrs)
+        token.attrs.push(['alt', altText])
+      else
+        token.attrs = [['alt', altText]]
+    }
+    return self.renderToken(tokens, idx, options)
+  },
+  hardbreak(_tokens, _idx, options) {
+    return options.xhtmlOut ? '<br />\n' : '<br>\n'
+  },
+  softbreak(_tokens, _idx, options) {
+    return options.breaks ? (options.xhtmlOut ? '<br />\n' : '<br>\n') : '\n'
+  },
+  text(tokens, idx) {
+    return escapeHtml(tokens[idx].content)
+  },
+  html_block(tokens, idx) {
+    return tokens[idx].content
+  },
+  html_inline(tokens, idx) {
+    return tokens[idx].content
+  },
+}
+
+function mergeOptions(base: RendererOptions, override: RendererOptions): RendererOptions {
+  return {
+    langPrefix: 'language-',
+    xhtmlOut: false,
+    breaks: false,
+    ...base,
+    ...override,
+  }
+}
+
+export class Renderer {
+  public readonly rules: Record<string, RendererRule>
+  private baseOptions: RendererOptions
+
+  constructor(options: RendererOptions = {}) {
+    this.baseOptions = { ...options }
+    this.rules = { ...defaultRules }
   }
 
-  private renderInline(tokens: Token[] = []): string {
-    return (tokens || []).map((token) => {
+  public set(options: RendererOptions) {
+    this.baseOptions = { ...this.baseOptions, ...options }
+    return this
+  }
+
+  public render(tokens: Token[], options: RendererOptions = {}, env: RendererEnv = {}): string {
+    if (!Array.isArray(tokens))
+      throw new TypeError('render expects token array as first argument')
+
+    const merged = mergeOptions(this.baseOptions, options)
+    let result = ''
+
+    for (let i = 0; i < tokens.length; i++) {
+      const token = tokens[i]
+      if (token.type === 'inline') {
+        result += this.renderInline(token.children || [], merged, env)
+        continue
+      }
+
+      const rule = this.rules[token.type]
+      if (rule)
+        result += rule(tokens, i, merged, env, this)
+      else
+        result += this.renderToken(tokens, i, merged)
+    }
+
+    return result
+  }
+
+  public renderInline(tokens: Token[], options: RendererOptions = {}, env: RendererEnv = {}): string {
+    const merged = mergeOptions(this.baseOptions, options)
+    let result = ''
+
+    for (let i = 0; i < tokens.length; i++) {
+      const token = tokens[i]
+      const rule = this.rules[token.type]
+      if (rule)
+        result += rule(tokens, i, merged, env, this)
+      else
+        result += this.renderToken(tokens, i, merged)
+    }
+
+    return result
+  }
+
+  public renderInlineAsText(tokens: Token[], options: RendererOptions = {}, env: RendererEnv = {}): string {
+    const merged = mergeOptions(this.baseOptions, options)
+    let result = ''
+
+    for (let i = 0; i < tokens.length; i++) {
+      const token = tokens[i]
       switch (token.type) {
         case 'text':
-          return token.content
-        case 'strong_open':
-          return '<strong>'
-        case 'strong_close':
-          return '</strong>'
-        case 'em_open':
-          return '<em>'
-        case 'em_close':
-          return '</em>'
-        case 'code_inline':
-          return `<code${this.renderAttrs(token)}>${escapeHtml(token.content)}</code>`
+          result += token.content
+          break
+        case 'image':
+          result += this.renderInlineAsText(token.children || [], merged, env)
+          break
+        case 'html_inline':
+        case 'html_block':
+          result += token.content
+          break
+        case 'softbreak':
+        case 'hardbreak':
+          result += '\n'
+          break
         default:
-          return ''
+          break
       }
-    }).join('')
+    }
+
+    return result
+  }
+
+  public renderAttrs(token: Token): string {
+    if (!token.attrs || token.attrs.length === 0)
+      return ''
+
+    return token.attrs
+      .map(([name, value]) => ` ${escapeHtml(name)}="${escapeHtml(value)}"`)
+      .join('')
+  }
+
+  public renderToken(tokens: Token[], idx: number, options: RendererOptions): string {
+    const token = tokens[idx]
+
+    if (token.hidden)
+      return ''
+
+    let result = ''
+
+    if (token.block && token.nesting !== -1 && idx > 0 && tokens[idx - 1].hidden)
+      result += '\n'
+
+    result += token.nesting === -1 ? `</${token.tag}` : `<${token.tag}`
+    result += this.renderAttrs(token)
+
+    if (token.nesting === 0 && options.xhtmlOut)
+      result += ' /'
+
+    let needLineFeed = false
+    if (token.block) {
+      needLineFeed = true
+
+      if (token.nesting === 1 && idx + 1 < tokens.length) {
+        const nextToken = tokens[idx + 1]
+        if (nextToken.type === 'inline' || nextToken.hidden)
+          needLineFeed = false
+        else if (nextToken.nesting === -1 && nextToken.tag === token.tag)
+          needLineFeed = false
+      }
+    }
+
+    result += needLineFeed ? '>\n' : '>'
+
+    return result
   }
 }
 

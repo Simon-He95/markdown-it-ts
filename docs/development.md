@@ -2,9 +2,10 @@
 
 Before continuing, make sure you've read:
 
-1. [README](https://github.com/markdown-it/markdown-it#markdown-it)
-2. [API documentation](https://markdown-it.github.io/markdown-it/)
-3. [Architecture description](architecture.md)
+1. [`README`](../README.md) for package-specific notes
+2. [markdown-it README](https://github.com/markdown-it/markdown-it#markdown-it)
+3. [API documentation](https://markdown-it.github.io/markdown-it/)
+4. [Architecture description](architecture.md)
 
 ## General considerations for plugins.
 
@@ -17,9 +18,16 @@ Before continuing, make sure you've read:
     block and inline rules are usually faster.
   - Sometimes, it's enough to only modify the renderer, for example, to add
     header IDs or `target="_blank"` for the links.
-  - Plugins should not require the `markdown-it` package as dependency in `package.json`.
-    If you need access to internals, those are available via a parser instance,
-    passed on plugin load. See properties of main class and nested objects.
+  - Publish plugins as ESM-first packages when possible. `markdown-it-ts`
+    exposes the same runtime contract as markdown-it but is authored in
+    TypeScript, so shipping type definitions (`types` or `exports` field) makes
+    the developer experience much better.
+  - Plugins should not require the `markdown-it` package as dependency in
+    `package.json`. If you need access to internals, those are available via a
+    parser instance passed on plugin load. See properties of the main class and
+    nested objects.
+  - Prefer shipping both `markdown-it` and `markdown-it-ts` as peer dependencies
+    if you surface shared helpers, so consumers can choose the runtime.
 2. Search existing
    [plugins](https://www.npmjs.org/browse/keyword/markdown-it-plugin)
    or [rules](https://github.com/markdown-it/markdown-it/tree/master/lib),
@@ -32,12 +40,14 @@ Before continuing, make sure you've read:
    - Don't ask us to break [CommonMark](http://commonmark.org/) specification.
      Such things should be discussed first on [CommonMark forum](http://talk.commonmark.org/).
 
-## Notes for NPM packages
+## Notes for publishing packages
 
-To simplify search:
+To simplify search and TypeScript consumption:
 
 - add to `package.json` keywords `markdown-it` and `markdown-it-plugin` for plugins.
 - add keyword `markdown-it` for any other related packages.
+- point `types` (and optionally `exports` subpath types) to your declaration
+  files so `markdown-it-ts` users inherit typings automatically.
 
 ## FAQ
 
@@ -76,5 +86,7 @@ We do a markdown parser. It should keep the "markdown spirit". Other things shou
 be kept separate, in plugins, for example. We have no clear criteria, sorry.
 Probably, you will find [CommonMark forum](http://talk.commonmark.org/) a useful read to understand us better.
 
-Of course, if you find the architecture of this parser interesting for another type
-of markup, you are welcome to reuse it in another project.
+Of course, if you find the architecture of this parser interesting for another
+type of markup, you are welcome to reuse it in another project. The TypeScript
+codebase is intentionally modular and can be used as a foundation for other
+DSLs or custom Markdown dialects.

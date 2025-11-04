@@ -1,3 +1,4 @@
+import type { RendererOptions } from './render/renderer'
 import LinkifyIt from 'linkify-it'
 import * as utils from './common/utils'
 import * as helpers from './helpers'
@@ -6,6 +7,7 @@ import { ParserCore } from './parse/parser_core'
 import commonmarkPreset from './presets/commonmark'
 import defaultPreset from './presets/default'
 import zeroPreset from './presets/zero'
+import Renderer from './render/renderer'
 
 export { Token } from './common/token'
 export { parse, parseInline } from './parse'
@@ -90,17 +92,21 @@ export default function markdownit(presetName?: string | MarkdownItOptions, opti
   // construct minimal core instance; avoid importing renderer here
   const core = new ParserCore()
 
+  const renderer = new Renderer(opts)
+
   const md: any = {
     // expose core parts for plugins and rules
     core,
     block: core.block,
     inline: core.inline,
     linkify: new LinkifyIt(),
+    renderer,
 
     // options & mutators
     options: opts,
     set(newOpts: MarkdownItOptions) {
       this.options = { ...this.options, ...newOpts }
+      this.renderer.set(newOpts as RendererOptions)
       return this
     },
     configure(presets: string | Preset) {
@@ -156,6 +162,14 @@ export default function markdownit(presetName?: string | MarkdownItOptions, opti
     use(this: MarkdownItCore, plugin: MarkdownItPlugin, ...params: unknown[]) {
       plugin(this, ...params)
       return this
+    },
+    render(this: MarkdownItCore, src: string, env: Record<string, unknown> = {}) {
+      const tokens = this.parse(src, env)
+      return this.renderer.render(tokens, this.options, env)
+    },
+    renderInline(this: MarkdownItCore, src: string, env: Record<string, unknown> = {}) {
+      const tokens = this.parseInline(src, env)
+      return this.renderer.render(tokens, this.options, env)
     },
 
     // link helpers

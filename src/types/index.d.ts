@@ -8,7 +8,7 @@ export interface MarkdownItOptions {
   linkify?: boolean;
   typographer?: boolean;
   quotes?: string | string[];
-  highlight?: (str: string, lang: string) => string;
+  highlight?: ((str: string, lang: string, attrs: string) => string) | null;
 }
 
 // Token is now a class exported from src/common/token.ts
@@ -19,7 +19,7 @@ export interface State {
   src: string;
   env: Record<string, unknown>;
   tokens: Token[];
-  }
+}
 
 export interface Rule {
   name: string;
@@ -28,8 +28,10 @@ export interface Rule {
 }
 
 export type RendererOptions = {
-  langPrefix?: string
-  highlight?: (str: string, lang: string, attrs: string) => string
+  langPrefix?: string;
+  highlight?: ((str: string, lang: string, attrs: string) => string) | null;
+  xhtmlOut?: boolean;
+  breaks?: boolean;
 }
 
 export interface MarkdownIt {
@@ -43,6 +45,7 @@ export interface MarkdownIt {
   validateLink(url: string): boolean;
   normalizeLink(url: string): string;
   normalizeLinkText(url: string): string;
+  renderer: import('../render/renderer').Renderer;
 }
 
 export type MarkdownItPreset = 'default' | 'commonmark' | 'zero';

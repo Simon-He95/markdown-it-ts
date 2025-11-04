@@ -3,14 +3,20 @@
 ## Data flow
 
 Input data is parsed via nested chains of rules. There are 3 nested chains --
-`core`, `block`, & `inline`:
+`core`, `block`, & `inline`. The TypeScript port keeps the same structure while
+exposing strongly typed state classes and rulers:
 
-```
-core
+```ts
+import markdownIt from 'markdown-it-ts'
+
+const md = markdownIt()
     core.rule1 (normalize)
-    ...
-    core.ruleX
+```ts
+import markdownIt from 'markdown-it-ts'
+import iterator from 'markdown-it-for-inline'
 
+const md = markdownIt()
+  .use(iterator, 'url_new_win', 'link_open', (tokens, idx) => {
     block
         block.rule1 (blockquote)
         ...
@@ -47,7 +53,7 @@ The difference is simple:
 - There are special token objects, "inline containers", that have nested tokens.
   These are sequences with inline markup, such as bold, italic, text, etc.
 
-See the [`Token`](https://github.com/markdown-it/markdown-it/blob/master/lib/token.mjs) class
+See the [`Token`](../src/common/token.ts) class
 for details about each token's content.
 
 In total, a token stream is:
@@ -69,28 +75,25 @@ More details about tokens:
 - [`Token` source](https://github.com/markdown-it/markdown-it/blob/master/lib/token.mjs)
 - [Live demo](https://markdown-it.github.io/) - type your text and click the `debug` tab.
 
-## Rules
+```text
+core.rule1 (normalize)
+  block
+    block.rule1 (blockquote)
+    ...
+    block.ruleX
 
-Rules are functions, doing "magic" with parser `state` objects. A rule is associated with one or more *chains* and is unique. For instance, a `blockquote` token is associated with the `blockquote`, `paragraph`, `heading`, and `list` chains.
+core.ruleX1 (intermediate rule that applies on block tokens, nothing yet)
+...
+core.ruleXX
 
-Rules are managed by name via [`Ruler`](https://markdown-it.github.io/markdown-it/#Ruler) instances and can be enabled and disabled from [`MarkdownIt`](https://markdown-it.github.io/markdown-it/#MarkdownIt)'s methods.
+inline (applied to each block token with "inline" type)
+  inline.rule1 (text)
+  ...
+  inline.ruleX
 
-Note that some rules have a `validation mode` -- in this mode, rules do not
-modify the token stream and only look ahead for the end of a token. It's one
-important design principle -- a token stream is "write only" on the `block` & `inline` parse stages.
-
-Parsers are designed to keep rules independent of each other. You can safely enable/disable them or
-add new ones. There are no universal recipes for how to create new rules -- the design of
-distributed state machines with good data isolation is a tricky business. However, you
-can investigate existing rules & plugins to see possible approaches.
-
-In complex cases you can try to ask for help in the [issue tracker](https://github.com/markdown-it/markdown-it/issues).
-The condition is very simple -- it should be clear from your ticket that you studied the docs, sources,
-and tried to do something yourself. We never reject with help to real developers.
-
-## Renderer
-
-After the token stream is generated, it's passed to a [`Renderer`](https://markdown-it.github.io/markdown-it/#Renderer).
+core.ruleYY (applies to all tokens)
+... (abbreviation, footnote, typographer, linkifier)
+After the token stream is generated, it's passed to a [`Renderer`](../src/render/renderer.ts).
 It then iterates through all the tokens, passing each to a rule with the same name as its token type.
 
 Renderer rules are located in `md.renderer.rules[name]` and are simple functions
@@ -106,8 +109,10 @@ function (tokens, idx, options, env, renderer) {
 In many cases, that allows easy output changes even without parser intrusion.
 For example, let's convert every image that uses a Vimeo link into a player iframe:
 
-```js
-const md = require('markdown-it')()
+```ts
+import markdownIt from 'markdown-it-ts'
+
+const md = markdownIt()
 
 const defaultRender = md.renderer.rules.image
 const vimeoRE = /^https?:\/\/(www\.)?vimeo.com\/(\d+)($|\/)/
@@ -130,7 +135,11 @@ md.renderer.rules.image = function (tokens, idx, options, env, self) {
 
 Here is another example on how to add `target="_blank"` to all links:
 
-```js
+```ts
+import markdownIt from 'markdown-it-ts'
+
+const md = markdownIt()
+
 // Remember the old renderer if overridden, or proxy to the default renderer.
 const defaultRender = md.renderer.rules.link_open || function (tokens, idx, options, env, self) {
   return self.renderToken(tokens, idx, options)
@@ -151,10 +160,11 @@ renderer override, but it can be more simple. Let's use the
 [`markdown-it-for-inline`](https://github.com/markdown-it/markdown-it-for-inline) plugin
 to do the same thing as in previous example:
 
-```js
-const iterator = require('markdown-it-for-inline')
+```ts
+import markdownIt from 'markdown-it-ts'
+import iterator from 'markdown-it-for-inline'
 
-const md = require('markdown-it')()
+const md = markdownIt()
   .use(iterator, 'url_new_win', 'link_open', (tokens, idx) => {
     tokens[idx].attrSet('target', '_blank')
   })
@@ -175,8 +185,8 @@ And somewhere in between, you can apply additional transformations.
 
 Source code for each chain can be seen in the following files:
 
-- [`parser_core.mjs`](https://github.com/markdown-it/markdown-it/blob/master/lib/parser_core.mjs)
-- [`parser_block.mjs`](https://github.com/markdown-it/markdown-it/blob/master/lib/parser_block.mjs)
-- [`parser_inline.mjs`](https://github.com/markdown-it/markdown-it/blob/master/lib/parser_inline.mjs)
+- [`src/parse/parser_core.ts`](../src/parse/parser_core.ts)
+- [`src/parse/parser_block.ts`](../src/parse/parser_block.ts)
+- [`src/parse/parser_inline/index.ts`](../src/parse/parser_inline/index.ts)
 
 Also, you can change output directly in a [`Renderer`](https://markdown-it.github.io/markdown-it/#Renderer) for many simple cases.

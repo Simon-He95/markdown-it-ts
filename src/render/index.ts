@@ -1,17 +1,20 @@
-import type { RendererOptions, Token } from '../types'
+import type { Token } from '../common/token'
+import type { RendererEnv, RendererOptions } from './renderer'
+import { parse } from '../parse'
 import Renderer from './renderer'
 
-/**
- * Render tokens to HTML string using the Renderer class.
- * This small wrapper allows importing just the render functionality.
- */
-export function render(tokens: Token[], options: RendererOptions = {}, _env: Record<string, unknown> = {}) {
-  if (!Array.isArray(tokens)) {
-    throw new TypeError('render expects token array as first argument')
-  }
+type RenderInput = string | Token[]
 
-  const r = new Renderer(options)
-  return r.render(tokens, options)
+/**
+ * Render markdown or pre-generated tokens to HTML using a fresh Renderer instance.
+ */
+export function render(input: RenderInput, options: RendererOptions = {}, env: RendererEnv = {}) {
+  const renderer = new Renderer(options)
+  const tokens = typeof input === 'string' ? parse(input, env) : input
+  return renderer.render(tokens, options, env)
 }
+
+export { Renderer }
+export type { RendererEnv, RendererOptions }
 
 export default render

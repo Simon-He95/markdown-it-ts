@@ -2,14 +2,14 @@
 
 A TypeScript migration of [markdown-it](https://github.com/markdown-it/markdown-it) with modular architecture for tree-shaking and separate parse/render imports.
 
-## 🚀 Migration Status: ~85% Complete
+## 🚀 Migration Status: 100% Complete
 
 This is an **active migration** of markdown-it to TypeScript with the following goals:
 - ✅ Full TypeScript type safety
 - ✅ Modular architecture (separate parse/render imports)
 - ✅ Tree-shaking support
 - ✅ Ruler-based rule system
-- ⚠️ API compatibility with original markdown-it
+- ✅ API compatibility with original markdown-it
 
 ### What's Implemented
 
@@ -35,27 +35,17 @@ This is an **active migration** of markdown-it to TypeScript with the following 
 - BlockRuler implementation (80 lines)
 - ParserBlock refactored with Ruler pattern
 
-#### ✅ Inline System (83%)
-- **10/12 inline rules**:
-  - text, newline, escape, backticks
-  - emphasis (with tokenize & postProcess)
-  - link, image, autolink
-  - html_inline, entity
-  - ⚠️ Missing: linkify (needs linkify-it), strikethrough (GFM)
+#### ✅ Inline System (100%)
+- **All 12 inline rules** (text, escape, linkify, strikethrough, etc.) with full post-processing coverage
 - StateInline with 18 properties, 3 methods
-- InlineRuler implementation
-- 3/4 post-process rules (balance_pairs, emphasis.postProcess, fragments_join)
+- InlineRuler implementation mirroring markdown-it behavior
 
-#### ✅ Infrastructure (100%)
-- Type definitions with Token interface
+#### ✅ Renderer & Infrastructure (100%)
+- Renderer ported from markdown-it with attribute handling & highlight support
+- Type definitions with Token interface and renderer options
 - Helper functions (parseLinkLabel, parseLinkDestination, parseLinkTitle)
 - Common utilities (html_blocks, html_re, utils)
-
-### What's Missing
-- ⚠️ 2 optional inline rules (linkify, strikethrough)
-- ⚠️ Complete test suite validation
-- ⚠️ Renderer implementation
-- ⚠️ Plugin system integration
+- `markdownit()` instances expose `render`, `renderInline`, and `renderer` for plugin compatibility
 
 ## Installation
 
@@ -68,15 +58,26 @@ npm install markdown-it-ts
 ### Basic Parsing (Current State)
 
 ```typescript
-import { ParserBlock } from 'markdown-it-ts/parse'
+import markdownIt from 'markdown-it-ts'
 
-const tokens = parse('# Hello World')
+const md = markdownIt()
+const tokens = md.parse('# Hello World')
 console.log(tokens)
 ```
 
 ### Rendering Markdown
 
-To render Markdown to HTML, you can import the rendering functionalities:
+Use the built-in renderer for full markdown-it compatibility:
+
+```typescript
+import markdownIt from 'markdown-it-ts'
+
+const md = markdownIt()
+const html = md.render('# Hello World')
+console.log(html)
+```
+
+If you only need the renderer without the full instance (for tree-shaken builds), you can still import it directly:
 
 ```typescript
 import { render } from 'markdown-it-ts/render'
@@ -90,14 +91,30 @@ console.log(html)
 You can customize the parser and renderer by enabling or disabling specific rules:
 
 ```typescript
-import MarkdownIt from 'markdown-it-ts'
+import markdownIt from 'markdown-it-ts'
 
-const md = new MarkdownIt()
+const md = markdownIt()
   .enable(['linkify', 'typographer'])
   .disable('html')
 
 const result = md.render('Some markdown content')
 console.log(result)
+```
+
+### Plugin Authoring (Type-Safe)
+
+Plugins are regular functions that receive the `markdown-it-ts` instance. For full type-safety use the exported `MarkdownItPlugin` type:
+
+```typescript
+import markdownIt, { MarkdownItPlugin } from 'markdown-it-ts'
+
+const plugin: MarkdownItPlugin = (md) => {
+  md.core.ruler.after('block', 'my_rule', (state) => {
+    // custom transform logic
+  })
+}
+
+const md = markdownIt().use(plugin)
 ```
 
 ## Contributing
