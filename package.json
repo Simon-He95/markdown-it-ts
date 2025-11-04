@@ -1,7 +1,7 @@
 {
   "name": "markdown-it-ts",
   "type": "module",
-  "version": "0.0.2-beta.0",
+  "version": "0.0.2-beta.1",
   "description": "A TypeScript implementation of the markdown-it library with separate parse and render functionalities.",
   "author": "Your Name",
   "license": "MIT",
