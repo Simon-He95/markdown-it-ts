@@ -1,4 +1,4 @@
-import type { MarkdownItCore, MarkdownItOptions } from '../index'
+import type { MarkdownIt, MarkdownItOptions } from '../index'
 import Renderer from '../render/renderer'
 
 /**
@@ -6,7 +6,7 @@ import Renderer from '../render/renderer'
  * Importing this module brings renderer code into the bundle explicitly,
  * preserving tree-shaking when consumers only use md.parse/parseInline.
  */
-export function withRenderer(md: MarkdownItCore, options?: MarkdownItOptions) {
+export function withRenderer(md: MarkdownIt, options?: MarkdownItOptions) {
   if (!md.renderer)
     md.renderer = new Renderer()
 

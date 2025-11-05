@@ -1,5 +1,5 @@
-import type { RendererOptions } from './render/renderer'
 import type { Token as TokenType } from './common/token'
+import type { RendererOptions } from './render/renderer'
 import LinkifyIt from 'linkify-it'
 import * as utils from './common/utils'
 import * as helpers from './helpers'
@@ -44,27 +44,27 @@ export interface MarkdownIt {
   linkify: ReturnType<typeof LinkifyIt>
   renderer: Renderer
   options: MarkdownItOptions
-  set(options: MarkdownItOptions): this
-  configure(presets: string | Preset): this
-  enable(list: string | string[], ignoreInvalid?: boolean): this
-  disable(list: string | string[], ignoreInvalid?: boolean): this
-  use(plugin: MarkdownItPlugin, ...params: unknown[]): this
-  render(src: string, env?: Record<string, unknown>): string
-  renderInline(src: string, env?: Record<string, unknown>): string
+  set: (options: MarkdownItOptions) => this
+  configure: (presets: string | Preset) => this
+  enable: (list: string | string[], ignoreInvalid?: boolean) => this
+  disable: (list: string | string[], ignoreInvalid?: boolean) => this
+  use: (plugin: MarkdownItPlugin, ...params: unknown[]) => this
+  render: (src: string, env?: Record<string, unknown>) => string
+  renderInline: (src: string, env?: Record<string, unknown>) => string
   validateLink: typeof validateLink
   normalizeLink: typeof normalizeLink
   normalizeLinkText: typeof normalizeLinkText
   utils: typeof utils
   helpers: typeof helpers
-  parse(src: string, env?: Record<string, unknown>): TokenType[]
-  parseInline(src: string, env?: Record<string, unknown>): TokenType[]
+  parse: (src: string, env?: Record<string, unknown>) => TokenType[]
+  parseInline: (src: string, env?: Record<string, unknown>) => TokenType[]
 }
 
 export type MarkdownItPluginFn = (md: MarkdownIt, ...params: unknown[]) => unknown
 export interface MarkdownItPluginModule { default: MarkdownItPluginFn }
 export type MarkdownItPlugin = MarkdownItPluginFn | MarkdownItPluginModule
 
-function MarkdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownItOptions): MarkdownIt {
+function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownItOptions): MarkdownIt {
   // defaults (core-only)
   let opts: MarkdownItOptions = {
     html: false,
@@ -254,7 +254,12 @@ function MarkdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
   return md as MarkdownIt
 }
 
-export type MarkdownItCore = ReturnType<typeof MarkdownIt>
+// Provide a constructor+callable type so both `new MarkdownIt()` and `MarkdownIt()` are correctly typed
+export interface MarkdownItConstructor {
+  new (presetName?: string | MarkdownItOptions, options?: MarkdownItOptions): MarkdownIt
+  (presetName?: string | MarkdownItOptions, options?: MarkdownItOptions): MarkdownIt
+}
 
-// Export the default function
-export default MarkdownIt
+// Export default with constructor signature to match original markdown-it behavior
+const MarkdownItExport = markdownIt as unknown as MarkdownItConstructor
+export default MarkdownItExport
