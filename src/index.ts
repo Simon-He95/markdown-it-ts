@@ -229,9 +229,9 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
     parseInline(src: string, env: Record<string, unknown> = {}) {
       if (typeof src !== 'string')
         throw new TypeError('Input data should be a String')
-      const state = core.createState(src, env)
+      const state = core.createState(src, env, this)
       state.inlineMode = true
-      core.process(state, this)
+      core.process(state)
       // Return tokens array containing single inline token (matches original)
       return state.tokens
     },

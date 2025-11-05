@@ -9,6 +9,11 @@ export class BlockRuler {
     fn: (state: any, startLine: number, endLine: number, silent: boolean) => boolean
     alt: string[]
   }> = []
+  private cache: Map<string, Array<(state: any, startLine: number, endLine: number, silent: boolean) => boolean>> | null = null
+
+  private invalidateCache(): void {
+    this.cache = null
+  }
 
   push(name: string, fn: any, options?: { alt?: string[] }): void {
     this._rules.push({
@@ -17,6 +22,7 @@ export class BlockRuler {
       fn,
       alt: options?.alt || [],
     })
+    this.invalidateCache()
   }
 
   before(beforeName: string, name: string, fn: any, options?: { alt?: string[] }): void {
@@ -27,6 +33,7 @@ export class BlockRuler {
     if (exists >= 0)
       this._rules.splice(exists, 1)
     this._rules.splice(i, 0, { name, enabled: true, fn, alt: options?.alt || [] })
+    this.invalidateCache()
   }
 
   after(afterName: string, name: string, fn: any, options?: { alt?: string[] }): void {
@@ -37,21 +44,14 @@ export class BlockRuler {
     if (exists >= 0)
       this._rules.splice(exists, 1)
     this._rules.splice(i + 1, 0, { name, enabled: true, fn, alt: options?.alt || [] })
+    this.invalidateCache()
   }
 
   getRules(chainName: string): Array<(state: any, startLine: number, endLine: number, silent: boolean) => boolean> {
-    if (chainName === '') {
-      return this._rules.filter(rule => rule.enabled).map(rule => rule.fn)
-    }
-
-    // Get rules that can be terminated by specific rule names
-    const result: typeof this._rules[0]['fn'][] = []
-    for (const rule of this._rules) {
-      if (rule.enabled && (!chainName || rule.alt.includes(chainName))) {
-        result.push(rule.fn)
-      }
-    }
-    return result
+    const chain = chainName || ''
+    if (!this.cache)
+      this.compileCache()
+    return this.cache!.get(chain) ?? []
   }
 
   at(name: string, fn: any, options?: { alt?: string[] }): void {
@@ -64,6 +64,7 @@ export class BlockRuler {
     if (options?.alt) {
       this._rules[index].alt = options.alt
     }
+    this.invalidateCache()
   }
 
   enable(names: string | string[], ignoreInvalid?: boolean): string[] {
@@ -77,10 +78,14 @@ export class BlockRuler {
           return
         throw new Error(`Rules manager: invalid rule name ${name}`)
       }
-      this._rules[idx].enabled = true
-      result.push(name)
+      if (!this._rules[idx].enabled) {
+        this._rules[idx].enabled = true
+        result.push(name)
+      }
     })
 
+    if (result.length)
+      this.invalidateCache()
     return result
   }
 
@@ -95,16 +100,53 @@ export class BlockRuler {
           return
         throw new Error(`Rules manager: invalid rule name ${name}`)
       }
-      this._rules[idx].enabled = false
-      result.push(name)
+      if (this._rules[idx].enabled) {
+        this._rules[idx].enabled = false
+        result.push(name)
+      }
     })
 
+    if (result.length)
+      this.invalidateCache()
     return result
   }
 
   enableOnly(names: string[]): void {
     const allow = new Set(names)
-    for (const r of this._rules) r.enabled = allow.has(r.name)
+    let changed = false
+    for (const r of this._rules) {
+      const next = allow.has(r.name)
+      if (r.enabled !== next) {
+        r.enabled = next
+        changed = true
+      }
+    }
+    if (changed)
+      this.invalidateCache()
+  }
+
+  private compileCache(): void {
+    const chains = new Set<string>([''])
+    for (const rule of this._rules) {
+      if (!rule.enabled)
+        continue
+      for (const alt of rule.alt)
+        chains.add(alt)
+    }
+
+    const cache = new Map<string, Array<(state: any, startLine: number, endLine: number, silent: boolean) => boolean>>()
+    for (const chain of chains) {
+      const bucket: Array<(state: any, startLine: number, endLine: number, silent: boolean) => boolean> = []
+      for (const rule of this._rules) {
+        if (!rule.enabled)
+          continue
+        if (chain !== '' && !rule.alt.includes(chain))
+          continue
+        bucket.push(rule.fn)
+      }
+      cache.set(chain, bucket)
+    }
+    this.cache = cache
   }
 }
 

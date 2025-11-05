@@ -12,6 +12,11 @@ export interface InlineRule {
 
 export class InlineRuler {
   private rules: InlineRule[] = []
+  private cache: Map<string, Array<(state: any, silent?: boolean) => boolean | void>> | null = null
+
+  private invalidateCache(): void {
+    this.cache = null
+  }
 
   /**
    * Push new rule to the end of chain
@@ -27,6 +32,7 @@ export class InlineRuler {
       alt: options?.alt || [],
       enabled: true,
     })
+    this.invalidateCache()
   }
 
   public at(name: string): InlineRule | undefined {
@@ -41,6 +47,7 @@ export class InlineRuler {
     if (exists >= 0)
       this.rules.splice(exists, 1)
     this.rules.splice(i, 0, { name, fn, alt: options?.alt || [], enabled: true })
+    this.invalidateCache()
   }
 
   public after(afterName: string, name: string, fn: (state: any, silent?: boolean) => boolean | void, options?: { alt?: string[] }) {
@@ -51,6 +58,7 @@ export class InlineRuler {
     if (exists >= 0)
       this.rules.splice(exists, 1)
     this.rules.splice(i + 1, 0, { name, fn, alt: options?.alt || [], enabled: true })
+    this.invalidateCache()
   }
 
   public enable(names: string | string[], ignoreInvalid?: boolean): string[] {
@@ -63,9 +71,13 @@ export class InlineRuler {
           throw new Error(`Rules manager: invalid rule name ${n}`)
         continue
       }
-      this.rules[idx].enabled = true
-      changed.push(n)
+      if (!this.rules[idx].enabled) {
+        this.rules[idx].enabled = true
+        changed.push(n)
+      }
     }
+    if (changed.length)
+      this.invalidateCache()
     return changed
   }
 
@@ -79,22 +91,64 @@ export class InlineRuler {
           throw new Error(`Rules manager: invalid rule name ${n}`)
         continue
       }
-      this.rules[idx].enabled = false
-      changed.push(n)
+      if (this.rules[idx].enabled) {
+        this.rules[idx].enabled = false
+        changed.push(n)
+      }
     }
+    if (changed.length)
+      this.invalidateCache()
     return changed
   }
 
   public enableOnly(names: string[]): void {
     const allow = new Set(names)
-    for (const r of this.rules) r.enabled = allow.has(r.name)
+    let changed = false
+    for (const r of this.rules) {
+      const next = allow.has(r.name)
+      if (r.enabled !== next) {
+        r.enabled = next
+        changed = true
+      }
+    }
+    if (changed)
+      this.invalidateCache()
   }
 
   /**
    * Get rules for specified chain name (or empty string for default)
    */
-  public getRules(_chainName: string): Array<(state: any, silent?: boolean) => boolean | void> {
-    return this.rules.filter(rule => rule.enabled).map(rule => rule.fn)
+  public getRules(chainName: string): Array<(state: any, silent?: boolean) => boolean | void> {
+    const chain = chainName || ''
+    if (!this.cache)
+      this.compileCache()
+    return this.cache!.get(chain) ?? []
+  }
+
+  private compileCache(): void {
+    const chains = new Set<string>([''])
+    for (const rule of this.rules) {
+      if (!rule.enabled)
+        continue
+      if (rule.alt) {
+        for (const alt of rule.alt)
+          chains.add(alt)
+      }
+    }
+
+    const cache = new Map<string, Array<(state: any, silent?: boolean) => boolean | void>>()
+    for (const chain of chains) {
+      const bucket: Array<(state: any, silent?: boolean) => boolean | void> = []
+      for (const rule of this.rules) {
+        if (!rule.enabled)
+          continue
+        if (chain !== '' && !(rule.alt?.includes(chain)))
+          continue
+        bucket.push(rule.fn)
+      }
+      cache.set(chain, bucket)
+    }
+    this.cache = cache
   }
 }
 

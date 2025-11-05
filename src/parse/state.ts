@@ -16,14 +16,15 @@ export class State {
   public env: Record<string, unknown>
   public tokens: Token[]
   public inlineMode: boolean
-  public md?: any
+  public md: any
   public Token: typeof Token
 
-  constructor(src: string, env: Record<string, unknown> = {}) {
+  constructor(src: string, md: any, env: Record<string, unknown> = {}) {
     this.src = src || ''
     this.env = env
     this.tokens = []
     this.inlineMode = false
+    this.md = md
     this.Token = Token
   }
 }

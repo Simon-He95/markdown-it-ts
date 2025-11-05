@@ -49,6 +49,7 @@
     "bumpp": "^8.2.1",
     "chai": "^4.5.0",
     "eslint": "^9.39.1",
+    "markdown-it": "^14.1.0",
     "markdown-it-for-inline": "^2.0.1",
     "markdown-it-testgen": "^0.1.6",
     "needle": "^3.3.1",
