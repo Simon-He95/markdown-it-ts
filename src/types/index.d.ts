@@ -9,6 +9,7 @@ export interface MarkdownItOptions {
   typographer?: boolean;
   quotes?: string | string[];
   highlight?: ((str: string, lang: string, attrs: string) => string) | null;
+  stream?: boolean;
 }
 
 // Token is now a class exported from src/common/token.ts
@@ -25,6 +26,15 @@ export interface Rule {
   name: string;
   validate?: (state: State) => boolean | void;
   parse?: (state: State) => void;
+}
+
+export interface StreamStats {
+  total: number;
+  cacheHits: number;
+  appendHits: number;
+  fullParses: number;
+  resets: number;
+  lastMode: 'idle' | 'cache' | 'append' | 'full' | 'reset';
 }
 
 export type RendererOptions = {
@@ -50,6 +60,14 @@ export interface MarkdownIt {
   normalizeLink(url: string): string;
   normalizeLinkText(url: string): string;
   renderer: import('../render/renderer').Renderer;
+  stream: {
+    enabled: boolean;
+    parse(src: string, env?: Record<string, unknown>): Token[];
+    reset(): void;
+    peek(): Token[];
+    stats(): StreamStats;
+    resetStats(): void;
+  };
 }
 
 export type MarkdownItPreset = 'default' | 'commonmark' | 'zero';

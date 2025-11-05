@@ -9,4 +9,9 @@ __Content__:
 
 - [Parser architecture & design principles](architecture.md)
 - [Some guidelines for plugin developers](development.md)
+- [Stream optimization & chunked parsing](stream-optimization.md)
+- [Performance report and guidance](perf-report.md)
+- [Latest performance run (auto-generated)](perf-latest.md)
+- [最新性能报告（自动生成，中文）](perf-latest.zh-CN.md)
+- [Best-of vs baseline (snapshot)](perf-best-vs-baseline.md)
 - [Examples](./examples)

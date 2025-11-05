@@ -34,7 +34,11 @@
     "lint": "eslint . --cache",
     "lint:fix": "pnpm run lint --fix",
     "typecheck": "vue-tsc --noEmit",
-    "release": "bumpp --commit --tag --push && pnpm publish"
+    "release": "bumpp --commit --tag --push && pnpm publish",
+    "perf:matrix": "npm run build && node scripts/perf-matrix.mjs",
+    "perf:sweep": "npm run build && node scripts/full-vs-chunked-sweep.mjs",
+    "perf:generate": "npm run build && node scripts/perf-generate-report.mjs",
+    "perf:generate:zh": "npm run build && node scripts/perf-generate-report.zh.mjs"
   },
   "dependencies": {
     "entities": "^4.5.0",

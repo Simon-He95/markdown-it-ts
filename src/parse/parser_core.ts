@@ -42,7 +42,7 @@ const DEFAULT_HELPERS = {
   parseLinkTitle,
 }
 
-type ParserLike = {
+interface ParserLike {
   block: ParserBlock
   inline: ParserInline
   core: ParserCore

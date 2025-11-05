@@ -9,6 +9,7 @@ export class BlockRuler {
     fn: (state: any, startLine: number, endLine: number, silent: boolean) => boolean
     alt: string[]
   }> = []
+
   private cache: Map<string, Array<(state: any, startLine: number, endLine: number, silent: boolean) => boolean>> | null = null
 
   private invalidateCache(): void {

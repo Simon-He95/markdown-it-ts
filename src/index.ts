@@ -1,5 +1,6 @@
 import type { Token as TokenType } from './common/token'
 import type { RendererOptions } from './render/renderer'
+import type { StreamStats } from './stream/parser'
 import LinkifyIt from 'linkify-it'
 import * as utils from './common/utils'
 import * as helpers from './helpers'
@@ -9,10 +10,15 @@ import commonmarkPreset from './presets/commonmark'
 import defaultPreset from './presets/default'
 import zeroPreset from './presets/zero'
 import Renderer from './render/renderer'
+import { chunkedParse } from './stream/chunked'
+import { StreamParser } from './stream/parser'
 
 export { Token } from './common/token'
 export { parse, parseInline } from './parse'
 export { withRenderer } from './plugins/with-renderer'
+export { chunkedParse } from './stream/chunked'
+export type { ChunkedOptions } from './stream/chunked'
+export type { StreamStats } from './stream/parser'
 
 type QuotesOption = string | [string, string, string, string]
 
@@ -26,6 +32,22 @@ export interface MarkdownItOptions {
   quotes?: QuotesOption
   highlight?: ((str: string, lang?: string, attrs?: string) => string) | null
   maxNesting?: number
+  stream?: boolean
+  // Stream optimization knobs
+  streamOptimizationMinSize?: number // characters threshold to start stream append optimizations
+  // Chunked fallback when stream falls back to full parse for very large docs
+  streamChunkedFallback?: boolean
+  streamChunkSizeChars?: number
+  streamChunkSizeLines?: number
+  streamChunkFenceAware?: boolean
+  // Full (non-stream) parse: optional chunked mode
+  fullChunkedFallback?: boolean
+  fullChunkThresholdChars?: number
+  fullChunkThresholdLines?: number
+  fullChunkSizeChars?: number
+  fullChunkSizeLines?: number
+  fullChunkFenceAware?: boolean
+  fullChunkMaxChunks?: number
 }
 
 interface Preset { options?: MarkdownItOptions, components?: any }
@@ -44,6 +66,14 @@ export interface MarkdownIt {
   linkify: ReturnType<typeof LinkifyIt>
   renderer: Renderer
   options: MarkdownItOptions
+  stream: {
+    enabled: boolean
+    parse: (src: string, env?: Record<string, unknown>) => TokenType[]
+    reset: () => void
+    peek: () => TokenType[]
+    stats: () => StreamStats
+    resetStats: () => void
+  }
   set: (options: MarkdownItOptions) => this
   configure: (presets: string | Preset) => this
   enable: (list: string | string[], ignoreInvalid?: boolean) => this
@@ -76,6 +106,19 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
     quotes: '\u201C\u201D\u2018\u2019',
     highlight: null,
     maxNesting: 100,
+    stream: false,
+    streamOptimizationMinSize: 1000,
+    streamChunkedFallback: false,
+    streamChunkSizeChars: 10000,
+    streamChunkSizeLines: 200,
+    streamChunkFenceAware: true,
+    fullChunkedFallback: false,
+    fullChunkThresholdChars: 20_000,
+    fullChunkThresholdLines: 400,
+    fullChunkSizeChars: 10_000,
+    fullChunkSizeLines: 200,
+    fullChunkFenceAware: true,
+    fullChunkMaxChunks: undefined,
   }
 
   // preset and options resolution (compatible semantics)
@@ -119,6 +162,7 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
   const core = new ParserCore()
 
   const renderer = new Renderer(opts)
+  const streamParser = new StreamParser(core)
 
   const md: any = {
     // expose core parts for plugins and rules
@@ -133,6 +177,11 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
     set(newOpts: MarkdownItOptions) {
       this.options = { ...this.options, ...newOpts }
       this.renderer.set(newOpts as RendererOptions)
+      if (typeof newOpts.stream === 'boolean') {
+        this.stream.enabled = newOpts.stream
+        streamParser.reset()
+        streamParser.resetStats()
+      }
       return this
     },
     configure(presets: string | Preset) {
@@ -223,6 +272,23 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
     parse(src: string, env: Record<string, unknown> = {}) {
       if (typeof src !== 'string')
         throw new TypeError('Input data should be a String')
+      // Optional chunked path for full parse (non-stream)
+      if (!this.stream.enabled && this.options.fullChunkedFallback) {
+        const chars = src.length
+        const lines = src.split('\n').length - 1
+        const useChunked = (chars >= (this.options.fullChunkThresholdChars ?? 20_000))
+          || (lines >= (this.options.fullChunkThresholdLines ?? 400))
+        if (useChunked) {
+          // Reuse chunked options but allow full-specific overrides
+          const tokens = chunkedParse(this, src, env, {
+            maxChunkChars: this.options.fullChunkSizeChars ?? 10_000,
+            maxChunkLines: this.options.fullChunkSizeLines ?? 200,
+            fenceAware: this.options.fullChunkFenceAware ?? true,
+            maxChunks: this.options.fullChunkMaxChunks,
+          })
+          return tokens
+        }
+      }
       const state = core.parse(src, env, this)
       return state.tokens
     },
@@ -234,6 +300,29 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       core.process(state)
       // Return tokens array containing single inline token (matches original)
       return state.tokens
+    },
+  }
+
+  md.stream = {
+    enabled: Boolean(opts.stream),
+    parse(src: string, env?: Record<string, unknown>) {
+      if (!md.stream.enabled) {
+        const state = core.parse(src, env ?? {}, md)
+        return state.tokens
+      }
+      return streamParser.parse(src, env, md)
+    },
+    reset() {
+      streamParser.reset()
+    },
+    peek() {
+      return streamParser.peek()
+    },
+    stats() {
+      return streamParser.getStats()
+    },
+    resetStats() {
+      streamParser.resetStats()
     },
   }
 

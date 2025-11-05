@@ -117,6 +117,44 @@ const plugin: MarkdownItPlugin = (md) => {
 const md = markdownIt().use(plugin)
 ```
 
+## Performance tips
+
+For large documents or append-heavy editing flows, you can enable the stream parser and an optional chunked fallback. See the detailed guide in `docs/stream-optimization.md`.
+
+Quick start:
+
+```ts
+import markdownIt from 'markdown-it-ts'
+
+const md = markdownIt({
+  stream: true, // enable stream mode
+  streamChunkedFallback: true, // use chunked on first large parse or large non-append edits
+  // optional tuning
+  streamChunkSizeChars: 10_000,
+  streamChunkSizeLines: 200,
+  streamChunkFenceAware: true,
+})
+
+let src = '# Title\n\nHello'
+md.parse(src, {})
+
+// Append-only edits use the fast path
+src += '\nworld!'
+md.parse(src, {})
+```
+
+Try the quick benchmark (build first):
+
+```bash
+npm run build
+node scripts/quick-benchmark.mjs
+```
+
+More:
+- Full performance matrix across modes and sizes: `npm run perf:matrix`
+- Non-stream chunked sweep to tune thresholds: `npm run perf:sweep`
+- See detailed findings in `docs/perf-report.md`.
+
 ## Contributing
 
 Contributions are welcome! Please open an issue or submit a pull request for any enhancements or bug fixes.
