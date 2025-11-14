@@ -17,12 +17,12 @@ export { Token } from './common/token'
 
 export { parse, parseInline } from './parse'
 export { withRenderer } from './plugins/with-renderer'
+export type { RendererEnv, RendererOptions } from './render'
 export { StreamBuffer } from './stream/buffer'
 export { chunkedParse } from './stream/chunked'
 export type { ChunkedOptions } from './stream/chunked'
 export { DebouncedStreamParser, ThrottledStreamParser } from './stream/debounced'
 export type { StreamStats } from './stream/parser'
-export type { RendererEnv, RendererOptions } from './render'
 export { recommendFullChunkStrategy, recommendStreamChunkStrategy } from './support/chunk_recommend'
 
 type QuotesOption = string | [string, string, string, string]

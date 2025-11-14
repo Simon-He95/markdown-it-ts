@@ -3,7 +3,7 @@ name: Update README perf metrics
 on:
   push:
     paths:
-      - 'docs/perf-latest.json'
+      - docs/perf-latest.json
       - 'docs/perf-history/**'
   workflow_dispatch: {}
 
