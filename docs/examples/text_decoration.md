@@ -18,7 +18,7 @@ It is unaware of marker nesting, or whether markers form matched pairs.
 
 The Post Processing phase handles **matching** pairs of tokens.
 This phase holds a lot of hidden complexity.
-Base Markdown supports a single asterisk for italics/emphasis, double asterisk for bold/strong text, and triple asterisk for both styles combined.
+Base Markdown supports a single asterisk for italics/emphasis, a double asterisk for bold/strong text, and a triple asterisk for both styles combined.
 Even if a new plugin isn't implementing such a nuanced delimiter, an awareness of the complexity helps the developer inject code in the proper locations.
 
 > [!IMPORTANT]
@@ -46,7 +46,7 @@ function smalltext_postProcess(state: StateInline) {
 
 Note the use of `ruler2` to register the post-processing step.
 This pattern is unique to matched-pair inline marker rules:
-it isn't seen anywhere else in the library (e.g. for block or core rules).
+It isn't seen anywhere else in the library (e.g. for block or core rules).
 
 ## Tokenization
 
@@ -280,7 +280,7 @@ thanks in large part to the heavy lifting that [balance_pairs](https://github.co
 
 > [!CAUTION]
 >
-> If the plugin being developed is a "standalone" inline element without a open/close pair
+> If the plugin being developed is a "standalone" inline element without an open/close pair
 > (think about links `[text](url)` or images `![alt text](source "title")`),
 > **the post-processing infrastructure can be safely ignored**!
 > Markdown parsing is complicated enough.
