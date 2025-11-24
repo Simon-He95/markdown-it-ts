@@ -56,7 +56,7 @@ pushing to the end is a good default choice.
 
 > [!IMPORTANT]
 > When in doubt, always put plugin rules at the end of the pipeline.
-> This strategy minimizes the potential of breaking other rules' assumptions about state.
+> This strategy minimizes the potential of breaking other rules' assumptions about the state.
 
 In this case specifically, surrounding the document with `<section>` tags will **increase the nesting level** of every other token in the document.
 Certain rules might iterate over the token stream and keep a running-total nesting level,
