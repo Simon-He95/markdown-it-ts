@@ -36,6 +36,15 @@ function splitParasIntoSteps(paras, steps) {
   return parts
 }
 
+function splitLinesIntoSteps(text, steps) {
+  const lines = text.split('\n')
+  const per = Math.max(1, Math.floor(lines.length / steps))
+  const parts = []
+  for (let i = 0; i < steps - 1; i++) parts.push(lines.slice(i * per, (i + 1) * per).join('\n') + '\n')
+  parts.push(lines.slice((steps - 1) * per).join('\n') + '\n')
+  return parts
+}
+
 function measure(fn, iters = 1) {
   // Runs fn() iters times and returns total ms and last result
   const t0 = performance.now()
@@ -147,12 +156,54 @@ function runMatrix() {
       }
       appendMs = appendMs / appRepeats
 
+      // LINE-level append workload (finer-grained than paragraph parts)
+      const lineParts = splitLinesIntoSteps(doc, APP_STEPS * 3)
+      let appendLineMs = 0
+      for (let rep = 0; rep < Math.max(1, Math.floor(appRepeats / 2)); rep++) {
+        let acc = ''
+        for (let i = 0; i < lineParts.length; i++) {
+          if (acc.length && acc.charCodeAt(acc.length - 1) !== 0x0A) acc += '\n'
+          let piece = lineParts[i]
+          if (piece.length && piece.charCodeAt(piece.length - 1) !== 0x0A) piece += '\n'
+          acc += piece
+          if (sc.type === 'stream-no-cache-chunk') md.stream.reset()
+          const t = performance.now()
+          if (sc.type.startsWith('stream')) md.stream.parse(acc, envStream)
+          else if (sc.type === 'md-original') md.parse(acc, {})
+          else if (sc.type === 'remark') md.parse(acc)
+          else md.parse(acc, envAppend)
+          appendLineMs += performance.now() - t
+        }
+      }
+      appendLineMs = appendLineMs / Math.max(1, Math.floor(appRepeats / 2))
+
+      // Paragraph-replace workload: repeatedly change the last paragraph (non-append)
+      // This simulates in-place edits that should cause full reparses in stream mode.
+      const parasCopy = paras.slice()
+      const replaceRepeats = Math.max(2, Math.floor(appRepeats / 2))
+      let replaceMs = 0
+      for (let rep = 0; rep < replaceRepeats; rep++) {
+        const altered = parasCopy.slice()
+        const lastIdx = altered.length - 1
+        altered[lastIdx] = altered[lastIdx] + `\n/* edit ${rep} */\n`
+        const full = altered.join('')
+        const t = performance.now()
+        if (sc.type.startsWith('stream')) md.stream.parse(full, envStream)
+        else if (sc.type === 'md-original') md.parse(full, {})
+        else if (sc.type === 'remark') md.parse(full)
+        else md.parse(full, envAppend)
+        replaceMs += performance.now() - t
+      }
+      replaceMs = replaceMs / replaceRepeats
+
       const stat = {
         size,
         scenario: sc.id,
         label: sc.label,
   oneShotMs: one.ms / oneIters,
         appendWorkloadMs: appendMs,
+        appendLineMs,
+        replaceParagraphMs: replaceMs,
         lastMode: md.stream?.stats?.().lastMode || 'n/a',
         appendHits: md.stream?.stats?.().appendHits || 0,
         chunkInfoOne: (sc.type === 'full-chunk') ? (envOne.__mdtsChunkInfo || null) : (sc.type.startsWith('stream') ? (envStream.__mdtsChunkInfo || null) : null),
@@ -240,8 +291,8 @@ function toMarkdown(results, coldHot) {
   lines.push('# Performance Report (latest run)')
   lines.push('')
   const ids = ['S1','S2','S3','S4','S5','M1']
-  lines.push('| Size (chars) | ' + ids.map(id => `${id} one`).join(' | ') + ' | ' + ids.map(id => `${id} append`).join(' | ') + ' |')
-  lines.push('|---:|' + ids.map(()=> '---:').join('|') + '|' + ids.map(()=> '---:').join('|') + '|')
+  lines.push('| Size (chars) | ' + ids.map(id => `${id} one`).join(' | ') + ' | ' + ids.map(id => `${id} append(par)`).join(' | ') + ' | ' + ids.map(id => `${id} append(line)`).join(' | ') + ' | ' + ids.map(id => `${id} replace`).join(' | ') + ' |')
+  lines.push('|---:|' + ids.map(()=> '---:').join('|') + '|' + ids.map(()=> '---:').join('|') + '|' + ids.map(()=> '---:').join('|') + '|' + ids.map(()=> '---:').join('|') + '|')
   const bySize = new Map()
   for (const r of results) {
     if (!bySize.has(r.size)) bySize.set(r.size, {})
@@ -251,6 +302,8 @@ function toMarkdown(results, coldHot) {
     const row = bySize.get(size)
     const oneVals = ids.map(id => row[id]?.oneShotMs ?? Number.POSITIVE_INFINITY)
     const appVals = ids.map(id => row[id]?.appendWorkloadMs ?? Number.POSITIVE_INFINITY)
+    const lineAppVals = ids.map(id => row[id]?.appendLineMs ?? Number.POSITIVE_INFINITY)
+    const replaceVals = ids.map(id => row[id]?.replaceParagraphMs ?? Number.POSITIVE_INFINITY)
     const oneMin = Math.min(...oneVals)
     const appMin = Math.min(...appVals)
     const oneCells = ids.map((id, i) => {
@@ -265,7 +318,21 @@ function toMarkdown(results, coldHot) {
       const cell = fmt(v)
       return v === appMin ? `**${cell}**` : cell
     })
-    lines.push(`| ${size} | ${oneCells.join(' | ')} | ${appCells.join(' | ')} |`)
+    const lineAppCells = ids.map((id, i) => {
+      const v = row[id]?.appendLineMs
+      if (v == null) return '-'
+      const cell = fmt(v)
+      const isMin = v === Math.min(...lineAppVals)
+      return isMin ? `**${cell}**` : cell
+    })
+    const replaceCells = ids.map((id, i) => {
+      const v = row[id]?.replaceParagraphMs
+      if (v == null) return '-'
+      const cell = fmt(v)
+      const isMin = v === Math.min(...replaceVals)
+      return isMin ? `**${cell}**` : cell
+    })
+    lines.push(`| ${size} | ${oneCells.join(' | ')} | ${appCells.join(' | ')} | ${lineAppCells.join(' | ')} | ${replaceCells.join(' | ')} |`)
   }
   lines.push('')
   lines.push('Best (one-shot) per size:')
@@ -278,6 +345,18 @@ function toMarkdown(results, coldHot) {
   for (const [size, arr] of groupBy(results, 'size')) {
     const best = [...arr].sort((a,b)=>a.appendWorkloadMs-b.appendWorkloadMs)[0]
     lines.push(`- ${size}: ${best.scenario} ${fmt(best.appendWorkloadMs)} (${best.label})`)    
+  }
+  lines.push('')
+  lines.push('Best (line-append workload) per size:')
+  for (const [size, arr] of groupBy(results, 'size')) {
+    const best = [...arr].sort((a,b)=>a.appendLineMs-b.appendLineMs)[0]
+    lines.push(`- ${size}: ${best.scenario} ${fmt(best.appendLineMs)} (${best.label})`)    
+  }
+  lines.push('')
+  lines.push('Best (replace-paragraph workload) per size:')
+  for (const [size, arr] of groupBy(results, 'size')) {
+    const best = [...arr].sort((a,b)=>a.replaceParagraphMs-b.replaceParagraphMs)[0]
+    lines.push(`- ${size}: ${best.scenario} ${fmt(best.replaceParagraphMs)} (${best.label})`)    
   }
   lines.push('')
   // Recommendations by majority wins

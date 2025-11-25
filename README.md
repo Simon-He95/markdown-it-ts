@@ -198,6 +198,74 @@ If you want to display or persist the suggested chunk settings without enabling 
 import markdownIt, { recommendFullChunkStrategy, recommendStreamChunkStrategy } from 'markdown-it-ts'
 
 const size = 50_000
+
+## Streaming performance recommendations (summary)
+
+Short summary of interactive/workflow guidance (see `docs/perf-latest.md` for full details):
+
+- Enable `stream` + caching for append-heavy editors — it gives the best append throughput in most sizes.
+- Prefer paragraph-level batching when feeding edits; line-by-line updates are more expensive and reduce the streaming speedup.
+- For non-append edits (in-place paragraph edits), expect full reparses; the baseline parser often outperforms incremental approaches for these cases.
+
+### Key performance summary (selected winners)
+
+Quick winners from the latest run (see `docs/perf-latest.md` for full tables):
+
+- Best one-shot parse (by document size):
+  - 5,000 chars: **S3** (stream ON, cache ON, chunk ON) — 0.0002ms
+  - 20,000 chars: **S2** (stream ON, cache ON, chunk OFF) — 0.0002ms
+  - 50,000 chars: **S3** (stream ON, cache ON, chunk ON) — 0.0004ms
+  - 100,000 chars: **S1** (stream ON, cache OFF, chunk ON) — 0.0006ms
+  - 200,000 chars: **S2** (stream ON, cache ON, chunk OFF) — 12.18ms
+
+- Best append (paragraph-level) throughput:
+  - 5,000 chars: **S3** — 0.3560ms
+  - 20,000 chars: **S3** — 1.2651ms
+  - 50,000 chars: **S3** — 3.3976ms
+  - 100,000 chars: **S2** — 6.8648ms
+  - 200,000 chars: **S2** — 25.56ms
+
+- Best append (line-level, finer-grained):
+  - 5,000 chars: **S3** — 0.8666ms
+  - 20,000 chars: **S2** — 5.4193ms
+  - 50,000 chars: **S2** — 5.6287ms
+  - 100,000 chars: **S2** — 9.7292ms
+  - 200,000 chars: **S3** — 42.30ms
+
+- Best replace (in-place paragraph edits): baseline `markdown-it` often wins for larger docs:
+  - 5,000 chars: **S3** — 0.2964ms
+  - 20,000 chars: **M1** (markdown-it) — 0.8474ms
+  - 50,000 chars: **M1** — 2.0403ms
+  - 100,000 chars: **M1** — 4.0348ms
+  - 200,000 chars: **M1** — 8.3294ms
+
+Notes: these numbers are from the most recent run and included as illustrative guidance. For exact, per-scenario numbers and environment details, consult `docs/perf-latest.json`.
+
+### Example: per-scenario timings at 20,000 chars
+
+The table below shows a compact, side-by-side comparison for a 20,000-char document (numbers taken from `docs/perf-latest.md` / `docs/perf-latest.json`). Columns are: one-shot parse time, paragraph-level append workload, line-level append workload, and replace-paragraph workload (all times in milliseconds). Lower is better.
+
+| Scenario | Config summary | One-shot | Append (paragraph) | Append (line) | Replace (paragraph) |
+|:--|:--|---:|---:|---:|---:|
+| S1 | stream ON, cache OFF, chunk ON | 0.0003ms | 3.9113ms | 10.91ms | 1.1784ms |
+| S2 | stream ON, cache ON, chunk OFF | **0.0002ms** | 1.3094ms | **5.4193ms** | 0.8797ms |
+| S3 | stream ON, cache ON, chunk ON | 0.0002ms | **1.2651ms** | 6.5309ms | 1.1191ms |
+| S4 | stream OFF, chunk ON | 1.2229ms | 3.9489ms | 10.68ms | 1.2995ms |
+| S5 | stream OFF, chunk OFF | 0.9306ms | 3.2370ms | 8.6026ms | 1.1024ms |
+| M1 | markdown-it (baseline) | 0.8803ms | 2.8267ms | 7.7509ms | **0.8474ms** |
+
+Notes: bolded values indicate the best (lowest) time in that column for this document size.
+
+
+Reproduce the measurements:
+
+```bash
+pnpm run build
+node scripts/perf-generate-report.mjs
+```
+
+Report outputs: `docs/perf-latest.md` and `docs/perf-latest.json`.
+
 const fullRec = recommendFullChunkStrategy(size)
 // { strategy: 'plain', fenceAware: true }
 
@@ -268,11 +336,11 @@ Latest one-shot parse results on this machine (Node.js v23): markdown-it-ts is r
 
 Examples from the latest run (avg over 20 iterations):
 <!-- perf-auto:one-examples:start -->
-- 5,000 chars: 0.0001ms vs 0.3860ms → ~4211.1× faster (0.00× time)
-- 20,000 chars: 0.0001ms vs 0.5603ms → ~4803.0× faster (0.00× time)
-- 50,000 chars: 0.0001ms vs 1.1629ms → ~8206.5× faster (0.00× time)
-- 100,000 chars: 0.0002ms vs 3.1506ms → ~16803.2× faster (0.00× time)
-- 200,000 chars: 6.3584ms vs 5.7631ms → ~0.9× faster (1.10× time)
+- 5,000 chars: 0.0002ms vs 0.4191ms → ~2066.7× faster (0.00× time)
+- 20,000 chars: 0.0002ms vs 0.8540ms → ~4098.7× faster (0.00× time)
+- 50,000 chars: 0.0002ms vs 2.0386ms → ~8894.6× faster (0.00× time)
+- 100,000 chars: 0.0005ms vs 4.9358ms → ~9351.0× faster (0.00× time)
+- 200,000 chars: 12.05ms vs 12.44ms → ~1.0× faster (0.97× time)
 <!-- perf-auto:one-examples:end -->
 
 - Notes
@@ -286,21 +354,21 @@ We also compare parse-only performance against `remark` (parse-only). The follow
 One-shot parse (oneShotMs) — markdown-it-ts vs remark (lower is better):
 
 <!-- perf-auto:remark-one:start -->
-- 5,000 chars: 0.0001ms vs 3.8785ms → 42310.9× faster
-- 20,000 chars: 0.0001ms vs 15.23ms → 130564.1× faster
-- 50,000 chars: 0.0001ms vs 44.21ms → 312016.4× faster
-- 100,000 chars: 0.0002ms vs 89.44ms → 477006.9× faster
-- 200,000 chars: 6.3584ms vs 224.87ms → 35.4× faster
+- 5,000 chars: 0.0002ms vs 5.9586ms → 29381.5× faster
+- 20,000 chars: 0.0002ms vs 28.05ms → 134622.7× faster
+- 50,000 chars: 0.0002ms vs 76.53ms → 333920.7× faster
+- 100,000 chars: 0.0005ms vs 167.90ms → 318088.1× faster
+- 200,000 chars: 12.05ms vs 566.10ms → 47.0× faster
 <!-- perf-auto:remark-one:end -->
 
 Append workload (appendWorkloadMs) — markdown-it-ts vs remark:
 
 <!-- perf-auto:remark-append:start -->
-- 5,000 chars: 0.3859ms vs 9.3609ms → 24.3× faster
-- 20,000 chars: 0.8292ms vs 48.66ms → 58.7× faster
-- 50,000 chars: 1.8071ms vs 133.97ms → 74.1× faster
-- 100,000 chars: 4.2002ms vs 294.42ms → 70.1× faster
-- 200,000 chars: 13.40ms vs 707.51ms → 52.8× faster
+- 5,000 chars: 0.3748ms vs 18.25ms → 48.7× faster
+- 20,000 chars: 1.3678ms vs 86.08ms → 62.9× faster
+- 50,000 chars: 3.7555ms vs 244.93ms → 65.2× faster
+- 100,000 chars: 7.4134ms vs 552.54ms → 74.5× faster
+- 200,000 chars: 26.39ms vs 1316.11ms → 49.9× faster
 <!-- perf-auto:remark-append:end -->
 
 Notes on interpretation
@@ -315,21 +383,21 @@ We also profile end-to-end `md.render` throughput (parse + render) across markdo
 ### vs markdown-it renderer
 
 <!-- perf-auto:render-md:start -->
-- 5,000 chars: 0.1995ms vs 0.1726ms → ~0.9× faster
-- 20,000 chars: 0.6398ms vs 0.5392ms → ~0.8× faster
-- 50,000 chars: 1.5739ms vs 1.5629ms → ~1.0× faster
-- 100,000 chars: 3.9403ms vs 3.3152ms → ~0.8× faster
-- 200,000 chars: 9.1943ms vs 7.4146ms → ~0.8× faster
+- 5,000 chars: 0.3574ms vs 0.2641ms → ~0.7× faster
+- 20,000 chars: 1.2340ms vs 0.9844ms → ~0.8× faster
+- 50,000 chars: 3.0913ms vs 2.4276ms → ~0.8× faster
+- 100,000 chars: 8.3501ms vs 5.9070ms → ~0.7× faster
+- 200,000 chars: 15.95ms vs 15.57ms → ~1.0× faster
 <!-- perf-auto:render-md:end -->
 
 ### vs remark + rehype renderer
 
 <!-- perf-auto:render-remark:start -->
-- 5,000 chars: 0.1995ms vs 3.6064ms → ~18.1× faster
-- 20,000 chars: 0.6398ms vs 17.30ms → ~27.0× faster
-- 50,000 chars: 1.5739ms vs 43.94ms → ~27.9× faster
-- 100,000 chars: 3.9403ms vs 130.60ms → ~33.1× faster
-- 200,000 chars: 9.1943ms vs 342.99ms → ~37.3× faster
+- 5,000 chars: 0.3574ms vs 6.5419ms → ~18.3× faster
+- 20,000 chars: 1.2340ms vs 29.56ms → ~24.0× faster
+- 50,000 chars: 3.0913ms vs 84.73ms → ~27.4× faster
+- 100,000 chars: 8.3501ms vs 191.70ms → ~23.0× faster
+- 200,000 chars: 15.95ms vs 456.14ms → ~28.6× faster
 <!-- perf-auto:render-remark:end -->
 
 Reproduce locally
