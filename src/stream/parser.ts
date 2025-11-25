@@ -197,20 +197,102 @@ export class StreamParser {
       // no special-casing for single newline here; we only append when we have
       // full line(s) content that end with a newline.
 
-      const appendedState = this.core.parse(appended, cached.env, md)
+      // Try a context-aware parse: include a few lines from the end of the
+      // cached source to give the block parser enough context when deciding
+      // about boundaries (setext, admonitions, lists, fences, etc.). If we
+      // can't confidently slice the tokens that belong to appended portion,
+      // fall back to parsing appended alone.
+      const cachedLineCount = cached.lineCount ?? countLines(cached.src)
 
-      // Use cached line count if available
-      const lineOffset = cached.lineCount ?? countLines(cached.src)
+      // Choose an adaptive context window based on appended size. Keep it
+      // small to limit reparse cost but large enough to cover common
+      // cross-line constructs.
+      let ctxLines = 3
+      if (appended.length > 5000) ctxLines = 8
+      else if (appended.length > 1000) ctxLines = 6
+      else if (appended.length > 200) ctxLines = 4
 
-      if (lineOffset > 0)
-        this.shiftTokenLines(appendedState.tokens, lineOffset)
+      // Ensure we don't request more context lines than we have cached
+      ctxLines = Math.min(ctxLines, cachedLineCount)
 
-      // Avoid array spread - directly mutate cache tokens
-      cached.tokens.push(...appendedState.tokens)
+      let appendedState = null
+      if (ctxLines > 0) {
+        // Build a small context string: last N lines of cached.src + appended
+        const cachedLines = cached.src.split('\n')
+        const ctxStart = Math.max(0, cachedLines.length - ctxLines)
+        const contextPrefix = cachedLines.slice(ctxStart).join('\n')
+        const ctxSrc = contextPrefix + appended
+
+        try {
+          const ctxState = this.core.parse(ctxSrc, cached.env, md)
+          const ctxTokens = ctxState.tokens
+
+          // Find first token that belongs to appended region. Tokens produced
+          // by parsing `ctxSrc` will have `.map` values where lines starting
+          // at >= ctxLines belong to appended part (since contextPrefix has
+          // exactly ctxLines lines).
+          const idx = ctxTokens.findIndex(t => t.map && t.map[0] >= ctxLines)
+          if (idx !== -1) {
+            // Extract appended tokens and shift their line maps so they align
+            // with the global cached line indices.
+            const appendedTokens = ctxTokens.slice(idx)
+            const shiftBy = cachedLineCount - ctxLines
+            if (shiftBy !== 0) this.shiftTokenLines(appendedTokens, shiftBy)
+            appendedState = { tokens: appendedTokens }
+          }
+        }
+        catch (e) {
+          // If context parse fails for any reason, we'll fall back below.
+          appendedState = null
+        }
+      }
+
+      // Fallback: if context-aware extraction did not yield appended tokens,
+      // parse appended alone and shift it by cached line count.
+      if (!appendedState) {
+        const simpleState = this.core.parse(appended, cached.env, md)
+        const lineOffset = cachedLineCount
+        if (lineOffset > 0) this.shiftTokenLines(simpleState.tokens, lineOffset)
+        appendedState = simpleState
+      }
+
+      // Conservative merge: if the last cached token and the first appended token
+      // are both inline tokens, merge their content/children to avoid splitting
+      // inline content across flush boundaries which can change rendered HTML.
+      if (cached.tokens.length > 0 && appendedState.tokens.length > 0) {
+        const lastCached = cached.tokens[cached.tokens.length - 1]
+        const firstApp = appendedState.tokens[0]
+        try {
+          if (lastCached.type === 'inline' && firstApp.type === 'inline') {
+            // merge children arrays when present
+            if (firstApp.children && firstApp.children.length > 0) {
+              if (!lastCached.children)
+                lastCached.children = []
+              lastCached.children.push(...firstApp.children)
+            }
+            // merge textual content
+            lastCached.content = (lastCached.content || '') + (firstApp.content || '')
+            // drop the merged token from appended list
+            appendedState.tokens.shift()
+          }
+        }
+        catch (e) {
+          // Be conservative on error: fall back to simple push below
+        }
+        // NOTE: previously had an aggressive paragraph-merge heuristic here that
+        // attempted to splice an appended paragraph inline into the previous
+        // paragraph. That heuristic caused distinct paragraphs to be concatenated
+        // (breaking blank-line boundaries). Removing that rule preserves
+        // paragraph boundaries while keeping the safer inline-token merge above.
+      }
+
+      // Append remaining tokens into cache
+      if (appendedState.tokens.length > 0)
+        cached.tokens.push(...appendedState.tokens)
 
       // Update cache with new src and line count
       cached.src = src
-      cached.lineCount = lineOffset + countLines(appended)
+      cached.lineCount = cachedLineCount + countLines(appended)
 
       this.stats.total += 1
       this.stats.appendHits += 1

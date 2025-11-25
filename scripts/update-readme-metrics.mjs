@@ -114,6 +114,33 @@ function buildRenderVsRemark(bySize, sizes) {
   return lines
 }
 
+function buildComparisonTable(bySize, sizes) {
+  // Build a markdown table with columns: Scenario, Config, One-shot, Append(par), Append(line), Replace
+  const header = ['| Scenario | Config summary | One-shot | Append (paragraph) | Append (line) | Replace (paragraph) |', '|:--|:--|---:|---:|---:|---:|']
+  const rows = []
+  for (const size of sizes) {
+    const arr = bySize.get(size)
+    if (!arr) continue
+    // Order rows by scenario id for stable output
+    const order = ['S1','S2','S3','S4','S5','M1']
+    rows.push(`\n**${size.toLocaleString()} chars**\n`)
+    rows.push('')
+    rows.push(...header)
+    for (const id of order) {
+      const r = arr.find(x => x.scenario === id)
+      if (!r) continue
+      const cfg = r.label
+      const one = r.oneShotMs != null ? formatMs(r.oneShotMs) : '-'
+      const app = r.appendWorkloadMs != null ? formatMs(r.appendWorkloadMs) : '-'
+      const lineApp = r.appendLineMs != null ? formatMs(r.appendLineMs) : '-'
+      const repl = r.replaceParagraphMs != null ? formatMs(r.replaceParagraphMs) : '-'
+      rows.push(`| ${id} | ${cfg} | ${one} | ${app} | ${lineApp} | ${repl} |`)
+    }
+    rows.push('')
+  }
+  return rows
+}
+
 function replaceBetween(content, startTag, endTag, newLines) {
   const startIdx = content.indexOf(startTag)
   const endIdx = content.indexOf(endTag)
@@ -161,6 +188,7 @@ function main() {
     remarkAppend: buildRemarkAppendExamples(bySize, appendSizes),
     renderMd: buildRenderVsMarkdownIt(renderBySize, renderSizes),
     renderRemark: buildRenderVsRemark(renderBySize, renderSizes),
+    comparison: buildComparisonTable(bySize, oneSizes),
   }
 
   for (const path of readmePaths) {
@@ -185,6 +213,8 @@ function applyBlocks(content, blocks) {
   const endRenderMd = '<!-- perf-auto:render-md:end -->'
   const startRenderRemark = '<!-- perf-auto:render-remark:start -->'
   const endRenderRemark = '<!-- perf-auto:render-remark:end -->'
+  const startComparison = '<!-- perf-auto:comparison:start -->'
+  const endComparison = '<!-- perf-auto:comparison:end -->'
 
   let updated = content
   updated = replaceBetween(updated, startOne, endOne, blocks.one)
@@ -193,6 +223,7 @@ function applyBlocks(content, blocks) {
   updated = replaceBetween(updated, startRemarkApp, endRemarkApp, blocks.remarkAppend)
   updated = replaceBetween(updated, startRenderMd, endRenderMd, blocks.renderMd)
   updated = replaceBetween(updated, startRenderRemark, endRenderRemark, blocks.renderRemark)
+  updated = replaceBetween(updated, startComparison, endComparison, blocks.comparison)
   return updated
 }
 
