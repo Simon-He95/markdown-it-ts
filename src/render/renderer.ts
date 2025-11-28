@@ -114,6 +114,9 @@ const defaultRules: Record<string, RendererRule> = {
   text(tokens, idx) {
     return escapeHtml(tokens[idx].content)
   },
+  text_special(tokens, idx) {
+    return escapeHtml(tokens[idx].content)
+  },
   html_block(tokens, idx) {
     return tokens[idx].content
   },
@@ -334,6 +337,7 @@ export class Renderer {
       const token = tokens[i]
       switch (token.type) {
         case 'text':
+        case 'text_special':
           buffer.push(token.content)
           break
         case 'image':

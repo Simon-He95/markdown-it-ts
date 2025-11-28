@@ -3,25 +3,16 @@
  * Process escaped characters
  */
 
-// List of valid chars to escape: \ ` * _ { } [ ] ( ) # + - . ! |
-const ESCAPED = [
-  0x5C, // \
-  0x60, // `
-  0x2A, // *
-  0x5F, // _
-  0x7B, // {
-  0x7D, // }
-  0x5B, // [
-  0x5D, // ]
-  0x28, // (
-  0x29, // )
-  0x23, // #
-  0x2B, // +
-  0x2D, // -
-  0x2E, // .
-  0x21, // !
-  0x7C, // |
-]
+// List of valid chars to escape (matches original markdown-it):
+// "\!\"#$%&'()*+,./:;<=>?@[]^_`{|}~-"
+const ESCAPED: number[] = (() => {
+  const table = new Array(256).fill(0)
+  const chars = '\\!\"#$%&\'()*+,./:;<=>?@[]^_`{|}~-'
+  for (let i = 0; i < chars.length; i++) {
+    table[chars.charCodeAt(i)] = 1
+  }
+  return table
+})()
 
 export function escape(state: any, silent?: boolean): boolean {
   const { pos, posMax, src } = state
@@ -47,14 +38,33 @@ export function escape(state: any, silent?: boolean): boolean {
     return true
   }
 
-  if (ch < 0x80 && ESCAPED.includes(ch)) {
-    if (!silent) {
-      state.pending += src[pos_next]
+  // Handle surrogate pairs and create special token like original markdown-it
+  let escapedStr = src[pos_next]
+  let nextPos = pos_next
+  if (ch >= 0xD800 && ch <= 0xDBFF && pos_next + 1 < posMax) {
+    const ch2 = src.charCodeAt(pos_next + 1)
+    if (ch2 >= 0xDC00 && ch2 <= 0xDFFF) {
+      escapedStr += src[pos_next + 1]
+      nextPos++
     }
-
-    state.pos += 2
-    return true
   }
+
+  const origStr = src[pos] + escapedStr // '\' + escapedStr
+
+  if (!silent) {
+    const token = state.push('text_special', '', 0)
+    if (ch < 0x100 && ESCAPED[ch]) {
+      token.content = escapedStr
+    }
+    else {
+      token.content = origStr
+    }
+    token.markup = origStr
+    token.info = 'escape'
+  }
+
+  state.pos = nextPos + 1
+  return true
 
   return false
 }
