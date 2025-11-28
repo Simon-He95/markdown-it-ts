@@ -1,7 +1,7 @@
 {
   "name": "markdown-it-ts",
   "type": "module",
-  "version": "0.0.2-beta.7",
+  "version": "0.0.2-beta.8",
   "packageManager": "pnpm@9.0.0",
   "description": "A TypeScript implementation of the markdown-it library with separate parse and render functionalities.",
   "author": "Your Name",
