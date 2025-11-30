@@ -10,8 +10,8 @@ npm install markdown-it
 
 **browser (CDN):**
 
-- [jsDeliver CDN](http://www.jsdelivr.com/#!markdown-it "jsDelivr CDN")
-- [cdnjs.com CDN](https://cdnjs.com/libraries/markdown-it "cdnjs.com")
+- [jsDeliver CDN](http://www.jsdelivr.com/#!markdown-it-ts "jsDelivr CDN")
+- [cdnjs.com CDN](https://cdnjs.com/libraries/markdown-it-ts "cdnjs.com")
 
 ## Usage examples
 
@@ -24,21 +24,21 @@ See also:
 
 ```js
 // node.js
-// can use `require('markdown-it')` for CJS
-import markdownit from 'markdown-it'
+// can use `require()` for CJS
+import markdownit from 
 const md = markdownit()
-const result = md.render('# markdown-it rulezz!');
+const result = md.render('# markdown-it-ts rulezz!');
 
 // browser with UMD build, added to "window" on script load
 // Note, there is no dash in "markdownit".
 const md = window.markdownit();
-const result = md.render('# markdown-it rulezz!');
+const result = md.render('# markdown-it-ts rulezz!');
 ```
 
 Single line rendering, without paragraph wrap:
 
 ```js
-import markdownit from 'markdown-it'
+import markdownit from 
 
 const md = markdownit()
 const result = md.renderInline('__markdown-it__ rulezz!')
@@ -51,7 +51,7 @@ const result = md.renderInline('__markdown-it__ rulezz!')
 [API docs](https://markdown-it.github.io/markdown-it/#MarkdownIt.new) for more details.
 
 ```js
-import markdownit from 'markdown-it'
+import markdownit from 'markdown-it-ts'
 
 // commonmark mode
 const md = markdownit('commonmark')
@@ -106,7 +106,7 @@ const md = markdownit({
 ### Plugins load
 
 ```js
-import markdownit from 'markdown-it'
+import markdownit from 
 
 const md = markdownit
   .use(plugin1)
@@ -120,7 +120,7 @@ Apply syntax highlighting to fenced code blocks with the `highlight` option:
 
 ```js
 import hljs from 'highlight.js' // https://highlightjs.org
-import markdownit from 'markdown-it'
+import markdownit from 
 
 // Actual default values
 const md = markdownit({
@@ -141,7 +141,7 @@ Or with full wrapper override (if you need assign class to `<pre>` or `<code>`):
 
 ```js
 import hljs from 'highlight.js' // https://highlightjs.org
-import markdownit from 'markdown-it'
+import markdownit from 'markdown-it-ts'
 
 // Actual default values
 const md = markdownit({
@@ -195,7 +195,7 @@ By default all rules are enabled, but can be restricted by options. On plugin
 load all its rules are enabled automatically.
 
 ```js
-import markdownit from 'markdown-it'
+import markdownit from 
 
 // Activate/deactivate rules, with currying
 const md = markdownit()
