@@ -129,13 +129,11 @@ export class Renderer {
   public readonly rules: Record<string, RendererRule>
   private baseOptions: RendererOptions
   private normalizedBase: RendererOptions
-  private bufferPool: string[][]
 
   constructor(options: RendererOptions = {}) {
     this.baseOptions = { ...options }
     this.normalizedBase = this.buildNormalizedBase()
     this.rules = { ...defaultRules }
-    this.bufferPool = []
   }
 
   public set(options: RendererOptions) {
@@ -144,83 +142,72 @@ export class Renderer {
     return this
   }
 
-  public render(tokens: Token[], options: RendererOptions = {}, env: RendererEnv = {}): string {
+  public render(tokens: Token[], options?: RendererOptions, env?: RendererEnv): string {
     if (!Array.isArray(tokens))
       throw new TypeError('render expects token array as first argument')
 
     const merged = this.mergeOptions(options)
-    const chunks = this.acquireBuffer()
+    const envRef = env ?? {}
+    let output = ''
 
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i]
       if (token.type === 'inline') {
-        this.pushInlineTokens(token.children || [], merged, env, chunks)
+        output += this.renderInlineTokens(token.children || [], merged, envRef)
         continue
       }
 
       const rule = this.rules[token.type]
       if (rule)
-        chunks.push(ensureSyncResult(rule(tokens, i, merged, env, this), token.type))
+        output += ensureSyncResult(rule(tokens, i, merged, envRef, this), token.type)
       else
-        chunks.push(this.renderToken(tokens, i, merged))
+        output += this.renderToken(tokens, i, merged)
     }
 
-    const output = chunks.join('')
-    this.releaseBuffer(chunks)
     return output
   }
 
-  public async renderAsync(tokens: Token[], options: RendererOptions = {}, env: RendererEnv = {}): Promise<string> {
+  public async renderAsync(tokens: Token[], options?: RendererOptions, env?: RendererEnv): Promise<string> {
     if (!Array.isArray(tokens))
       throw new TypeError('render expects token array as first argument')
 
     const merged = this.mergeOptions(options)
-    const chunks = this.acquireBuffer()
+    const envRef = env ?? {}
+    let output = ''
 
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i]
       if (token.type === 'inline') {
-        await this.pushInlineTokensAsync(token.children || [], merged, env, chunks)
+        output += await this.renderInlineTokensAsync(token.children || [], merged, envRef)
         continue
       }
 
       const rule = this.rules[token.type]
       if (rule)
-        chunks.push(await resolveResult(rule(tokens, i, merged, env, this)))
+        output += await resolveResult(rule(tokens, i, merged, envRef, this))
       else
-        chunks.push(this.renderToken(tokens, i, merged))
+        output += this.renderToken(tokens, i, merged)
     }
 
-    const output = chunks.join('')
-    this.releaseBuffer(chunks)
     return output
   }
 
-  public renderInline(tokens: Token[], options: RendererOptions = {}, env: RendererEnv = {}): string {
+  public renderInline(tokens: Token[], options?: RendererOptions, env?: RendererEnv): string {
     const merged = this.mergeOptions(options)
-    const chunks = this.acquireBuffer()
-    this.pushInlineTokens(tokens, merged, env, chunks)
-    const output = chunks.join('')
-    this.releaseBuffer(chunks)
-    return output
+    const envRef = env ?? {}
+    return this.renderInlineTokens(tokens, merged, envRef)
   }
 
-  public async renderInlineAsync(tokens: Token[], options: RendererOptions = {}, env: RendererEnv = {}): Promise<string> {
+  public async renderInlineAsync(tokens: Token[], options?: RendererOptions, env?: RendererEnv): Promise<string> {
     const merged = this.mergeOptions(options)
-    const chunks = this.acquireBuffer()
-    await this.pushInlineTokensAsync(tokens, merged, env, chunks)
-    const output = chunks.join('')
-    this.releaseBuffer(chunks)
-    return output
+    const envRef = env ?? {}
+    return this.renderInlineTokensAsync(tokens, merged, envRef)
   }
 
-  public renderInlineAsText(tokens: Token[], options: RendererOptions = {}, env: RendererEnv = {}): string {
+  public renderInlineAsText(tokens: Token[], options?: RendererOptions, env?: RendererEnv): string {
     const merged = this.mergeOptions(options)
-    const chunks = this.acquireBuffer()
-    this.renderInlineAsTextInternal(tokens, merged, env, chunks)
-    const output = chunks.join('')
-    this.releaseBuffer(chunks)
-    return output
+    const envRef = env ?? {}
+    return this.renderInlineAsTextInternal(tokens, merged, envRef)
   }
 
   public renderAttrs(token: Token): string {
@@ -310,65 +297,66 @@ export class Renderer {
     return Object.freeze({ ...DEFAULT_RENDERER_OPTIONS, ...this.baseOptions }) as RendererOptions
   }
 
-  private pushInlineTokens(tokens: Token[], options: RendererOptions, env: RendererEnv, buffer: string[]) {
+  private renderInlineTokens(tokens: Token[], options: RendererOptions, env: RendererEnv): string {
+    if (!tokens || tokens.length === 0)
+      return ''
+
+    let output = ''
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i]
       const rule = this.rules[token.type]
       if (rule)
-        buffer.push(ensureSyncResult(rule(tokens, i, options, env, this), token.type))
+        output += ensureSyncResult(rule(tokens, i, options, env, this), token.type)
       else
-        buffer.push(this.renderToken(tokens, i, options))
+        output += this.renderToken(tokens, i, options)
     }
+    return output
   }
 
-  private async pushInlineTokensAsync(tokens: Token[], options: RendererOptions, env: RendererEnv, buffer: string[]) {
+  private async renderInlineTokensAsync(tokens: Token[], options: RendererOptions, env: RendererEnv): Promise<string> {
+    if (!tokens || tokens.length === 0)
+      return ''
+
+    let output = ''
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i]
       const rule = this.rules[token.type]
       if (rule)
-        buffer.push(await resolveResult(rule(tokens, i, options, env, this)))
+        output += await resolveResult(rule(tokens, i, options, env, this))
       else
-        buffer.push(this.renderToken(tokens, i, options))
+        output += this.renderToken(tokens, i, options)
     }
+    return output
   }
 
-  private renderInlineAsTextInternal(tokens: Token[], options: RendererOptions, env: RendererEnv, buffer: string[]) {
+  private renderInlineAsTextInternal(tokens: Token[], options: RendererOptions, env: RendererEnv): string {
+    if (!tokens || tokens.length === 0)
+      return ''
+
+    let output = ''
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i]
       switch (token.type) {
         case 'text':
         case 'text_special':
-          buffer.push(token.content)
+          output += token.content
           break
         case 'image':
-          this.renderInlineAsTextInternal(token.children || [], options, env, buffer)
+          output += this.renderInlineAsTextInternal(token.children || [], options, env)
           break
         case 'html_inline':
         case 'html_block':
-          buffer.push(token.content)
+          output += token.content
           break
         case 'softbreak':
         case 'hardbreak':
-          buffer.push('\n')
+          output += '\n'
           break
         default:
           break
       }
     }
-  }
-
-  private acquireBuffer(): string[] {
-    const buf = this.bufferPool.pop()
-    if (buf) {
-      buf.length = 0
-      return buf
-    }
-    return []
-  }
-
-  private releaseBuffer(buffer: string[]) {
-    buffer.length = 0
-    this.bufferPool.push(buffer)
+    return output
   }
 }
 

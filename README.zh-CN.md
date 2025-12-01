@@ -56,11 +56,11 @@ pnpm run perf:update-readme
 最新一次在本机环境（Node.js 版本、CPU 请见 `docs/perf-latest.md`）的对比结果（取 20 次平均值）：
 
 <!-- perf-auto:one-examples:start -->
-- 5,000 chars: 0.0001ms vs 0.3454ms → ~2461.8× faster (0.00× time)
-- 20,000 chars: 0.0002ms vs 0.7351ms → ~4643.7× faster (0.00× time)
-- 50,000 chars: 0.0003ms vs 1.6991ms → ~5824.9× faster (0.00× time)
-- 100,000 chars: 0.0004ms vs 5.2024ms → ~12919.9× faster (0.00× time)
-- 200,000 chars: 9.5088ms vs 8.4868ms → ~0.9× faster (1.12× time)
+- 5,000 chars: 0.0001ms vs 0.3991ms → ~3780.5× faster (0.00× time)
+- 20,000 chars: 0.0001ms vs 0.5713ms → ~4727.0× faster (0.00× time)
+- 50,000 chars: 0.0001ms vs 1.1322ms → ~10064.1× faster (0.00× time)
+- 100,000 chars: 0.0002ms vs 2.8605ms → ~15256.1× faster (0.00× time)
+- 200,000 chars: 6.7418ms vs 5.7412ms → ~0.9× faster (1.17× time)
 <!-- perf-auto:one-examples:end -->
 
 注意：数字会因环境与内容不同而变化，建议在本地按上文“本地复现基准”步骤生成你自己的对比报告。若需在 CI 中进行回归检测，可运行：`pnpm run perf:check`。
@@ -72,21 +72,21 @@ pnpm run perf:update-readme
 单次解析耗时（越低越好）：
 
 <!-- perf-auto:remark-one:start -->
-- 5,000 chars: 0.0001ms vs 5.0277ms → 35835.7× faster
-- 20,000 chars: 0.0002ms vs 21.64ms → 136730.8× faster
-- 50,000 chars: 0.0003ms vs 61.32ms → 210202.5× faster
-- 100,000 chars: 0.0004ms vs 142.14ms → 352987.4× faster
-- 200,000 chars: 9.5088ms vs 338.30ms → 35.6× faster
+- 5,000 chars: 0.0001ms vs 3.8328ms → 36307.0× faster
+- 20,000 chars: 0.0001ms vs 14.45ms → 119596.7× faster
+- 50,000 chars: 0.0001ms vs 38.99ms → 346605.5× faster
+- 100,000 chars: 0.0002ms vs 94.17ms → 502240.4× faster
+- 200,000 chars: 6.7418ms vs 217.64ms → 32.3× faster
 <!-- perf-auto:remark-one:end -->
 
 增量工作负载（append workload）：
 
 <!-- perf-auto:remark-append:start -->
-- 5,000 chars: 0.3590ms vs 15.23ms → 42.4× faster
-- 20,000 chars: 1.1896ms vs 72.43ms → 60.9× faster
-- 50,000 chars: 3.3670ms vs 200.90ms → 59.7× faster
-- 100,000 chars: 6.3091ms vs 456.32ms → 72.3× faster
-- 200,000 chars: 21.65ms vs 1072.71ms → 49.5× faster
+- 5,000 chars: 0.2744ms vs 10.02ms → 36.5× faster
+- 20,000 chars: 0.8840ms vs 51.71ms → 58.5× faster
+- 50,000 chars: 1.9366ms vs 144.19ms → 74.5× faster
+- 100,000 chars: 4.0628ms vs 293.03ms → 72.1× faster
+- 200,000 chars: 14.61ms vs 684.70ms → 46.9× faster
 <!-- perf-auto:remark-append:end -->
 
 说明：
@@ -100,21 +100,21 @@ pnpm run perf:update-readme
 ### 对比 markdown-it renderer
 
 <!-- perf-auto:render-md:start -->
-- 5,000 chars: 0.3030ms vs 0.2115ms → ~0.7× faster
-- 20,000 chars: 0.9943ms vs 0.7940ms → ~0.8× faster
-- 50,000 chars: 2.5626ms vs 1.9901ms → ~0.8× faster
-- 100,000 chars: 5.8341ms vs 4.6943ms → ~0.8× faster
-- 200,000 chars: 13.06ms vs 11.39ms → ~0.9× faster
+- 5,000 chars: 0.2091ms vs 0.1694ms → ~0.8× faster
+- 20,000 chars: 0.6078ms vs 0.5493ms → ~0.9× faster
+- 50,000 chars: 1.5064ms vs 1.3452ms → ~0.9× faster
+- 100,000 chars: 4.5276ms vs 3.4122ms → ~0.8× faster
+- 200,000 chars: 9.9405ms vs 7.7041ms → ~0.8× faster
 <!-- perf-auto:render-md:end -->
 
 ### 对比 remark + rehype renderer
 
 <!-- perf-auto:render-remark:start -->
-- 5,000 chars: 0.3030ms vs 5.2532ms → ~17.3× faster
-- 20,000 chars: 0.9943ms vs 23.29ms → ~23.4× faster
-- 50,000 chars: 2.5626ms vs 69.32ms → ~27.0× faster
-- 100,000 chars: 5.8341ms vs 151.76ms → ~26.0× faster
-- 200,000 chars: 13.06ms vs 492.86ms → ~37.7× faster
+- 5,000 chars: 0.2091ms vs 3.4914ms → ~16.7× faster
+- 20,000 chars: 0.6078ms vs 18.46ms → ~30.4× faster
+- 50,000 chars: 1.5064ms vs 44.63ms → ~29.6× faster
+- 100,000 chars: 4.5276ms vs 103.02ms → ~22.8× faster
+- 200,000 chars: 9.9405ms vs 238.86ms → ~24.0× faster
 <!-- perf-auto:render-remark:end -->
 
 本地复现：
@@ -144,11 +144,66 @@ pnpm run perf:update-readme
 
 来自 `docs/perf-render-summary.csv` 的渲染（renderMs）汇总：
 
-- 5,000 chars: markdown-it-ts 0.2814ms vs markdown-exit 0.2836ms → ~1.01×（markdown-it-ts 略快）
-- 20,000 chars: markdown-it-ts 0.9555ms vs markdown-exit 1.0533ms → ~1.10×（markdown-it-ts 快）
-- 50,000 chars: markdown-it-ts 2.5337ms vs markdown-exit 2.6055ms → ~1.03×（markdown-it-ts 快）
-- 100,000 chars: markdown-it-ts 5.7094ms vs markdown-exit 5.8194ms → ~1.02×（markdown-it-ts 快）
-- 200,000 chars: markdown-it-ts 12.3119ms vs markdown-exit 14.3799ms → ~1.17×（markdown-it-ts 快）
+- 5,000 chars: markdown-it-ts 0.307706ms vs markdown-exit 0.223697ms → ~1.38×（markdown-exit 快）
+- 20,000 chars: markdown-it-ts 0.627056ms vs markdown-exit 0.740508ms → ~1.18×（markdown-it-ts 快）
+- 50,000 chars: markdown-it-ts 1.5393ms vs markdown-exit 1.8689ms → ~1.21×（markdown-it-ts 快）
+- 100,000 chars: markdown-it-ts 4.3615ms vs markdown-exit 4.6592ms → ~1.07×（markdown-it-ts 快）
+- 200,000 chars: markdown-it-ts 9.7917ms vs markdown-exit 10.43ms → ~1.06×（markdown-it-ts 快）
+
+
+## Parse / Render 对比排名（5k~200k）
+
+为了更直观地查看四个实现（markdown-it-ts、markdown-it、markdown-exit、remark）在不同规模下的 parse / render 名次，下面基于 `docs/perf-latest-summary.csv`（parse one-shot）与 `docs/perf-render-summary.csv`（parse + HTML 输出）整理了排名表。markdown-it-ts 取对应规模下 oneShotMs 最低的场景（S1~S5）。
+
+**Parse 排名（one-shot 解析耗时，单位：ms）**
+
+| Size | Rank | Library | oneShotMs |
+|---:|---:|---|---:|
+| 5,000 | 1 | markdown-it-ts | 0.000299 |
+| 5,000 | 2 | markdown-it | 0.402106 |
+| 5,000 | 3 | markdown-exit | 0.417318 |
+| 5,000 | 4 | remark | 4.359 |
+| 20,000 | 1 | markdown-it-ts | 0.000127 |
+| 20,000 | 2 | markdown-it | 0.535485 |
+| 20,000 | 3 | markdown-exit | 0.654704 |
+| 20,000 | 4 | remark | 16.55 |
+| 50,000 | 1 | markdown-it-ts | 0.000117 |
+| 50,000 | 2 | markdown-it | 1.202 |
+| 50,000 | 3 | markdown-exit | 1.606 |
+| 50,000 | 4 | remark | 48.30 |
+| 100,000 | 1 | markdown-it-ts | 0.000229 |
+| 100,000 | 2 | markdown-it | 3.160 |
+| 100,000 | 3 | markdown-exit | 3.665 |
+| 100,000 | 4 | remark | 107.08 |
+| 200,000 | 1 | markdown-it | 6.427 |
+| 200,000 | 2 | markdown-it-ts | 6.535 |
+| 200,000 | 3 | markdown-exit | 7.540 |
+| 200,000 | 4 | remark | 336.40 |
+
+**Render 排名（解析 + HTML 输出耗时，单位：ms）**
+
+| Size | Rank | Library | renderMs |
+|---:|---:|---|---:|
+| 5,000 | 1 | markdown-it | 0.180096 |
+| 5,000 | 2 | markdown-exit | 0.223697 |
+| 5,000 | 3 | markdown-it-ts | 0.307706 |
+| 5,000 | 4 | remark + rehype | 4.119 |
+| 20,000 | 1 | markdown-it | 0.558317 |
+| 20,000 | 2 | markdown-it-ts | 0.627056 |
+| 20,000 | 3 | markdown-exit | 0.740508 |
+| 20,000 | 4 | remark + rehype | 16.67 |
+| 50,000 | 1 | markdown-it | 1.403 |
+| 50,000 | 2 | markdown-it-ts | 1.539 |
+| 50,000 | 3 | markdown-exit | 1.869 |
+| 50,000 | 4 | remark + rehype | 52.97 |
+| 100,000 | 1 | markdown-it-ts | 4.361 |
+| 100,000 | 2 | markdown-it | 4.548 |
+| 100,000 | 3 | markdown-exit | 4.659 |
+| 100,000 | 4 | remark + rehype | 108.35 |
+| 200,000 | 1 | markdown-it-ts | 9.792 |
+| 200,000 | 2 | markdown-exit | 10.43 |
+| 200,000 | 3 | markdown-it | 11.31 |
+| 200,000 | 4 | remark + rehype | 264.05 |
 
 
 ### 回归检查与对比
