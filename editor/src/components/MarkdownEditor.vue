@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import type { JSONContent } from '@tiptap/core'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { BubbleMenu, EditorContent, VueRenderer, useEditor } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
@@ -245,125 +244,34 @@ const mentionSuggestion = {
   },
 }
 
-const defaultMarkdown = `# 欢迎来到 markdown-it-ts TipTap 编辑器
+const defaultMarkdown = `# Getting started
 
-尝试输入 \`markdown\` 语法，例如 \`## 标题\`、\`> 引用\`、\`**加粗**\`。
+Welcome to the **Simple Editor** template! This template integrates open source UI components and TipTap extensions licensed under _MIT_.
 
-- 使用 \`@\` 可以触发 mention
-- 输入 \`:rocket:\` 会得到火箭 emoji
-- 点击右侧 “注入插件” 面板插入图片、视频、引用、代码块等
+Integrate it by following the [TipTap UI Components docs](https://tiptap.dev/docs) or using our CLI tool.
 
-> 创造与协作都应该优雅灵动 ✨`
+\`\`\`bash
+npx @tiptap/cli init
+\`\`\`
 
-const markdownSource = ref(defaultMarkdown)
-let pendingMarkdownMirror = 0
-const syncingFromMarkdown = ref(false)
+## Features
+
+> A fully responsive rich text editor with built-in support for common formatting and layout tools.
+
+- Type markdown \`**\` or use keyboard shortcuts \`Cmd + B\` for most marks
+- Drop images, videos and callouts
+- Use \`/\` to open the command menu and discover blocks
+
+Add images, customize alignment, and apply **advanced formatting** to make your writing more engaging.
+
+![Tiptap Placeholder](https://placehold.co/820x300/111827/ffffff?text=Tiptap+Placeholder)
+
+### Next steps
+1. Import your content from Markdown
+2. Wire it to markdown-it-ts for full fidelity
+3. Invite collaborators ✨`
+
 const addPanelOpen = ref(false)
-
-const serializeMarkdown = (node: JSONContent): string => {
-  if (!node)
-    return ''
-  if (node.type === 'doc')
-    return (node.content ?? []).map(serializeMarkdown).filter(Boolean).join('\n\n')
-
-  if (node.type === 'paragraph')
-    return (node.content ?? []).map(serializeMarkdown).join('')
-
-  if (node.type === 'text') {
-    const text = node.text ?? ''
-    return applyMarks(text, node.marks)
-  }
-
-  if (node.type === 'heading') {
-    const level = node.attrs?.level ?? 1
-    return `${'#'.repeat(level)} ${(node.content ?? []).map(serializeMarkdown).join('')}`
-  }
-
-  if (node.type === 'bulletList')
-    return serializeList(node.content ?? [], '-')
-
-  if (node.type === 'orderedList')
-    return serializeList(node.content ?? [], '1.', node.attrs?.start ?? 1)
-
-  if (node.type === 'listItem')
-    return (node.content ?? []).map(serializeMarkdown).join('\n')
-
-  if (node.type === 'blockquote')
-    return (node.content ?? []).map(serializeMarkdown).map(line => `> ${line}`).join('\n')
-
-  if (node.type === 'calloutQuote') {
-    const body = (node.content ?? []).map(serializeMarkdown).join('\n')
-    const author = node.attrs?.author ? `\n> — ${node.attrs.author}` : ''
-    return body
-      .split('\n')
-      .map(line => `> ${line}`)
-      .join('\n') + author
-  }
-
-  if (node.type === 'codeBlock') {
-    const lang = node.attrs?.language ?? ''
-    const content = (node.content ?? []).map(serializeMarkdown).join('')
-    return `\`\`\`${lang}\n${content}\n\`\`\``
-  }
-
-  if (node.type === 'horizontalRule')
-    return '---'
-
-  if (node.type === 'hardBreak')
-    return '  \n'
-
-  if (node.type === 'image')
-    return `![${node.attrs?.alt ?? ''}](${node.attrs?.src ?? ''})`
-
-  if (node.type === 'video')
-    return `[video](${node.attrs?.src ?? ''})`
-
-  if (node.type === 'mention')
-    return `@${node.attrs?.label ?? node.attrs?.id}`
-
-  return (node.content ?? []).map(serializeMarkdown).join('')
-}
-
-const serializeList = (items: JSONContent[], prefix: '-' | '1.', start?: number): string => {
-  return items
-    .map((item, index) => {
-      const marker = prefix === '-' ? '-' : `${(start ?? 1) + index}.`
-      const content = serializeMarkdown(item).split('\n')
-      return content.map((line, lineIndex) => (lineIndex === 0 ? `${marker} ${line}` : `   ${line}`)).join('\n')
-    })
-    .join('\n')
-}
-
-const applyMarks = (text: string, marks?: { type: string, attrs?: Record<string, any> }[]) => {
-  if (!marks || marks.length === 0)
-    return text
-  return marks.reduce((acc, mark) => {
-    switch (mark.type) {
-      case 'bold':
-        return `**${acc}**`
-      case 'italic':
-        return `*${acc}*`
-      case 'strike':
-        return `~~${acc}~~`
-      case 'code':
-        return `\`${acc}\``
-      case 'underline':
-        return `<u>${acc}</u>`
-      case 'textStyle':
-        return mark.attrs?.color ? `<span style="color:${mark.attrs.color}">${acc}</span>` : acc
-      case 'highlight':
-        return `==${acc}==`
-      case 'superscript':
-        return `^${acc}^`
-      case 'subscript':
-        return `~${acc}~`
-      case 'link':
-        return `[${acc}](${mark.attrs?.href ?? ''})`
-      default:
-        return acc
-    }
-  }, text)
-}
 
 const editor = useEditor({
   content: md.render(defaultMarkdown),
@@ -377,7 +285,7 @@ const editor = useEditor({
       },
     }),
     Placeholder.configure({
-      placeholder: '使用 Markdown 或工具栏开始创作…',
+      placeholder: 'Write here or type / to open commands…',
       showOnlyWhenEditable: true,
     }),
     Link.configure({
@@ -417,44 +325,10 @@ const editor = useEditor({
   ],
   editorProps: {
     attributes: {
-      class: 'tiptap-prose',
+      class: 'tiptap-prose simple-prose',
     },
   },
-  onUpdate: ({ editor }) => {
-    if (syncingFromMarkdown.value)
-      return
-    pendingMarkdownMirror += 1
-    markdownSource.value = serializeMarkdown(editor.getJSON())
-  },
 })
-
-watch(markdownSource, (value) => {
-  if (!editor.value)
-    return
-  if (pendingMarkdownMirror > 0) {
-    pendingMarkdownMirror -= 1
-    return
-  }
-  syncingFromMarkdown.value = true
-  editor.value.commands.setContent(md.render(value))
-  syncingFromMarkdown.value = false
-})
-
-watch(
-  () => editor.value,
-  (instance) => {
-    if (!instance)
-      return
-    pendingMarkdownMirror += 1
-    markdownSource.value = serializeMarkdown(instance.getJSON())
-  },
-)
-
-onBeforeUnmount(() => {
-  editor.value?.destroy()
-})
-
-const htmlPreview = computed(() => md.render(markdownSource.value))
 
 const stats = computed(() => {
   const store = editor.value?.storage.characterCount
@@ -492,16 +366,14 @@ const insertImage = () => {
 const normalizeVideoUrl = (input: string) => {
   try {
     const url = new URL(input)
-    if (url.hostname.includes('youtu.be')) {
+    if (url.hostname.includes('youtu.be'))
       return `https://www.youtube.com/embed/${url.pathname.replace('/', '')}`
-    }
     if (url.hostname.includes('youtube.com')) {
       const id = url.searchParams.get('v')
       return id ? `https://www.youtube.com/embed/${id}` : input
     }
-    if (url.hostname.includes('vimeo.com')) {
+    if (url.hostname.includes('vimeo.com'))
       return `https://player.vimeo.com/video${url.pathname}`
-    }
     return input
   }
   catch {
@@ -524,7 +396,7 @@ const insertVideo = () => {
 const insertQuote = () => {
   if (!editor.value)
     return
-  const text = window.prompt('引用内容', '创造与协作都应该优雅灵动。')
+  const text = window.prompt('引用内容', 'A fully responsive editor out of the box!')
   if (!text)
     return
   const author = window.prompt('作者（可选）', 'markdown-it-ts')
@@ -555,14 +427,6 @@ const insertCodeSnippet = () => {
   editor.value?.chain()?.focus()?.toggleCodeBlock({ language: 'ts' })?.run()
 }
 
-const refreshFromMarkdown = () => {
-  if (!editor.value)
-    return
-  syncingFromMarkdown.value = true
-  editor.value.commands.setContent(md.render(markdownSource.value))
-  syncingFromMarkdown.value = false
-}
-
 const toolbarHeadings = [
   { label: '正文', action: () => editor.value?.chain()?.focus()?.setParagraph()?.run() },
   { label: 'H1', action: () => editor.value?.chain()?.focus()?.toggleHeading({ level: 1 })?.run() },
@@ -570,211 +434,175 @@ const toolbarHeadings = [
   { label: 'H3', action: () => editor.value?.chain()?.focus()?.toggleHeading({ level: 3 })?.run() },
 ]
 
-const markdownShortcuts = [
-  '````code```',
-  '`**bold**`',
-  '`> quote`',
-  '`- list item`',
-  '`[link](url)`',
-]
+const markdownShortcuts = ['`**bold**`', '`> quote`', '`/callout`']
+
+onBeforeUnmount(() => {
+  editor.value?.destroy()
+})
 </script>
 
 <template>
-  <div class="editor-layout">
-    <section class="editor-surface">
-      <header class="editor-toolbar">
-        <div class="toolbar-left">
-          <button class="toolbar-btn" type="button" :disabled="!(editor && editor.can().undo())" @mousedown.prevent @click="editor?.chain()?.focus()?.undo()?.run()">
-            ⤺
+  <div class="simple-editor-shell">
+    <header class="simple-toolbar">
+      <div class="toolbar-left">
+        <button class="toolbar-btn" type="button" :disabled="!(editor && editor.can().undo())" @mousedown.prevent @click="editor?.chain()?.focus()?.undo()?.run()">
+          ⤺
+        </button>
+        <button class="toolbar-btn" type="button" :disabled="!(editor && editor.can().redo())" @mousedown.prevent @click="editor?.chain()?.focus()?.redo()?.run()">
+          ⤻
+        </button>
+        <div class="toolbar-divider" />
+
+        <div class="toolbar-segment">
+          <button
+            v-for="item in toolbarHeadings"
+            :key="item.label"
+            class="toolbar-btn"
+            type="button"
+            @mousedown.prevent
+            @click="item.action"
+          >
+            {{ item.label }}
           </button>
-          <button class="toolbar-btn" type="button" :disabled="!(editor && editor.can().redo())" @mousedown.prevent @click="editor?.chain()?.focus()?.redo()?.run()">
-            ⤻
+          <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive('blockquote') }" @mousedown.prevent @click="editor?.chain()?.focus()?.toggleBlockquote()?.run()">
+            Quote
           </button>
-          <div class="toolbar-divider" />
-
-          <div class="toolbar-segment">
-            <button
-              v-for="item in toolbarHeadings"
-              :key="item.label"
-              class="toolbar-btn"
-              type="button"
-              @mousedown.prevent
-              @click="item.action"
-            >
-              {{ item.label }}
-            </button>
-          </div>
-
-          <div class="toolbar-segment">
-            <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive('bulletList') }" @mousedown.prevent @click="editor?.chain()?.focus()?.toggleBulletList()?.run()">
-              • List
-            </button>
-            <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive('orderedList') }" @mousedown.prevent @click="editor?.chain()?.focus()?.toggleOrderedList()?.run()">
-              1. List
-            </button>
-            <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive('blockquote') }" @mousedown.prevent @click="editor?.chain()?.focus()?.toggleBlockquote()?.run()">
-              Quote
-            </button>
-            <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive('codeBlock') }" @mousedown.prevent @click="insertCodeSnippet">
-              Code
-            </button>
-          </div>
-
-          <div class="toolbar-segment">
-            <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive('bold') }" @mousedown.prevent @click="editor?.chain()?.focus()?.toggleBold()?.run()">
-              B
-            </button>
-            <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive('italic') }" @mousedown.prevent @click="editor?.chain()?.focus()?.toggleItalic()?.run()">
-              I
-            </button>
-            <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive('underline') }" @mousedown.prevent @click="editor?.chain()?.focus()?.toggleUnderline()?.run()">
-              U
-            </button>
-            <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive('strike') }" @mousedown.prevent @click="editor?.chain()?.focus()?.toggleStrike()?.run()">
-              S
-            </button>
-            <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive('highlight') }" @mousedown.prevent @click="editor?.chain()?.focus()?.toggleHighlight()?.run()">
-              ✨
-            </button>
-            <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive('code') }" @mousedown.prevent @click="editor?.chain()?.focus()?.toggleCode()?.run()">
-              \</\>
-            </button>
-            <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive('link') }" @mousedown.prevent @click="toggleLink">
-              🔗
-            </button>
-            <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive('superscript') }" @mousedown.prevent @click="editor?.chain()?.focus()?.toggleSuperscript()?.run()">
-              x²
-            </button>
-            <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive('subscript') }" @mousedown.prevent @click="editor?.chain()?.focus()?.toggleSubscript()?.run()">
-              x₂
-            </button>
-          </div>
-
-          <div class="toolbar-segment">
-            <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive({ textAlign: 'left' }) }" @mousedown.prevent @click="editor?.chain()?.focus()?.setTextAlign('left')?.run()">
-              ⬅
-            </button>
-            <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive({ textAlign: 'center' }) }" @mousedown.prevent @click="editor?.chain()?.focus()?.setTextAlign('center')?.run()">
-              ⬌
-            </button>
-            <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive({ textAlign: 'right' }) }" @mousedown.prevent @click="editor?.chain()?.focus()?.setTextAlign('right')?.run()">
-              ➡
-            </button>
-          </div>
-
-          <div class="toolbar-segment">
-            <button class="toolbar-btn toolbar-btn--primary" type="button" @mousedown.prevent @click="addPanelOpen = !addPanelOpen">
-              ＋ Add
-            </button>
-          </div>
         </div>
 
-        <div class="toolbar-right">
-          <small>{{ stats.words }} words · {{ stats.characters }}/5000 chars</small>
-        </div>
-      </header>
-
-      <div class="editor-body">
-        <div v-if="addPanelOpen" class="add-panel">
-          <div class="add-panel__section">
-            <h4>注入插件</h4>
-            <div class="add-panel__grid">
-              <button class="chip" type="button" @mousedown.prevent @click="insertQuote">Quote</button>
-              <button class="chip" type="button" @mousedown.prevent @click="insertImage">Image</button>
-              <button class="chip" type="button" @mousedown.prevent @click="insertVideo">Video</button>
-              <button class="chip" type="button" @mousedown.prevent @click="insertCodeSnippet">Code</button>
-            </div>
-          </div>
-          <div class="add-panel__section">
-            <h4>@ Mentions</h4>
-            <div class="mention-chips">
-              <button
-                v-for="user in mentionUsers"
-                :key="user.id"
-                class="chip chip--ghost"
-                type="button"
-                @mousedown.prevent
-                @click="insertMention(user)"
-              >
-                {{ user.avatar }} {{ user.label }}
-              </button>
-            </div>
-          </div>
-          <div class="add-panel__section">
-            <h4>Emoji</h4>
-            <div class="emoji-grid">
-              <button v-for="emoji in emojiItems" :key="emoji.name" class="emoji-btn" type="button" @mousedown.prevent @click="insertEmoji(emoji.name)">
-                {{ emoji.glyph }}
-              </button>
-            </div>
-          </div>
+        <div class="toolbar-segment">
+          <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive('bulletList') }" @mousedown.prevent @click="editor?.chain()?.focus()?.toggleBulletList()?.run()">
+            •
+          </button>
+          <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive('orderedList') }" @mousedown.prevent @click="editor?.chain()?.focus()?.toggleOrderedList()?.run()">
+            1.
+          </button>
+          <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive('codeBlock') }" @mousedown.prevent @click="insertCodeSnippet">
+            Code
+          </button>
         </div>
 
-        <EditorContent v-if="editor" :editor="editor" class="tiptap-wrapper" />
+        <div class="toolbar-segment">
+          <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive('bold') }" @mousedown.prevent @click="editor?.chain()?.focus()?.toggleBold()?.run()">
+            B
+          </button>
+          <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive('italic') }" @mousedown.prevent @click="editor?.chain()?.focus()?.toggleItalic()?.run()">
+            I
+          </button>
+          <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive('underline') }" @mousedown.prevent @click="editor?.chain()?.focus()?.toggleUnderline()?.run()">
+            U
+          </button>
+          <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive('strike') }" @mousedown.prevent @click="editor?.chain()?.focus()?.toggleStrike()?.run()">
+            S
+          </button>
+          <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive('highlight') }" @mousedown.prevent @click="editor?.chain()?.focus()?.toggleHighlight()?.run()">
+            ✨
+          </button>
+          <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive('code') }" @mousedown.prevent @click="editor?.chain()?.focus()?.toggleCode()?.run()">
+            `
+          </button>
+          <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive('link') }" @mousedown.prevent @click="toggleLink">
+            🔗
+          </button>
+          <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive('superscript') }" @mousedown.prevent @click="editor?.chain()?.focus()?.toggleSuperscript()?.run()">
+            x²
+          </button>
+          <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive('subscript') }" @mousedown.prevent @click="editor?.chain()?.focus()?.toggleSubscript()?.run()">
+            x₂
+          </button>
+        </div>
 
-        <BubbleMenu v-if="editor" :editor="editor" class="bubble-menu">
-          <button class="bubble-btn" type="button" @mousedown.prevent @click="editor?.chain()?.focus()?.toggleBold()?.run()">B</button>
-          <button class="bubble-btn" type="button" @mousedown.prevent @click="editor?.chain()?.focus()?.toggleItalic()?.run()">I</button>
-          <button class="bubble-btn" type="button" @mousedown.prevent @click="editor?.chain()?.focus()?.toggleUnderline()?.run()">U</button>
-          <button class="bubble-btn" type="button" @mousedown.prevent @click="toggleLink">Link</button>
-        </BubbleMenu>
+        <div class="toolbar-segment">
+          <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive({ textAlign: 'left' }) }" @mousedown.prevent @click="editor?.chain()?.focus()?.setTextAlign('left')?.run()">
+            ⬅
+          </button>
+          <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive({ textAlign: 'center' }) }" @mousedown.prevent @click="editor?.chain()?.focus()?.setTextAlign('center')?.run()">
+            ⬌
+          </button>
+          <button class="toolbar-btn" type="button" :class="{ 'is-active': editor?.isActive({ textAlign: 'right' }) }" @mousedown.prevent @click="editor?.chain()?.focus()?.setTextAlign('right')?.run()">
+            ➡
+          </button>
+        </div>
+
+        <button class="toolbar-btn toolbar-btn--primary" type="button" @mousedown.prevent @click="addPanelOpen = !addPanelOpen">
+          ＋ Add
+        </button>
       </div>
-    </section>
 
-    <aside class="markdown-panel">
-      <div class="markdown-card">
-        <div class="markdown-card__header">
-          <div>
-            <h3>Markdown 输入</h3>
-            <p>实时使用 markdown-it-ts 解析并同步到 TipTap。</p>
-          </div>
-          <button class="chip chip--ghost" type="button" @click="refreshFromMarkdown">
-            重新解析
+      <div class="toolbar-right">
+        <small>{{ stats.words }} words · {{ stats.characters }}/5000 chars</small>
+      </div>
+    </header>
+
+    <div v-if="addPanelOpen" class="add-rail">
+      <div class="add-rail__section">
+        <h4>注入插件</h4>
+        <div class="add-rail__grid">
+          <button class="chip" type="button" @mousedown.prevent @click="insertQuote">Quote</button>
+          <button class="chip" type="button" @mousedown.prevent @click="insertImage">Image</button>
+          <button class="chip" type="button" @mousedown.prevent @click="insertVideo">Video</button>
+          <button class="chip" type="button" @mousedown.prevent @click="insertCodeSnippet">Code</button>
+        </div>
+      </div>
+      <div class="add-rail__section">
+        <h4>@ Mentions</h4>
+        <div class="mention-chips">
+          <button
+            v-for="user in mentionUsers"
+            :key="user.id"
+            class="chip chip--ghost"
+            type="button"
+            @mousedown.prevent
+            @click="insertMention(user)"
+          >
+            {{ user.avatar }} {{ user.label }}
           </button>
         </div>
-        <textarea v-model="markdownSource" spellcheck="false" rows="12" class="markdown-input" />
-        <div class="markdown-shortcuts">
-          <span>快捷语法：</span>
+      </div>
+      <div class="add-rail__section">
+        <h4>Emoji</h4>
+        <div class="emoji-grid">
+          <button v-for="emoji in emojiItems" :key="emoji.name" class="emoji-btn" type="button" @mousedown.prevent @click="insertEmoji(emoji.name)">
+            {{ emoji.glyph }}
+          </button>
+        </div>
+      </div>
+      <div class="add-rail__section">
+        <h4>快捷语法</h4>
+        <div class="shortcut-tags">
           <code v-for="item in markdownShortcuts" :key="item">{{ item }}</code>
         </div>
       </div>
+    </div>
 
-      <div class="markdown-card">
-        <div class="markdown-card__header">
-          <div>
-            <h3>Markdown 预览</h3>
-            <p>markdown-it-ts 渲染结果</p>
-          </div>
-        </div>
-        <div class="markdown-preview" v-html="htmlPreview" />
-      </div>
-    </aside>
+    <section class="editor-card">
+      <EditorContent v-if="editor" :editor="editor" class="tiptap-wrapper" />
+      <BubbleMenu v-if="editor" :editor="editor" class="bubble-menu">
+        <button class="bubble-btn" type="button" @mousedown.prevent @click="editor?.chain()?.focus()?.toggleBold()?.run()">B</button>
+        <button class="bubble-btn" type="button" @mousedown.prevent @click="editor?.chain()?.focus()?.toggleItalic()?.run()">I</button>
+        <button class="bubble-btn" type="button" @mousedown.prevent @click="editor?.chain()?.focus()?.toggleUnderline()?.run()">U</button>
+        <button class="bubble-btn" type="button" @mousedown.prevent @click="toggleLink">Link</button>
+      </BubbleMenu>
+    </section>
   </div>
 </template>
 
 <style scoped>
 @import 'tippy.js/dist/tippy.css';
 
-.editor-layout {
+.simple-editor-shell {
   display: flex;
-  gap: 1.5rem;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 1rem;
 }
 
-.editor-surface {
-  flex: 1;
-  background: #fff;
-  border-radius: 1.5rem;
-  box-shadow: 0 30px 80px rgba(61, 80, 255, 0.08);
-  overflow: hidden;
-}
-
-.editor-toolbar {
+.simple-toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid #f2f2f7;
+  background: #fff;
+  border-radius: 1.5rem;
+  box-shadow: 0 20px 60px rgba(15, 26, 70, 0.08);
+  padding: 0.85rem 1.1rem;
   flex-wrap: wrap;
   gap: 0.75rem;
 }
@@ -793,9 +621,9 @@ const markdownShortcuts = [
 
 .toolbar-btn {
   border: none;
-  background: #f7f7fb;
+  background: #f3f5ff;
   padding: 0.35rem 0.65rem;
-  border-radius: 0.75rem;
+  border-radius: 0.8rem;
   font-weight: 600;
   color: #44485c;
   cursor: pointer;
@@ -808,238 +636,153 @@ const markdownShortcuts = [
 }
 
 .toolbar-btn.is-active {
-  background: #e3ecff;
-  color: #1d2c6b;
+  background: #dfe4ff;
+  color: #1f2157;
 }
 
 .toolbar-btn--primary {
-  background: #1dd1a1;
-  color: #03262d;
+  background: linear-gradient(120deg, #7ef7d4, #3fdeec);
+  color: #0d1727;
 }
 
 .toolbar-divider {
   width: 1px;
   height: 24px;
-  background: #ececf4;
+  background: #e4e5f0;
 }
 
 .toolbar-segment {
   display: flex;
   gap: 0.35rem;
-  align-items: center;
 }
 
-.editor-body {
-  position: relative;
-  padding: 1.5rem;
-}
-
-.add-panel {
-  border: 1px dashed #cbd5ff;
-  padding: 1rem;
-  border-radius: 1rem;
-  margin-bottom: 1rem;
-  background: #f8fbff;
-  display: flex;
-  flex-direction: column;
+.add-rail {
+  background: #fff;
+  border-radius: 1.2rem;
+  box-shadow: 0 20px 60px rgba(10, 12, 31, 0.08);
+  padding: 1.25rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1rem;
 }
 
-.add-panel__section h4 {
-  margin: 0 0 0.5rem;
-  color: #1e2649;
+.add-rail__section h4 {
+  margin: 0 0 0.4rem;
 }
 
-.add-panel__grid {
+.add-rail__grid {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
 }
 
+.chip {
+  border: none;
+  border-radius: 999px;
+  padding: 0.35rem 0.85rem;
+  background: #f2f5ff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chip--ghost {
+  background: transparent;
+  border: 1px solid #e4e7fb;
+}
+
 .mention-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+  gap: 0.35rem;
+}
+
+.emoji-btn {
+  border: none;
+  border-radius: 0.75rem;
+  background: #f5f6ff;
+  padding: 0.35rem 0;
+  font-size: 1.1rem;
+}
+
+.shortcut-tags {
   display: flex;
   gap: 0.35rem;
   flex-wrap: wrap;
 }
 
-.emoji-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(32px, 1fr));
-  gap: 0.25rem;
+.shortcut-tags code {
+  background: #f3f5ff;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.6rem;
 }
 
-.emoji-btn {
-  border: none;
+.editor-card {
   background: #fff;
-  border-radius: 0.75rem;
-  height: 40px;
-  font-size: 1.25rem;
-  cursor: pointer;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-}
-
-.chip {
-  border: none;
-  background: #181b34;
-  color: #fff;
-  padding: 0.35rem 0.8rem;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  cursor: pointer;
-}
-
-.chip--ghost {
-  background: #f0f2ff;
-  color: #3e4b7d;
+  border-radius: 1.5rem;
+  box-shadow: 0 30px 80px rgba(9, 15, 42, 0.12);
+  padding: 1.5rem;
 }
 
 .tiptap-wrapper {
-  min-height: 480px;
+  min-height: 600px;
 }
 
-.tiptap-prose {
-  min-height: 480px;
-  line-height: 1.7;
+.simple-prose {
+  min-height: 560px;
   font-size: 1.05rem;
-  padding: 0;
+  line-height: 1.75;
 }
 
-.tiptap-prose :global(.mention-chip) {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.1rem 0.4rem;
-  border-radius: 0.75rem;
-  background: rgba(95, 211, 178, 0.25);
-  color: #0f725d;
-  font-weight: 600;
-}
-
-.tiptap-prose :global(figure[data-video]) {
-  margin: 1.25rem 0;
-}
-
-.tiptap-prose :global(figure[data-video] iframe) {
-  width: 100%;
-  min-height: 280px;
-  border: none;
+.simple-prose pre {
+  background: #f4f4f6;
   border-radius: 1rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
 }
 
-.tiptap-prose :global(.quote-content) {
-  font-size: 1.2rem;
-  color: #162056;
-  margin-bottom: 0.5rem;
-}
-
-.tiptap-prose :global(.quote-author) {
-  font-size: 0.9rem;
-  color: #7c82a2;
-}
-
-.tiptap-prose :global(.tiptap-blockquote) {
-  border-left: 4px solid #c8e7ff;
+.simple-prose blockquote {
+  border-left: 4px solid #e6e7ef;
   padding-left: 1rem;
-  color: #445071;
-  background: #f5faff;
-  border-radius: 0 1rem 1rem 0;
+  color: #4b4d63;
+  font-style: italic;
+}
+
+.simple-prose img {
+  border-radius: 1rem;
+  box-shadow: 0 20px 60px rgba(10, 12, 31, 0.2);
 }
 
 .bubble-menu {
+  background: #0f172a;
+  color: #fff;
+  border-radius: 999px;
+  padding: 0.25rem;
   display: flex;
   gap: 0.25rem;
-  padding: 0.35rem;
-  border-radius: 999px;
-  background: rgba(23, 33, 68, 0.95);
 }
 
 .bubble-btn {
   border: none;
   background: transparent;
-  color: #e8ecff;
-  padding: 0.25rem 0.4rem;
-  border-radius: 0.5rem;
+  color: inherit;
+  padding: 0.25rem 0.55rem;
+  border-radius: 0.65rem;
   cursor: pointer;
 }
 
-.markdown-panel {
-  width: 340px;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+.bubble-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
 }
 
-.markdown-card {
-  background: #fff;
-  border-radius: 1.5rem;
-  padding: 1.25rem;
-  box-shadow: 0 25px 60px rgba(39, 52, 126, 0.1);
-}
-
-.markdown-card__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.markdown-card__header p {
-  margin: 0;
-  color: #7d82a7;
-}
-
-.markdown-input {
-  width: 100%;
-  border: 1px solid #edf0ff;
-  border-radius: 1rem;
-  min-height: 220px;
-  padding: 0.75rem;
-  font-family: 'JetBrains Mono', 'SFMono-Regular', monospace;
-  background: #fbfcff;
-}
-
-.markdown-shortcuts {
-  display: flex;
-  gap: 0.35rem;
-  flex-wrap: wrap;
-  margin-top: 0.75rem;
-  color: #7b7e99;
-  font-size: 0.85rem;
-}
-
-.markdown-shortcuts code {
-  background: #f0f4ff;
-  padding: 0.1rem 0.35rem;
-  border-radius: 0.5rem;
-}
-
-.markdown-preview :deep(h1) {
-  margin-top: 0;
-}
-
-.markdown-preview :deep(pre) {
-  background: #0f172a;
-  color: #f8fafc;
-  padding: 0.75rem;
-  border-radius: 0.75rem;
-  overflow-x: auto;
-}
-
-@media (max-width: 1100px) {
-  .editor-layout {
-    flex-direction: column;
-  }
-
-  .markdown-panel {
+@media (max-width: 900px) {
+  .toolbar-left {
     width: 100%;
   }
-}
-</style>
-
-<style>
-.tippy-box[data-theme='mention'] {
-  background: #10163a;
-  border-radius: 1rem;
-  padding: 0.4rem;
 }
 </style>
