@@ -17,6 +17,8 @@ export { Token } from './common/token'
 export { parse, parseInline } from './parse'
 
 export { withRenderer } from './plugins/with-renderer'
+export { taskListPlugin } from './plugins/task-lists'
+export type { TaskListOptions } from './plugins/task-lists'
 export type { RendererEnv, RendererOptions } from './render'
 export { StreamBuffer } from './stream/buffer'
 export { chunkedParse } from './stream/chunked'

@@ -237,6 +237,37 @@ const plugin: MarkdownItPlugin = (md) => {
 const md = markdownIt().use(plugin)
 ```
 
+### Built-in Plugins
+
+#### Task Lists (GFM-style checkboxes)
+
+Render GitHub Flavored Markdown task lists with `- [ ]` and `- [x]` syntax:
+
+```typescript
+import markdownIt from 'markdown-it-ts'
+import { taskListPlugin } from 'markdown-it-ts/plugins/task-lists'
+
+const md = markdownIt().use(taskListPlugin)
+
+const html = md.render(`
+- [x] Done task
+- [ ] Todo task
+`)
+// Renders checkboxes with proper classes for styling
+```
+
+Options:
+
+```typescript
+md.use(taskListPlugin, {
+  listClass: 'task-list',        // CSS class for <ul>/<ol>
+  itemClass: 'task-list-item',   // CSS class for <li>
+  checkboxClass: 'task-list-checkbox', // CSS class for checkbox
+  disabled: true,                // Render checkboxes as disabled
+  divCheckbox: false,            // Use <span> instead of <input> (SSR-friendly)
+})
+```
+
 ## Performance tips
 
 For large documents or append-heavy editing flows, you can enable the stream parser and an optional chunked fallback. See the detailed guide in `docs/stream-optimization.md`.
