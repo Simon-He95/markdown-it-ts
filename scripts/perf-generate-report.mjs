@@ -3,7 +3,7 @@
 // Run: node scripts/perf-generate-report.mjs
 
 import { performance } from 'node:perf_hooks'
-import { writeFileSync, mkdirSync, existsSync } from 'node:fs'
+import { writeFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
 import MarkdownIt from '../dist/index.js'
 import MarkdownItOriginal from 'markdown-it'
@@ -13,6 +13,8 @@ import { unified } from 'unified'
 import remarkParse from 'remark-parse'
 import remarkRehype from 'remark-rehype'
 import rehypeStringify from 'rehype-stringify'
+
+const PERF_BENCHMARK_VERSION = 4
 
 function para(n) {
   return `## Section ${n}\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod.\n\n- a\n- b\n- c\n\n\`\`\`js\nconsole.log(${n})\n\`\`\`\n\n`
@@ -56,13 +58,30 @@ function measure(fn, iters = 1) {
   return { ms: t1 - t0, res }
 }
 
+function median(values) {
+  const sorted = [...values].sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid]
+}
+
+function measureStable(fn, iters = 1, samples = 3) {
+  const measurements = []
+  let res
+  for (let sample = 0; sample < samples; sample++) {
+    const run = measure(fn, iters)
+    measurements.push(run.ms / iters)
+    res = run.res
+  }
+  return { ms: median(measurements), res }
+}
+
 function pickIters(size) {
   // Increase iterations for small sizes to reduce timer noise
-  if (size <= 5_000) return { oneIters: 30, appRepeats: 6 }
-  if (size <= 20_000) return { oneIters: 20, appRepeats: 5 }
-  if (size <= 50_000) return { oneIters: 10, appRepeats: 4 }
-  if (size <= 100_000) return { oneIters: 6, appRepeats: 3 }
-  return { oneIters: 4, appRepeats: 2 }
+  if (size <= 5_000) return { oneIters: 120, appRepeats: 6, stableSamples: 5, appendSequenceIters: 6, appendLineSequenceIters: 4, replaceSequenceIters: 8 }
+  if (size <= 20_000) return { oneIters: 60, appRepeats: 5, stableSamples: 5, appendSequenceIters: 5, appendLineSequenceIters: 4, replaceSequenceIters: 6 }
+  if (size <= 50_000) return { oneIters: 30, appRepeats: 4, stableSamples: 5, appendSequenceIters: 4, appendLineSequenceIters: 3, replaceSequenceIters: 5 }
+  if (size <= 100_000) return { oneIters: 16, appRepeats: 4, stableSamples: 5, appendSequenceIters: 3, appendLineSequenceIters: 2, replaceSequenceIters: 4 }
+  return { oneIters: 10, appRepeats: 4, stableSamples: 5, appendSequenceIters: 2, appendLineSequenceIters: 2, replaceSequenceIters: 3 }
 }
 
 function fmt(ms) {
@@ -109,6 +128,23 @@ function makeScenarios() {
   ]
 }
 
+function resetScenario(sc, md) {
+  if (sc.type.startsWith('stream'))
+    md.stream.reset()
+}
+
+function runParseScenario(sc, md, input, envStream, envPlain) {
+  if (sc.type.startsWith('stream'))
+    return md.stream.parse(input, envStream)
+  if (sc.type === 'md-original')
+    return md.parse(input, {})
+  if (sc.type === 'md-exit')
+    return md.parse(input)
+  if (sc.type === 'remark')
+    return md.parse(input)
+  return md.parse(input, envPlain)
+}
+
 function runMatrix() {
   const scenarios = makeScenarios()
   const results = []
@@ -117,112 +153,109 @@ function runMatrix() {
     const paras = makeParasByChars(size)
     const doc = paras.join('')
     const appParts = splitParasIntoSteps(paras, APP_STEPS)
-    const { oneIters, appRepeats } = pickIters(size)
+    const { oneIters, appRepeats, stableSamples, appendSequenceIters, appendLineSequenceIters, replaceSequenceIters } = pickIters(size)
 
     for (const sc of scenarios) {
       const md = sc.make()
-  const envStream = { bench: true }
-  const envOne = { bench: true }
+      const envStream = { bench: true }
+      const envOne = { bench: true }
+      const envAppend = { bench: true }
 
       // one-shot
-      // warmup
-      if (sc.type.startsWith('stream')) md.stream.parse(doc, envStream)
-      else if (sc.type === 'md-original') md.parse(doc, {})
-      else if (sc.type === 'remark') md.parse(doc)
-      else md.parse(doc, envOne)
-      const one = measure(() => (
-        sc.type.startsWith('stream') ? md.stream.parse(doc, envStream)
-        : sc.type === 'md-original' ? md.parse(doc, {})
-        : sc.type === 'md-exit' ? md.parse(doc)
-        : sc.type === 'remark' ? md.parse(doc)
-        : md.parse(doc, envOne)
-      ), oneIters)
+      const oneRunner = () => {
+        resetScenario(sc, md)
+        return runParseScenario(sc, md, doc, envStream, envOne)
+      }
+      oneRunner()
+      oneRunner()
+      const one = measureStable(oneRunner, oneIters, stableSamples)
 
       // append workload
       // warmup append sequence once (not timed)
       {
         let accWarm = ''
         const envAppendWarm = { bench: true }
+        resetScenario(sc, md)
         for (let i = 0; i < appParts.length; i++) {
           if (accWarm.length && accWarm.charCodeAt(accWarm.length - 1) !== 0x0A) accWarm += '\n'
           let piece = appParts[i]
           if (piece.length && piece.charCodeAt(piece.length - 1) !== 0x0A) piece += '\n'
           accWarm += piece
           if (sc.type === 'stream-no-cache-chunk') md.stream.reset()
-          if (sc.type.startsWith('stream')) md.stream.parse(accWarm, envStream)
-          else if (sc.type === 'md-original') md.parse(accWarm, {})
-          else if (sc.type === 'md-exit') md.parse(accWarm)
-          else md.parse(accWarm, envAppendWarm)
+          runParseScenario(sc, md, accWarm, envStream, envAppendWarm)
         }
       }
-  let appendMs = 0
-  const envAppend = { bench: true }
+      const appendSamples = []
       for (let rep = 0; rep < appRepeats; rep++) {
-        let acc = ''
-        for (let i = 0; i < appParts.length; i++) {
-          if (acc.length && acc.charCodeAt(acc.length - 1) !== 0x0A) acc += '\n'
-          let piece = appParts[i]
-          if (piece.length && piece.charCodeAt(piece.length - 1) !== 0x0A) piece += '\n'
-          acc += piece
-    if (sc.type === 'stream-no-cache-chunk') md.stream.reset()
-    const t = performance.now()
-    if (sc.type.startsWith('stream')) md.stream.parse(acc, envStream)
-    else if (sc.type === 'md-original') md.parse(acc, {})
-    else if (sc.type === 'md-exit') md.parse(acc)
-    else if (sc.type === 'remark') md.parse(acc)
-    else md.parse(acc, envAppend)
-    appendMs += performance.now() - t
+        let repMs = 0
+        for (let seq = 0; seq < appendSequenceIters; seq++) {
+          resetScenario(sc, md)
+          let acc = ''
+          for (let i = 0; i < appParts.length; i++) {
+            if (acc.length && acc.charCodeAt(acc.length - 1) !== 0x0A) acc += '\n'
+            let piece = appParts[i]
+            if (piece.length && piece.charCodeAt(piece.length - 1) !== 0x0A) piece += '\n'
+            acc += piece
+            if (sc.type === 'stream-no-cache-chunk') md.stream.reset()
+            const t = performance.now()
+            runParseScenario(sc, md, acc, envStream, envAppend)
+            repMs += performance.now() - t
+          }
         }
+        appendSamples.push(repMs / appendSequenceIters)
       }
-      appendMs = appendMs / appRepeats
+      const appendMs = median(appendSamples)
 
       // LINE-level append workload (finer-grained than paragraph parts)
       const lineParts = splitLinesIntoSteps(doc, APP_STEPS * 3)
-      let appendLineMs = 0
-      for (let rep = 0; rep < Math.max(1, Math.floor(appRepeats / 2)); rep++) {
-        let acc = ''
-        for (let i = 0; i < lineParts.length; i++) {
-          if (acc.length && acc.charCodeAt(acc.length - 1) !== 0x0A) acc += '\n'
-          let piece = lineParts[i]
-          if (piece.length && piece.charCodeAt(piece.length - 1) !== 0x0A) piece += '\n'
-          acc += piece
-          if (sc.type === 'stream-no-cache-chunk') md.stream.reset()
-          const t = performance.now()
-          if (sc.type.startsWith('stream')) md.stream.parse(acc, envStream)
-          else if (sc.type === 'md-original') md.parse(acc, {})
-          else if (sc.type === 'md-exit') md.parse(acc)
-          else if (sc.type === 'remark') md.parse(acc)
-          else md.parse(acc, envAppend)
-          appendLineMs += performance.now() - t
+      const lineRepeats = Math.max(2, Math.floor(appRepeats / 2))
+      const appendLineSamples = []
+      for (let rep = 0; rep < lineRepeats; rep++) {
+        let repMs = 0
+        for (let seq = 0; seq < appendLineSequenceIters; seq++) {
+          resetScenario(sc, md)
+          let acc = ''
+          for (let i = 0; i < lineParts.length; i++) {
+            if (acc.length && acc.charCodeAt(acc.length - 1) !== 0x0A) acc += '\n'
+            let piece = lineParts[i]
+            if (piece.length && piece.charCodeAt(piece.length - 1) !== 0x0A) piece += '\n'
+            acc += piece
+            if (sc.type === 'stream-no-cache-chunk') md.stream.reset()
+            const t = performance.now()
+            runParseScenario(sc, md, acc, envStream, envAppend)
+            repMs += performance.now() - t
+          }
         }
+        appendLineSamples.push(repMs / appendLineSequenceIters)
       }
-      appendLineMs = appendLineMs / Math.max(1, Math.floor(appRepeats / 2))
+      const appendLineMs = median(appendLineSamples)
 
       // Paragraph-replace workload: repeatedly change the last paragraph (non-append)
       // This simulates in-place edits that should cause full reparses in stream mode.
       const parasCopy = paras.slice()
       const replaceRepeats = Math.max(2, Math.floor(appRepeats / 2))
-      let replaceMs = 0
+      const replaceSamples = []
       for (let rep = 0; rep < replaceRepeats; rep++) {
-        const altered = parasCopy.slice()
-        const lastIdx = altered.length - 1
-        altered[lastIdx] = altered[lastIdx] + `\n/* edit ${rep} */\n`
-        const full = altered.join('')
-        const t = performance.now()
-        if (sc.type.startsWith('stream')) md.stream.parse(full, envStream)
-        else if (sc.type === 'md-original') md.parse(full, {})
-        else if (sc.type === 'md-exit') md.parse(full)
-        else if (sc.type === 'remark') md.parse(full)
-        else md.parse(full, envAppend)
-        replaceMs += performance.now() - t
+        let repMs = 0
+        for (let seq = 0; seq < replaceSequenceIters; seq++) {
+          resetScenario(sc, md)
+          const altered = parasCopy.slice()
+          const lastIdx = altered.length - 1
+          altered[lastIdx] = altered[lastIdx] + `\n/* edit ${rep}-${seq} */\n`
+          const full = altered.join('')
+          const t = performance.now()
+          runParseScenario(sc, md, full, envStream, envAppend)
+          repMs += performance.now() - t
+        }
+        replaceSamples.push(repMs / replaceSequenceIters)
       }
-      replaceMs = replaceMs / replaceRepeats
+      const replaceMs = median(replaceSamples)
 
       const stat = {
         size,
         scenario: sc.id,
         label: sc.label,
-  oneShotMs: one.ms / oneIters,
+        oneShotMs: one.ms,
         appendWorkloadMs: appendMs,
         appendLineMs,
         replaceParagraphMs: replaceMs,
@@ -260,6 +293,8 @@ function measureColdHot() {
           ? coldInst.parse(doc)
           : impl.type === 'md-original'
             ? coldInst.parse(doc, {})
+            : impl.type === 'ts'
+              ? (coldInst.stream.reset(), coldInst.stream.parse(doc, {}))
             : coldInst.parse(doc, {})
       )
       const coldMs = measure(coldRunner, 1).ms
@@ -271,6 +306,8 @@ function measureColdHot() {
           ? hotInst.parse(doc)
           : impl.type === 'md-original'
             ? hotInst.parse(doc, {})
+            : impl.type === 'ts'
+              ? (hotInst.stream.reset(), hotInst.stream.parse(doc, {}))
             : hotInst.parse(doc, {})
       )
       measure(hotRunner, 3) // warmup
@@ -295,7 +332,7 @@ function measureRenderComparisons() {
   const results = []
   for (const size of SIZES) {
     const doc = makeParasByChars(size).join('')
-    const { oneIters } = pickIters(size)
+    const { oneIters, stableSamples } = pickIters(size)
     for (const impl of impls) {
       const inst = impl.make()
       const runner = () => (
@@ -308,8 +345,8 @@ function measureRenderComparisons() {
             : inst.render(doc)
       )
       runner(); runner(); runner()
-      const { ms } = measure(runner, oneIters)
-      results.push({ size, scenario: impl.id, label: impl.label, renderMs: ms / oneIters })
+      const { ms } = measureStable(runner, oneIters, stableSamples)
+      results.push({ size, scenario: impl.id, label: impl.label, renderMs: ms })
     }
   }
 
@@ -531,23 +568,21 @@ const md = toMarkdown(results, coldHot, renderComparisons)
 writeFileSync(new URL('../docs/perf-latest.md', import.meta.url), md)
 
 // Also write a machine-readable JSON for regression checks
+let gitSha = null
+try {
+  gitSha = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim() || null
+}
+catch {}
+
 const payload = {
+  benchmarkVersion: PERF_BENCHMARK_VERSION,
   generatedAt: new Date().toISOString(),
   node: process.version,
+  gitSha,
   results,
   coldHot,
   renderComparisons,
 }
 writeFileSync(new URL('../docs/perf-latest.json', import.meta.url), JSON.stringify(payload, null, 2))
-
-// Optionally store a history snapshot keyed by short git SHA if available
-try {
-  const sha = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
-  if (sha) {
-    const histDir = new URL('../docs/perf-history/', import.meta.url)
-    if (!existsSync(histDir)) mkdirSync(histDir, { recursive: true })
-    writeFileSync(new URL(`./perf-${sha}.json`, histDir), JSON.stringify(payload, null, 2))
-  }
-} catch {}
 
 console.log('Wrote docs/perf-latest.md and docs/perf-latest.json')

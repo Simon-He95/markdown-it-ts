@@ -1,5 +1,5 @@
 import { Token } from '../../common/token'
-import { isMdAsciiPunct, isPunctChar, isWhiteSpace } from '../../common/utils'
+import { isPunctCode, isWhiteSpace } from '../../common/utils'
 
 /**
  * StateInline - state object for inline parser
@@ -54,7 +54,6 @@ export class StateInline {
     token.level = this.pendingLevel
 
     this.tokens.push(token)
-    this.tokens_meta.push(null)
     this.pending = ''
     return token
   }
@@ -68,8 +67,6 @@ export class StateInline {
     }
 
     const token = new Token(type, tag, nesting)
-    token.level = this.level
-
     let token_meta = null
 
     if (nesting < 0) {
@@ -107,18 +104,13 @@ export class StateInline {
       pos++
 
     const count = pos - start
-    if (count < 1)
-      return null
-
-    // Treat start/end of line as whitespace
     const lastChar = start > 0 ? src.charCodeAt(start - 1) : 0x20
     const nextChar = pos < posMax ? src.charCodeAt(pos) : 0x20
 
-    const isLastPunctChar = isMdAsciiPunct(lastChar) || isPunctChar(String.fromCharCode(lastChar))
-    const isNextPunctChar = isMdAsciiPunct(nextChar) || isPunctChar(String.fromCharCode(nextChar))
-
     const isLastWhiteSpace = isWhiteSpace(lastChar)
     const isNextWhiteSpace = isWhiteSpace(nextChar)
+    const isLastPunctChar = isPunctCode(lastChar)
+    const isNextPunctChar = isPunctCode(nextChar)
 
     const left_flanking
       = !isNextWhiteSpace

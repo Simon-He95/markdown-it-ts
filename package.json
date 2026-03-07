@@ -98,6 +98,8 @@
     "perf:generate": "npm run build && node scripts/perf-generate-report.mjs",
     "perf:update-readme": "node scripts/update-readme-metrics.mjs",
     "perf:compare": "node scripts/perf-compare.mjs docs/perf-latest.json",
+    "perf:compare:ref": "node scripts/perf-compare-ref.mjs",
+    "perf:compare:stream-ref": "node scripts/perf-stream-incremental-ref.mjs",
     "perf:check": "node scripts/perf-check.mjs --threshold=0.10",
     "perf:check:latest": "node scripts/perf-check.mjs --threshold=0.10 --latest",
     "perf:diff": "node scripts/perf-diff.mjs --threshold=0.10",

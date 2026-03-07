@@ -69,7 +69,7 @@ export class ParserCore {
   public inline: ParserInline
   public ruler: CoreRuler
   private linkifyInstance: ReturnType<typeof LinkifyIt> | null = null
-  private cachedCoreRules: Array<[string, (state: State) => void]> | null = null
+  private cachedCoreRules: Array<(state: State) => void> | null = null
 
   constructor() {
     this.block = new ParserBlock()
@@ -121,10 +121,7 @@ export class ParserCore {
 
   public process(state: State): void {
     // Cache the core rule list to avoid re-materializing per parse when unchanged
-    if (!this.cachedCoreRules)
-      this.cachedCoreRules = this.ruler.getRules('')
-
-    const rules = this.cachedCoreRules
+    const rules = this.cachedCoreRules ?? (this.cachedCoreRules = this.ruler.getRules('') as Array<(state: State) => void>)
     for (let i = 0; i < rules.length; i++) {
       rules[i](state)
     }

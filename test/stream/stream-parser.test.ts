@@ -1,6 +1,30 @@
 import { describe, expect, it, vi } from 'vitest'
 import MarkdownIt from '../../src'
 
+function makeTailList(count: number, options?: { loose?: boolean, ordered?: boolean }) {
+  const loose = options?.loose ?? false
+  const ordered = options?.ordered ?? false
+  let out = ''
+  for (let i = 0; i < count; i++) {
+    const index = i + 1
+    out += ordered ? `${index}. item ${index}` : `- item ${index}`
+    out += loose ? '\n\n' : '\n'
+  }
+  return out
+}
+
+function makeTailTable(count: number, options?: { aligned?: boolean, headerCell?: string }) {
+  const aligned = options?.aligned ?? false
+  const headerCell = options?.headerCell ?? 'column'
+  let out = `| ${headerCell} a | ${headerCell} b |\n`
+  out += aligned ? '|:-----------|-----------:|\n' : '|------------|------------|\n'
+  for (let i = 0; i < count; i++) {
+    const index = i + 1
+    out += `| row ${index} | value ${index} |\n`
+  }
+  return out
+}
+
 describe('stream parser', () => {
   it('produces the same output as the standard parser when enabled', () => {
     const md = MarkdownIt({ stream: true })
@@ -136,7 +160,391 @@ describe('stream parser', () => {
     parseSpy.mockRestore()
   })
 
-  it('falls back when appending a setext underline', () => {
+  it('reparses only the last paragraph when extending an active tail line', () => {
+    const md = MarkdownIt({ stream: true })
+    md.stream.resetStats()
+    const parseSpy = vi.spyOn(md.core, 'parse')
+
+    const prefix = '# Title\n\nStable intro.\n\n'
+    const base = `${prefix}Active paragraph`
+    const updated = `${base} keeps streaming`
+
+    md.stream.parse(base)
+    expect(parseSpy).toHaveBeenCalledTimes(1)
+    parseSpy.mockClear()
+
+    const tokens = md.stream.parse(updated)
+    expect(parseSpy).toHaveBeenCalledTimes(1)
+    expect(parseSpy.mock.calls[0][0]).toBe('Active paragraph keeps streaming')
+
+    const stats = md.stream.stats()
+    expect(stats.appendHits).toBe(0)
+    expect(stats.tailHits).toBe(1)
+    expect(stats.lastMode).toBe('tail')
+
+    const baselineHtml = MarkdownIt().render(updated)
+    const streamHtml = md.renderer.render(tokens, md.options, {})
+    expect(streamHtml).toEqual(baselineHtml)
+
+    parseSpy.mockRestore()
+  })
+
+  it('reparses the tail segment when continuing a paragraph on the next line', () => {
+    const md = MarkdownIt({ stream: true })
+    md.stream.resetStats()
+    const parseSpy = vi.spyOn(md.core, 'parse')
+
+    const prefix = '# Title\n\nStable intro.\n\n'
+    const base = `${prefix}Active paragraph\n`
+    const updated = `${base}continued on the next line`
+
+    md.stream.parse(base)
+    expect(parseSpy).toHaveBeenCalledTimes(1)
+    parseSpy.mockClear()
+
+    const tokens = md.stream.parse(updated)
+    expect(parseSpy).toHaveBeenCalledTimes(1)
+    expect(parseSpy.mock.calls[0][0]).toBe('Active paragraph\ncontinued on the next line')
+
+    const stats = md.stream.stats()
+    expect(stats.appendHits).toBe(0)
+    expect(stats.tailHits).toBe(1)
+    expect(stats.lastMode).toBe('tail')
+
+    const baselineHtml = MarkdownIt().render(updated)
+    const streamHtml = md.renderer.render(tokens, md.options, {})
+    expect(streamHtml).toEqual(baselineHtml)
+
+    parseSpy.mockRestore()
+  })
+
+  it('reparses the tail segment when starting a new paragraph after a blank line', () => {
+    const md = MarkdownIt({ stream: true })
+    md.stream.resetStats()
+    const parseSpy = vi.spyOn(md.core, 'parse')
+
+    const prefix = '# Title\n\n'
+    const base = `${prefix}Stable intro.\n\n`
+    const updated = `${base}Fresh paragraph in progress`
+
+    md.stream.parse(base)
+    expect(parseSpy).toHaveBeenCalledTimes(1)
+    parseSpy.mockClear()
+
+    const tokens = md.stream.parse(updated)
+    expect(parseSpy).toHaveBeenCalledTimes(1)
+    expect(parseSpy.mock.calls[0][0]).toBe('Stable intro.\n\nFresh paragraph in progress')
+
+    const stats = md.stream.stats()
+    expect(stats.appendHits).toBe(0)
+    expect(stats.tailHits).toBe(1)
+    expect(stats.lastMode).toBe('tail')
+
+    const baselineHtml = MarkdownIt().render(updated)
+    const streamHtml = md.renderer.render(tokens, md.options, {})
+    expect(streamHtml).toEqual(baselineHtml)
+
+    parseSpy.mockRestore()
+  })
+
+  it('reparses the tail segment when appending after a heading boundary', () => {
+    const md = MarkdownIt({ stream: true, streamOptimizationMinSize: 0 })
+    md.stream.resetStats()
+    const parseSpy = vi.spyOn(md.core, 'parse')
+
+    const prefix = 'Stable intro.\n\n'
+    const base = `${prefix}# Streaming title\n`
+    const updated = `${base}Heading follow-up paragraph`
+
+    md.stream.parse(base)
+    expect(parseSpy).toHaveBeenCalledTimes(1)
+    parseSpy.mockClear()
+
+    const tokens = md.stream.parse(updated)
+    expect(parseSpy).toHaveBeenCalledTimes(1)
+    expect(parseSpy.mock.calls[0][0]).toBe('# Streaming title\nHeading follow-up paragraph')
+
+    const stats = md.stream.stats()
+    expect(stats.appendHits).toBe(0)
+    expect(stats.tailHits).toBe(1)
+    expect(stats.lastMode).toBe('tail')
+
+    const baselineHtml = MarkdownIt().render(updated)
+    const streamHtml = md.renderer.render(tokens, md.options, {})
+    expect(streamHtml).toEqual(baselineHtml)
+
+    parseSpy.mockRestore()
+  })
+
+  it('reparses the tail segment when closing an open fence', () => {
+    const md = MarkdownIt({ stream: true })
+    md.stream.resetStats()
+    const parseSpy = vi.spyOn(md.core, 'parse')
+
+    const prefix = '# Title\n\nStable intro.\n\n'
+    const base = `${prefix}\`\`\`ts\nconsole.log(1)\n`
+    const updated = `${base}console.log(2)\n\`\`\`\n`
+
+    md.stream.parse(base)
+    expect(parseSpy).toHaveBeenCalledTimes(1)
+    parseSpy.mockClear()
+
+    const tokens = md.stream.parse(updated)
+    expect(parseSpy).toHaveBeenCalledTimes(1)
+    expect(parseSpy.mock.calls[0][0]).toBe('```ts\nconsole.log(1)\nconsole.log(2)\n```\n')
+
+    const stats = md.stream.stats()
+    expect(stats.appendHits).toBe(0)
+    expect(stats.tailHits).toBe(1)
+    expect(stats.lastMode).toBe('tail')
+
+    const baselineHtml = MarkdownIt().render(updated)
+    const streamHtml = md.renderer.render(tokens, md.options, {})
+    expect(streamHtml).toEqual(baselineHtml)
+
+    parseSpy.mockRestore()
+  })
+
+  it('merges appended list items without reparsing the whole tight tail list', () => {
+    const md = MarkdownIt({ stream: true, streamOptimizationMinSize: 0 })
+    md.stream.resetStats()
+    const parseSpy = vi.spyOn(md.core, 'parse')
+
+    const prefix = '# Title\n\nStable intro.\n\n'
+    const base = `${prefix}${makeTailList(96)}`
+    const updated = `${base}- item 97\n`
+
+    md.stream.parse(base)
+    expect(parseSpy).toHaveBeenCalledTimes(1)
+    parseSpy.mockClear()
+
+    const tokens = md.stream.parse(updated)
+    expect(parseSpy).toHaveBeenCalledTimes(1)
+    expect(parseSpy.mock.calls[0][0]).toBe('- item 97\n')
+
+    const stats = md.stream.stats()
+    expect(stats.appendHits).toBe(0)
+    expect(stats.tailHits).toBe(1)
+    expect(stats.lastMode).toBe('tail')
+
+    const baselineHtml = MarkdownIt().render(updated)
+    const streamHtml = md.renderer.render(tokens, md.options, {})
+    expect(streamHtml).toEqual(baselineHtml)
+
+    parseSpy.mockRestore()
+  })
+
+  it('merges appended list items and preserves loose-list paragraphs', () => {
+    const md = MarkdownIt({ stream: true, streamOptimizationMinSize: 0 })
+    md.stream.resetStats()
+    const parseSpy = vi.spyOn(md.core, 'parse')
+
+    const prefix = '# Title\n\nStable intro.\n\n'
+    const base = `${prefix}${makeTailList(48, { loose: true })}`
+    const updated = `${base}- item 49`
+
+    md.stream.parse(base)
+    expect(parseSpy).toHaveBeenCalledTimes(1)
+    parseSpy.mockClear()
+
+    const tokens = md.stream.parse(updated)
+    expect(parseSpy).toHaveBeenCalledTimes(1)
+    expect(parseSpy.mock.calls[0][0]).toBe('- item 49')
+
+    const stats = md.stream.stats()
+    expect(stats.appendHits).toBe(0)
+    expect(stats.tailHits).toBe(1)
+    expect(stats.lastMode).toBe('tail')
+
+    const baselineHtml = MarkdownIt().render(updated)
+    const streamHtml = md.renderer.render(tokens, md.options, {})
+    expect(streamHtml).toEqual(baselineHtml)
+
+    parseSpy.mockRestore()
+  })
+
+  it('merges appended ordered-list items without reparsing the whole tail list', () => {
+    const md = MarkdownIt({ stream: true, streamOptimizationMinSize: 0 })
+    md.stream.resetStats()
+    const parseSpy = vi.spyOn(md.core, 'parse')
+
+    const prefix = '# Title\n\nStable intro.\n\n'
+    const base = `${prefix}${makeTailList(96, { ordered: true })}`
+    const updated = `${base}97. item 97\n`
+
+    md.stream.parse(base)
+    expect(parseSpy).toHaveBeenCalledTimes(1)
+    parseSpy.mockClear()
+
+    const tokens = md.stream.parse(updated)
+    expect(parseSpy).toHaveBeenCalledTimes(1)
+    expect(parseSpy.mock.calls[0][0]).toBe('97. item 97\n')
+
+    const stats = md.stream.stats()
+    expect(stats.appendHits).toBe(0)
+    expect(stats.tailHits).toBe(1)
+    expect(stats.lastMode).toBe('tail')
+
+    const baselineHtml = MarkdownIt().render(updated)
+    const streamHtml = md.renderer.render(tokens, md.options, {})
+    expect(streamHtml).toEqual(baselineHtml)
+
+    parseSpy.mockRestore()
+  })
+
+  it('merges appended table rows without reparsing the whole tail table', () => {
+    const md = MarkdownIt({ stream: true, streamOptimizationMinSize: 0 })
+    md.stream.resetStats()
+    const parseSpy = vi.spyOn(md.core, 'parse')
+
+    const prefix = '# Title\n\nStable intro.\n\n'
+    const tablePrefix = makeTailTable(0, { aligned: true })
+    const base = `${prefix}${makeTailTable(96, { aligned: true })}`
+    const updated = `${base}| row 97 | value 97 |\n`
+
+    md.stream.parse(base)
+    expect(parseSpy).toHaveBeenCalledTimes(1)
+    parseSpy.mockClear()
+
+    const tokens = md.stream.parse(updated)
+    expect(parseSpy).toHaveBeenCalledTimes(1)
+    expect(parseSpy.mock.calls[0][0]).toBe(`${tablePrefix}| row 97 | value 97 |\n`)
+
+    const stats = md.stream.stats()
+    expect(stats.appendHits).toBe(0)
+    expect(stats.tailHits).toBe(1)
+    expect(stats.lastMode).toBe('tail')
+
+    const baselineHtml = MarkdownIt().render(updated)
+    const streamHtml = md.renderer.render(tokens, md.options, {})
+    expect(streamHtml).toEqual(baselineHtml)
+    expect(streamHtml).toContain('style="text-align:left"')
+    expect(streamHtml).toContain('style="text-align:right"')
+
+    parseSpy.mockRestore()
+  })
+
+  it('creates a tbody when appending rows to a large header-only tail table', () => {
+    const md = MarkdownIt({ stream: true, streamOptimizationMinSize: 0 })
+    md.stream.resetStats()
+    const parseSpy = vi.spyOn(md.core, 'parse')
+
+    const prefix = '# Title\n\nStable intro.\n\n'
+    const headerCell = 'wide-header'.repeat(64)
+    const tablePrefix = makeTailTable(0, { headerCell })
+    const base = `${prefix}${tablePrefix}`
+    const updated = `${base}| row 1 | value 1 |\n`
+
+    md.stream.parse(base)
+    expect(parseSpy).toHaveBeenCalledTimes(1)
+    parseSpy.mockClear()
+
+    const tokens = md.stream.parse(updated)
+    expect(parseSpy).toHaveBeenCalledTimes(1)
+    expect(parseSpy.mock.calls[0][0]).toBe(`${tablePrefix}| row 1 | value 1 |\n`)
+
+    const stats = md.stream.stats()
+    expect(stats.appendHits).toBe(0)
+    expect(stats.tailHits).toBe(1)
+    expect(stats.lastMode).toBe('tail')
+
+    const baselineHtml = MarkdownIt().render(updated)
+    const streamHtml = md.renderer.render(tokens, md.options, {})
+    expect(streamHtml).toEqual(baselineHtml)
+    expect(streamHtml).toContain('<tbody>')
+
+    parseSpy.mockRestore()
+  })
+
+  it('falls back to a tail reparse when a table append also adds a trailing blank line', () => {
+    const md = MarkdownIt({ stream: true, streamOptimizationMinSize: 0 })
+    md.stream.resetStats()
+    const parseSpy = vi.spyOn(md.core, 'parse')
+
+    const prefix = '# Title\n\nStable intro.\n\n'
+    const baseTable = makeTailTable(96, { aligned: true })
+    const base = `${prefix}${baseTable}`
+    const updated = `${base}| row 97 | value 97 |\n\n`
+
+    md.stream.parse(base)
+    expect(parseSpy).toHaveBeenCalledTimes(1)
+    parseSpy.mockClear()
+
+    const tokens = md.stream.parse(updated)
+    expect(parseSpy).toHaveBeenCalledTimes(1)
+    expect(parseSpy.mock.calls[0][0]).toBe(`${baseTable}| row 97 | value 97 |\n\n`)
+
+    const stats = md.stream.stats()
+    expect(stats.appendHits).toBe(0)
+    expect(stats.tailHits).toBe(1)
+    expect(stats.lastMode).toBe('tail')
+
+    const baselineHtml = MarkdownIt().render(updated)
+    const streamHtml = md.renderer.render(tokens, md.options, {})
+    expect(streamHtml).toEqual(baselineHtml)
+
+    parseSpy.mockRestore()
+  })
+
+  it('reparses only the last segment for tail edits when the prefix is stable', () => {
+    const md = MarkdownIt({ stream: true, streamOptimizationMinSize: 0 })
+    md.stream.resetStats()
+    const parseSpy = vi.spyOn(md.core, 'parse')
+
+    const prefix = '# Title\n\nStable intro.\n\n'
+    const original = `${prefix}Original tail paragraph.\n`
+    const updated = `${prefix}Updated tail paragraph with more detail.\n`
+
+    md.stream.parse(original)
+    expect(parseSpy).toHaveBeenCalledTimes(1)
+    parseSpy.mockClear()
+
+    const tokens = md.stream.parse(updated)
+    expect(parseSpy).toHaveBeenCalledTimes(1)
+    expect(parseSpy.mock.calls[0][0]).toBe('Updated tail paragraph with more detail.\n')
+
+    const stats = md.stream.stats()
+    expect(stats.appendHits).toBe(0)
+    expect(stats.tailHits).toBe(1)
+    expect(stats.lastMode).toBe('tail')
+
+    const baselineHtml = MarkdownIt().render(updated)
+    const streamHtml = md.renderer.render(tokens, md.options, {})
+    expect(streamHtml).toEqual(baselineHtml)
+
+    parseSpy.mockRestore()
+  })
+
+  it('falls back to a full parse when appended text adds a reference definition', () => {
+    const md = MarkdownIt({ stream: true })
+    md.stream.resetStats()
+    const parseSpy = vi.spyOn(md.core, 'parse')
+
+    const base = 'Before\n\nSee [label][id]\n\n'
+    const append = '[id]: https://example.com\n\n'
+    const updated = base + append
+
+    md.stream.parse(base)
+    expect(parseSpy).toHaveBeenCalledTimes(1)
+    parseSpy.mockClear()
+
+    const tokens = md.stream.parse(updated)
+    expect(parseSpy).toHaveBeenCalledTimes(1)
+    expect(parseSpy.mock.calls[0][0]).toBe(updated)
+
+    const stats = md.stream.stats()
+    expect(stats.appendHits).toBe(0)
+    expect(stats.tailHits).toBe(0)
+    expect(stats.lastMode).toBe('full')
+
+    const baselineHtml = MarkdownIt().render(updated)
+    const streamHtml = md.renderer.render(tokens, md.options, {})
+    expect(streamHtml).toEqual(baselineHtml)
+
+    parseSpy.mockRestore()
+  })
+
+  it('reparses the last segment when appending a setext underline', () => {
     const md = MarkdownIt({ stream: true })
     md.stream.resetStats()
     const parseSpy = vi.spyOn(md.core, 'parse')
@@ -151,12 +559,13 @@ describe('stream parser', () => {
 
     const combinedTokens = md.stream.parse(updated)
     expect(parseSpy).toHaveBeenCalledTimes(2)
-    expect(parseSpy.mock.calls[1][0]).toBe(updated)
+    expect(parseSpy.mock.calls[1][0]).toBe('Paragraph\n-\n')
     const stats = md.stream.stats()
-    expect(stats.fullParses).toBe(2)
+    expect(stats.fullParses).toBe(1)
     expect(stats.appendHits).toBe(0)
+    expect(stats.tailHits).toBe(1)
     expect(stats.total).toBe(2)
-    expect(stats.lastMode).toBe('full')
+    expect(stats.lastMode).toBe('tail')
     expect(md.stream.peek()).toBe(combinedTokens)
 
     parseSpy.mockRestore()

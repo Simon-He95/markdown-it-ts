@@ -10,6 +10,15 @@ interface StreamCache {
   env: Record<string, unknown>
   // Cache line count to avoid recounting
   lineCount?: number
+  lastSegment?: StreamSegment | null
+}
+
+interface StreamSegment {
+  tokenStart: number
+  tokenEnd: number
+  lineStart: number
+  lineEnd: number
+  srcOffset: number
 }
 
 const EMPTY_TOKENS: Token[] = []
@@ -18,10 +27,11 @@ export interface StreamStats {
   total: number
   cacheHits: number
   appendHits: number
+  tailHits: number
   fullParses: number
   resets: number
   chunkedParses?: number
-  lastMode: 'idle' | 'cache' | 'append' | 'full' | 'reset' | 'chunked'
+  lastMode: 'idle' | 'cache' | 'append' | 'tail' | 'full' | 'reset' | 'chunked'
 }
 
 function makeEmptyStats(): StreamStats {
@@ -29,6 +39,7 @@ function makeEmptyStats(): StreamStats {
     total: 0,
     cacheHits: 0,
     appendHits: 0,
+    tailHits: 0,
     fullParses: 0,
     resets: 0,
     chunkedParses: 0,
@@ -49,6 +60,11 @@ export class StreamParser {
   private readonly MAX_CHUNKS_FOR_FALLBACK = 24
   // Avoid chunked fallback for very large docs; prefer a single full parse
   private readonly MAX_CHUNKED_DOC_CHARS = 120_000
+  // Container-merge pays off only when the tail list is already sizeable.
+  private readonly MIN_LIST_LINES_FOR_MERGE = 80
+  private readonly MIN_LIST_CHARS_FOR_MERGE = 800
+  private readonly MIN_TABLE_LINES_FOR_MERGE = 48
+  private readonly MIN_TABLE_CHARS_FOR_MERGE = 1200
 
   // (reserved for future adaptive strategy metrics)
 
@@ -145,7 +161,8 @@ export class StreamParser {
             maxChunkLines: useLines,
             fenceAware: chunkFenceAware,
           })
-          this.cache = { src, tokens, env: workingEnv, lineCount: srcLineCount }
+          this.cache = { src, tokens, env: workingEnv, lineCount: srcLineCount, lastSegment: undefined }
+          this.updateCacheLineCount(this.cache, srcLineCount)
           this.stats.total += 1
           this.stats.chunkedParses = (this.stats.chunkedParses || 0) + 1
           this.stats.lastMode = 'chunked'
@@ -157,7 +174,8 @@ export class StreamParser {
       const state = this.core.parse(src, workingEnv, md)
       const tokens = state.tokens
 
-      this.cache = { src, tokens, env: workingEnv, lineCount: srcLineCount }
+      this.cache = { src, tokens, env: workingEnv, lineCount: srcLineCount, lastSegment: undefined }
+      this.updateCacheLineCount(this.cache, srcLineCount)
       this.stats.total += 1
       this.stats.fullParses += 1
       this.stats.lastMode = 'full'
@@ -182,7 +200,8 @@ export class StreamParser {
       const fullState = this.core.parse(src, fallbackEnv, md)
       const nextTokens = fullState.tokens
       const lineCount = countLines(src)
-      this.cache = { src, tokens: nextTokens, env: fallbackEnv, lineCount }
+      this.cache = { src, tokens: nextTokens, env: fallbackEnv, lineCount, lastSegment: undefined }
+      this.updateCacheLineCount(this.cache, lineCount)
       this.stats.total += 1
       this.stats.fullParses += 1
       this.stats.lastMode = 'full'
@@ -192,7 +211,7 @@ export class StreamParser {
     // inspect appended detection
     const appended = this.getAppendedSegment(cached.src, src)
     // debug info suppressed
-    if (appended) {
+    if (appended && !this.shouldPreferTailReparseForAppend(cached)) {
       // (no-op) appended preview suppressed
       // Fast-path: reuse existing tokens when new input is a clean append that starts on a fresh line.
       // This is conservative; edits requiring cross-block context still fall back to a full parse below.
@@ -358,28 +377,32 @@ export class StreamParser {
         return appendedLineCount
       }
 
+      const canDirectParseAppend = this.canDirectlyParseAppend(cached)
+
       // Decide whether to attempt a context-aware parse based on strategy
       let shouldAttemptContext = false
-      switch (ctxStrategy) {
-        case 'lines': {
-          shouldAttemptContext = getAppendedLineCount() >= CONTEXT_PARSE_MIN_LINES
-          break
-        }
-        case 'constructs': {
-          if (appended.length >= CONTEXT_PARSE_MIN_CHARS) {
-            shouldAttemptContext = true
+      if (!canDirectParseAppend) {
+        switch (ctxStrategy) {
+          case 'lines': {
+            shouldAttemptContext = getAppendedLineCount() >= CONTEXT_PARSE_MIN_LINES
             break
           }
-          if (appendedHasBlockConstructs(appended)) {
-            shouldAttemptContext = true
+          case 'constructs': {
+            if (appended.length >= CONTEXT_PARSE_MIN_CHARS) {
+              shouldAttemptContext = true
+              break
+            }
+            if (appendedHasBlockConstructs(appended)) {
+              shouldAttemptContext = true
+              break
+            }
+            shouldAttemptContext = getAppendedLineCount() >= CONTEXT_PARSE_MIN_LINES
             break
           }
-          shouldAttemptContext = getAppendedLineCount() >= CONTEXT_PARSE_MIN_LINES
-          break
+          case 'chars':
+          default:
+            shouldAttemptContext = appended.length >= CONTEXT_PARSE_MIN_CHARS
         }
-        case 'chars':
-        default:
-          shouldAttemptContext = appended.length >= CONTEXT_PARSE_MIN_CHARS
       }
 
       // Only attempt context-aware parse when we have a positive ctx window
@@ -461,6 +484,7 @@ export class StreamParser {
       }
 
       // Append remaining tokens into cache
+      const appendStart = cached.tokens.length
       if (appendedState.tokens.length > 0) {
         // Avoid duplicating tokens that are already present at the end of the cache.
         // If the beginning of appendedState.tokens matches a trailing sequence in
@@ -513,6 +537,24 @@ export class StreamParser {
       cached.src = src
       const appendedLines = appendedLineCount ?? countLines(appended)
       cached.lineCount = cachedLineCount + appendedLines
+      if (cached.tokens.length > appendStart) {
+        const appendedLastSegment = this.getLastSegment(cached.tokens.slice(appendStart), src)
+        if (appendedLastSegment) {
+          cached.lastSegment = {
+            tokenStart: appendStart + appendedLastSegment.tokenStart,
+            tokenEnd: appendStart + appendedLastSegment.tokenEnd,
+            lineStart: appendedLastSegment.lineStart,
+            lineEnd: appendedLastSegment.lineEnd,
+            srcOffset: appendedLastSegment.srcOffset,
+          }
+        }
+        else {
+          cached.lastSegment = undefined
+        }
+      }
+      else {
+        cached.lastSegment = undefined
+      }
 
       this.stats.total += 1
       this.stats.appendHits += 1
@@ -521,6 +563,14 @@ export class StreamParser {
     }
 
     const fallbackEnv = envProvided ?? cached.env
+
+    const tailReparsed = this.tryTailSegmentReparse(src, cached, fallbackEnv, md)
+    if (tailReparsed) {
+      this.stats.total += 1
+      this.stats.tailHits += 1
+      this.stats.lastMode = 'tail'
+      return tailReparsed
+    }
 
     // Optional: use chunked parse as a fallback for very large documents
     const chunkedEnabled = !!md.options?.streamChunkedFallback
@@ -568,7 +618,8 @@ export class StreamParser {
           maxChunkLines: useLines,
           fenceAware: chunkFenceAware,
         })
-        this.cache = { src, tokens, env: fallbackEnv, lineCount: srcLineCount2 }
+        this.cache = { src, tokens, env: fallbackEnv, lineCount: srcLineCount2, lastSegment: undefined }
+        this.updateCacheLineCount(this.cache, srcLineCount2)
         this.stats.total += 1
         this.stats.chunkedParses = (this.stats.chunkedParses || 0) + 1
         this.stats.lastMode = 'chunked'
@@ -579,7 +630,8 @@ export class StreamParser {
     // full fallback parse
     const fullState = this.core.parse(src, fallbackEnv, md)
     const nextTokens = fullState.tokens
-    this.cache = { src, tokens: nextTokens, env: fallbackEnv, lineCount: srcLineCount2 }
+    this.cache = { src, tokens: nextTokens, env: fallbackEnv, lineCount: srcLineCount2, lastSegment: undefined }
+    this.updateCacheLineCount(this.cache, srcLineCount2)
     this.stats.total += 1
     this.stats.fullParses += 1
     this.stats.lastMode = 'full'
@@ -637,7 +689,77 @@ export class StreamParser {
     if (this.endsInsideOpenFence(prev))
       return null
 
+    if (this.mayContainReferenceDefinition(segment))
+      return null
+
     return segment
+  }
+
+  private tryTailSegmentReparse(
+    src: string,
+    cached: StreamCache,
+    env: Record<string, unknown>,
+    md: MarkdownIt,
+  ): Token[] | null {
+    const lastSegment = this.ensureLastSegment(cached)
+    if (!lastSegment)
+      return null
+
+    // No reusable prefix means we'd just be reparsing the entire document again.
+    if (lastSegment.srcOffset <= 0 && lastSegment.tokenStart <= 0)
+      return null
+
+    const stablePrefix = cached.src.slice(0, lastSegment.srcOffset)
+    if (!src.startsWith(stablePrefix))
+      return null
+
+    const prevTail = cached.src.slice(lastSegment.srcOffset)
+    const nextTail = src.slice(lastSegment.srcOffset)
+    if (nextTail === prevTail)
+      return null
+
+    const appended = src.startsWith(cached.src)
+      ? src.slice(cached.src.length)
+      : null
+    if (appended) {
+      const merged = this.tryContainerTailAppendMerge(src, cached, env, md, lastSegment, appended)
+      if (merged)
+        return merged
+    }
+
+    // Localized suffix reparses are safe for appends as long as the tail anchor
+    // remains stable; the retroactive constructs below still fall back.
+    if (this.mayContainReferenceDefinition(prevTail) || this.mayContainReferenceDefinition(nextTail))
+      return null
+
+    try {
+      const tailState = this.core.parse(nextTail, env, md)
+      const localLastSegment = this.getLastSegment(tailState.tokens, nextTail)
+      if (lastSegment.lineStart > 0)
+        this.shiftTokenLines(tailState.tokens, lastSegment.lineStart)
+
+      cached.src = src
+      cached.env = env
+      cached.tokens.length = lastSegment.tokenStart
+      cached.tokens.push(...tailState.tokens)
+      cached.lineCount = countLines(src)
+      if (localLastSegment) {
+        cached.lastSegment = {
+          tokenStart: lastSegment.tokenStart + localLastSegment.tokenStart,
+          tokenEnd: lastSegment.tokenStart + localLastSegment.tokenEnd,
+          lineStart: lastSegment.lineStart + localLastSegment.lineStart,
+          lineEnd: lastSegment.lineStart + localLastSegment.lineEnd,
+          srcOffset: lastSegment.srcOffset + localLastSegment.srcOffset,
+        }
+      }
+      else {
+        cached.lastSegment = null
+      }
+      return cached.tokens
+    }
+    catch {
+      return null
+    }
   }
 
   // Get the last N lines (by newline count) without splitting the full string.
@@ -713,6 +835,469 @@ export class StreamParser {
   }
 
   // countLines moved to common utils for reuse
+
+  private updateCacheLineCount(cache: StreamCache, lineCount?: number): void {
+    cache.lineCount = lineCount ?? countLines(cache.src)
+    cache.lastSegment = undefined
+  }
+
+  private ensureLastSegment(cache: StreamCache): StreamSegment | null {
+    if (cache.lastSegment !== undefined)
+      return cache.lastSegment
+
+    cache.lastSegment = this.getLastSegment(cache.tokens, cache.src)
+    return cache.lastSegment
+  }
+
+  private getLastSegment(tokens: Token[], src: string): StreamSegment | null {
+    if (tokens.length === 0)
+      return null
+
+    let lineStart = Number.POSITIVE_INFINITY
+    let lineEnd = -1
+    let depth = 0
+
+    for (let i = tokens.length - 1; i >= 0; i--) {
+      const token = tokens[i]
+      if (token.map) {
+        if (token.map[0] < lineStart)
+          lineStart = token.map[0]
+        if (token.map[1] > lineEnd)
+          lineEnd = token.map[1]
+      }
+
+      if (token.nesting < 0) {
+        depth += -token.nesting
+        continue
+      }
+
+      if (token.nesting > 0) {
+        depth -= token.nesting
+        if (token.level === 0 && depth <= 0) {
+          const resolvedStart = Number.isFinite(lineStart)
+            ? lineStart
+            : (token.map?.[0] ?? 0)
+          const resolvedEnd = lineEnd >= resolvedStart
+            ? lineEnd
+            : (token.map?.[1] ?? resolvedStart)
+          return {
+            tokenStart: i,
+            tokenEnd: tokens.length,
+            lineStart: resolvedStart,
+            lineEnd: resolvedEnd,
+            srcOffset: this.getLineStartOffset(src, resolvedStart),
+          }
+        }
+        continue
+      }
+
+      if (token.level === 0 && depth === 0) {
+        const resolvedStart = Number.isFinite(lineStart)
+          ? lineStart
+          : (token.map?.[0] ?? 0)
+        const resolvedEnd = lineEnd >= resolvedStart
+          ? lineEnd
+          : (token.map?.[1] ?? resolvedStart)
+        return {
+          tokenStart: i,
+          tokenEnd: tokens.length,
+          lineStart: resolvedStart,
+          lineEnd: resolvedEnd,
+          srcOffset: this.getLineStartOffset(src, resolvedStart),
+        }
+      }
+    }
+
+    return null
+  }
+
+  private getLineStartOffset(src: string, line: number): number {
+    if (line <= 0)
+      return 0
+
+    let remaining = line
+    let pos = -1
+    while (remaining > 0) {
+      pos = src.indexOf('\n', pos + 1)
+      if (pos === -1)
+        return src.length
+      remaining--
+    }
+    return pos + 1
+  }
+
+  private mayContainReferenceDefinition(src: string): boolean {
+    if (!src.includes(']:'))
+      return false
+
+    return /(?:^|\n)[ \t]{0,3}\[[^\]\n]+\]:/.test(src)
+  }
+
+  private canDirectlyParseAppend(cache: StreamCache): boolean {
+    if (!this.endsWithBlankLine(cache.src))
+      return false
+
+    const lastSegment = this.ensureLastSegment(cache)
+    if (!lastSegment)
+      return false
+
+    const lastToken = cache.tokens[lastSegment.tokenStart]
+    switch (lastToken?.type) {
+      case 'paragraph_open':
+      case 'heading_open':
+      case 'fence':
+      case 'code_block':
+      case 'html_block':
+      case 'hr':
+      case 'table_open':
+        return true
+      default:
+        return false
+    }
+  }
+
+  private tryContainerTailAppendMerge(
+    src: string,
+    cached: StreamCache,
+    env: Record<string, unknown>,
+    md: MarkdownIt,
+    lastSegment: StreamSegment,
+    appended: string,
+  ): Token[] | null {
+    if (!appended || this.mayContainReferenceDefinition(appended))
+      return null
+
+    const lastToken = cached.tokens[lastSegment.tokenStart]
+    switch (lastToken?.type) {
+      case 'bullet_list_open':
+      case 'ordered_list_open':
+        return this.tryListTailAppendMerge(src, cached, env, md, lastSegment, appended, lastToken)
+      case 'table_open':
+        return this.tryTableTailAppendMerge(src, cached, env, md, lastSegment, appended, lastToken)
+      default:
+        return null
+    }
+  }
+
+  private tryListTailAppendMerge(
+    src: string,
+    cached: StreamCache,
+    env: Record<string, unknown>,
+    md: MarkdownIt,
+    lastSegment: StreamSegment,
+    appended: string,
+    listOpen: Token,
+  ): Token[] | null {
+    if (cached.src.length === 0 || cached.src.charCodeAt(cached.src.length - 1) !== 0x0A)
+      return null
+
+    const segmentLineSpan = lastSegment.lineEnd - lastSegment.lineStart
+    const segmentChars = cached.src.length - lastSegment.srcOffset
+    if (segmentLineSpan < this.MIN_LIST_LINES_FOR_MERGE && segmentChars < this.MIN_LIST_CHARS_FOR_MERGE)
+      return null
+
+    const closeType = listOpen.type === 'bullet_list_open' ? 'bullet_list_close' : 'ordered_list_close'
+    let parsed: Token[]
+    try {
+      parsed = this.core.parse(appended, env, md).tokens
+    }
+    catch {
+      return null
+    }
+    if (!this.isSingleTopLevelContainer(parsed, listOpen.type, closeType, listOpen.markup))
+      return null
+
+    const inserted = parsed.slice(1, -1)
+    if (inserted.length === 0)
+      return null
+
+    const lineOffset = cached.lineCount ?? countLines(cached.src)
+    if (lineOffset > 0)
+      this.shiftTokenLines(inserted, lineOffset)
+
+    const existingMode = this.getListParagraphMode(cached.tokens, lastSegment.tokenStart, cached.tokens.length, listOpen.level)
+    const appendedMode = this.getListParagraphMode(parsed, 0, parsed.length, 0)
+    const nextLoose = existingMode === 'loose'
+      || appendedMode === 'loose'
+      || this.endsWithBlankLine(cached.src)
+      || ((parsed[0]?.map?.[0] ?? 0) > 0)
+
+    if (nextLoose) {
+      this.setListParagraphVisibility(cached.tokens, lastSegment.tokenStart, cached.tokens.length, listOpen.level, false)
+      this.setListParagraphVisibility(inserted, 0, inserted.length, listOpen.level, false)
+    }
+
+    cached.tokens.splice(cached.tokens.length - 1, 0, ...inserted)
+    cached.src = src
+    cached.env = env
+    cached.lineCount = countLines(src)
+    if (listOpen.map)
+      listOpen.map[1] = this.getDocLineCount(src)
+    cached.lastSegment = {
+      tokenStart: lastSegment.tokenStart,
+      tokenEnd: cached.tokens.length,
+      lineStart: lastSegment.lineStart,
+      lineEnd: this.getDocLineCount(src),
+      srcOffset: lastSegment.srcOffset,
+    }
+    return cached.tokens
+  }
+
+  private tryTableTailAppendMerge(
+    src: string,
+    cached: StreamCache,
+    env: Record<string, unknown>,
+    md: MarkdownIt,
+    lastSegment: StreamSegment,
+    appended: string,
+    tableOpen: Token,
+  ): Token[] | null {
+    if (cached.src.length === 0 || cached.src.charCodeAt(cached.src.length - 1) !== 0x0A)
+      return null
+    if (/(?:^|\n)[ \t]*\n/.test(appended))
+      return null
+
+    const segmentLineSpan = lastSegment.lineEnd - lastSegment.lineStart
+    const segmentChars = cached.src.length - lastSegment.srcOffset
+    if (segmentLineSpan < this.MIN_TABLE_LINES_FOR_MERGE && segmentChars < this.MIN_TABLE_CHARS_FOR_MERGE)
+      return null
+
+    const tableContext = this.getTableHeaderContext(cached.src.slice(lastSegment.srcOffset))
+    if (!tableContext)
+      return null
+
+    const syntheticSrc = `${tableContext}${appended}`
+    let parsed: Token[]
+    try {
+      parsed = this.core.parse(syntheticSrc, env, md).tokens
+    }
+    catch {
+      return null
+    }
+    if (!this.isSingleTopLevelContainer(parsed, 'table_open', 'table_close'))
+      return null
+    if ((parsed[0]?.map?.[1] ?? -1) !== this.getDocLineCount(syntheticSrc))
+      return null
+
+    const parsedSection = this.getTableBodySection(parsed, 0, parsed.length, 0)
+    const cachedSection = this.getTableBodySection(cached.tokens, lastSegment.tokenStart, cached.tokens.length, tableOpen.level)
+    if (!parsedSection || !cachedSection || parsedSection.tbodyOpenIndex < 0 || parsedSection.tbodyCloseIndex < 0)
+      return null
+
+    const inserted = cachedSection.tbodyOpenIndex >= 0
+      ? parsed.slice(parsedSection.tbodyOpenIndex + 1, parsedSection.tbodyCloseIndex)
+      : parsed.slice(parsedSection.tbodyOpenIndex, parsedSection.tbodyCloseIndex + 1)
+    if (inserted.length === 0)
+      return null
+
+    const lineOffset = lastSegment.lineEnd - 2
+    if (lineOffset !== 0)
+      this.shiftTokenLines(inserted, lineOffset)
+
+    const insertAt = cachedSection.tbodyCloseIndex >= 0
+      ? cachedSection.tbodyCloseIndex
+      : cachedSection.tableCloseIndex
+    cached.tokens.splice(insertAt, 0, ...inserted)
+    cached.src = src
+    cached.env = env
+    cached.lineCount = countLines(src)
+
+    const nextDocLineCount = this.getDocLineCount(src)
+    if (tableOpen.map)
+      tableOpen.map[1] = nextDocLineCount
+    if (cachedSection.tbodyOpenIndex >= 0) {
+      const tbodyOpen = cached.tokens[cachedSection.tbodyOpenIndex]
+      if (tbodyOpen?.map)
+        tbodyOpen.map[1] = nextDocLineCount
+    }
+
+    cached.lastSegment = {
+      tokenStart: lastSegment.tokenStart,
+      tokenEnd: cached.tokens.length,
+      lineStart: lastSegment.lineStart,
+      lineEnd: nextDocLineCount,
+      srcOffset: lastSegment.srcOffset,
+    }
+    return cached.tokens
+  }
+
+  private getTableHeaderContext(src: string): string | null {
+    const firstBreak = src.indexOf('\n')
+    if (firstBreak < 0)
+      return null
+
+    const secondBreak = src.indexOf('\n', firstBreak + 1)
+    if (secondBreak < 0)
+      return null
+
+    return src.slice(0, secondBreak + 1)
+  }
+
+  private getTableBodySection(
+    tokens: Token[],
+    start: number,
+    end: number,
+    tableLevel: number,
+  ): { tableCloseIndex: number, tbodyOpenIndex: number, tbodyCloseIndex: number } | null {
+    if (start < 0 || start >= end || tokens[start]?.type !== 'table_open')
+      return null
+
+    let tableCloseIndex = -1
+    for (let i = end - 1; i > start; i--) {
+      const token = tokens[i]
+      if (token.type === 'table_close' && token.level === tableLevel) {
+        tableCloseIndex = i
+        break
+      }
+    }
+    if (tableCloseIndex < 0)
+      return null
+
+    let tbodyOpenIndex = -1
+    let tbodyCloseIndex = -1
+    for (let i = start + 1; i < tableCloseIndex; i++) {
+      const token = tokens[i]
+      if (token.type === 'tbody_open' && token.level === tableLevel + 1) {
+        tbodyOpenIndex = i
+        break
+      }
+    }
+    if (tbodyOpenIndex >= 0) {
+      for (let i = tableCloseIndex - 1; i > tbodyOpenIndex; i--) {
+        const token = tokens[i]
+        if (token.type === 'tbody_close' && token.level === tableLevel + 1) {
+          tbodyCloseIndex = i
+          break
+        }
+      }
+      if (tbodyCloseIndex < 0)
+        return null
+    }
+
+    return { tableCloseIndex, tbodyOpenIndex, tbodyCloseIndex }
+  }
+
+  private isSingleTopLevelContainer(
+    tokens: Token[],
+    openType: string,
+    closeType: string,
+    markup?: string,
+  ): boolean {
+    if (tokens.length < 2)
+      return false
+
+    const first = tokens[0]
+    const last = tokens[tokens.length - 1]
+    if (first.type !== openType || last.type !== closeType || first.level !== 0 || last.level !== 0)
+      return false
+
+    if (markup !== undefined && first.markup !== markup)
+      return false
+
+    let depth = 0
+    for (let i = 0; i < tokens.length; i++) {
+      const token = tokens[i]
+      if (token.level === 0 && i > 0 && i < tokens.length - 1 && depth === 0)
+        return false
+
+      if (token.nesting > 0)
+        depth += token.nesting
+      else if (token.nesting < 0)
+        depth += token.nesting
+    }
+
+    return depth === 0
+  }
+
+  private getListParagraphMode(
+    tokens: Token[],
+    start: number,
+    end: number,
+    listLevel: number,
+  ): 'tight' | 'loose' | 'none' {
+    let sawHidden = false
+    let sawVisible = false
+    const paragraphLevel = listLevel + 2
+
+    for (let i = start; i < end; i++) {
+      const token = tokens[i]
+      if (token.type !== 'paragraph_open' || token.level !== paragraphLevel)
+        continue
+      if (token.hidden)
+        sawHidden = true
+      else
+        sawVisible = true
+      if (sawHidden && sawVisible)
+        return 'loose'
+    }
+
+    if (sawVisible)
+      return 'loose'
+    if (sawHidden)
+      return 'tight'
+    return 'none'
+  }
+
+  private setListParagraphVisibility(
+    tokens: Token[],
+    start: number,
+    end: number,
+    listLevel: number,
+    hidden: boolean,
+  ): void {
+    const paragraphLevel = listLevel + 2
+    for (let i = start; i < end; i++) {
+      const token = tokens[i]
+      if ((token.type === 'paragraph_open' || token.type === 'paragraph_close') && token.level === paragraphLevel)
+        token.hidden = hidden
+    }
+  }
+
+  private shouldPreferTailReparseForAppend(cache: StreamCache): boolean {
+    const lastSegment = this.ensureLastSegment(cache)
+    if (!lastSegment)
+      return false
+
+    const lastToken = cache.tokens[lastSegment.tokenStart]
+    switch (lastToken?.type) {
+      case 'bullet_list_open':
+      case 'ordered_list_open':
+      case 'blockquote_open':
+      case 'table_open':
+        return true
+      case 'paragraph_open':
+      case 'code_block':
+      case 'html_block':
+        return !this.endsWithBlankLine(cache.src)
+      default:
+        return false
+    }
+  }
+
+  private endsWithBlankLine(src: string): boolean {
+    const len = src.length
+    if (len < 2 || src.charCodeAt(len - 1) !== 0x0A)
+      return false
+
+    let pos = len - 2
+    while (pos >= 0) {
+      const ch = src.charCodeAt(pos)
+      if (ch === 0x20 || ch === 0x09) {
+        pos--
+        continue
+      }
+      return ch === 0x0A
+    }
+
+    return true
+  }
+
+  private getDocLineCount(src: string): number {
+    const lines = countLines(src)
+    if (src.length === 0)
+      return 0
+    return src.charCodeAt(src.length - 1) === 0x0A ? lines : lines + 1
+  }
 
   private shiftTokenLines(tokens: Token[], offset: number): void {
     if (offset === 0)

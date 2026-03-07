@@ -25,26 +25,86 @@ function ensureSyncResult(value: RendererRuleResult, ruleName: string): string {
 
 const resolveResult = (value: RendererRuleResult): Promise<string> => (isPromiseLike(value) ? value : Promise.resolve(value))
 
+function parseFenceInfo(info: string): { langName: string, langAttrs: string } {
+  if (!info)
+    return { langName: '', langAttrs: '' }
+
+  let markerEnd = 0
+  while (markerEnd < info.length) {
+    const ch = info.charCodeAt(markerEnd)
+    if (ch === 0x20 || ch === 0x09 || ch === 0x0A)
+      break
+    markerEnd++
+  }
+
+  if (markerEnd >= info.length)
+    return { langName: info, langAttrs: '' }
+
+  let attrsStart = markerEnd
+  while (attrsStart < info.length) {
+    const ch = info.charCodeAt(attrsStart)
+    if (ch !== 0x20 && ch !== 0x09 && ch !== 0x0A)
+      break
+    attrsStart++
+  }
+
+  return {
+    langName: info.slice(0, markerEnd),
+    langAttrs: attrsStart < info.length ? info.slice(attrsStart) : '',
+  }
+}
+
 function renderFence(token: Token, highlighted: string, info: string, langName: string, options: RendererOptions, self: Renderer): string {
   if (highlighted.startsWith('<pre'))
     return `${highlighted}\n`
 
   if (info) {
-    const classIndex = typeof token.attrIndex === 'function' ? token.attrIndex('class') : -1
-    const tmpAttrs = token.attrs ? token.attrs.map(attr => attr.slice() as [string, string]) : []
+    const classIndex = token.attrIndex('class')
+    const tmpAttrs = token.attrs ? token.attrs.slice() : []
 
     const langClass = `${options.langPrefix || 'language-'}${langName}`
 
     if (classIndex < 0)
       tmpAttrs.push(['class', langClass])
     else
+      tmpAttrs[classIndex] = tmpAttrs[classIndex].slice() as [string, string]
+
+    if (classIndex >= 0)
       tmpAttrs[classIndex][1] += ` ${langClass}`
 
     const tmpToken = { ...token, attrs: tmpAttrs } as Token
-    return `<pre><code${self.renderAttrs(tmpToken)}>${highlighted}</code></pre>\n`
+    const renderedAttrs = tmpAttrs.length > 0 ? self.renderAttrs(tmpToken) : ''
+    return `<pre><code${renderedAttrs}>${highlighted}</code></pre>\n`
   }
 
-  return `<pre><code${self.renderAttrs(token)}>${highlighted}</code></pre>\n`
+  const renderedAttrs = token.attrs && token.attrs.length > 0 ? self.renderAttrs(token) : ''
+  return `<pre><code${renderedAttrs}>${highlighted}</code></pre>\n`
+}
+
+function renderCodeInlineToken(token: Token, self: Renderer): string {
+  const renderedAttrs = token.attrs && token.attrs.length > 0 ? self.renderAttrs(token) : ''
+  return `<code${renderedAttrs}>${escapeHtml(token.content)}</code>`
+}
+
+function renderCodeBlockToken(token: Token, self: Renderer): string {
+  const renderedAttrs = token.attrs && token.attrs.length > 0 ? self.renderAttrs(token) : ''
+  return `<pre${renderedAttrs}><code>${escapeHtml(token.content)}</code></pre>\n`
+}
+
+function renderFenceSyncToken(token: Token, options: RendererOptions, self: Renderer): string {
+  const info = token.info ? unescapeAll(token.info).trim() : ''
+  const { langName, langAttrs } = parseFenceInfo(info)
+  const highlight = options.highlight
+  const fallback = escapeHtml(token.content)
+
+  if (!highlight)
+    return renderFence(token, fallback, info, langName, options, self)
+
+  const highlighted = highlight(token.content, langName, langAttrs)
+  if (isPromiseLike(highlighted))
+    throw new TypeError('Renderer rule "fence" returned a Promise. Use renderAsync() instead.')
+
+  return renderFence(token, highlighted || fallback, info, langName, options, self)
 }
 
 const DEFAULT_RENDERER_OPTIONS: Required<Pick<RendererOptions, 'langPrefix' | 'xhtmlOut' | 'breaks'>> = {
@@ -57,52 +117,39 @@ const hasOwn = Object.prototype.hasOwnProperty
 
 const defaultRules: Record<string, RendererRule> = {
   code_inline(tokens, idx, _options, _env, self) {
-    const token = tokens[idx]
-    return `<code${self.renderAttrs(token)}>${escapeHtml(token.content)}</code>`
+    return renderCodeInlineToken(tokens[idx], self)
   },
   code_block(tokens, idx, _options, _env, self) {
-    const token = tokens[idx]
-    return `<pre${self.renderAttrs(token)}><code>${escapeHtml(token.content)}</code></pre>\n`
+    return renderCodeBlockToken(tokens[idx], self)
   },
   fence(tokens, idx, options, _env, self) {
     const token = tokens[idx]
     const info = token.info ? unescapeAll(token.info).trim() : ''
-    let langName = ''
-    let langAttrs = ''
-
-    if (info) {
-      const parts = info.split(/(\s+)/g)
-      langName = parts[0]
-      langAttrs = parts.slice(2).join('')
-    }
-
+    const { langName, langAttrs } = parseFenceInfo(info)
     const highlight = options.highlight
-    const fallback = () => escapeHtml(token.content)
+    const fallback = escapeHtml(token.content)
 
     if (!highlight)
-      return renderFence(token, fallback(), info, langName, options, self)
+      return renderFence(token, fallback, info, langName, options, self)
 
     const highlighted = highlight(token.content, langName, langAttrs)
 
     if (isPromiseLike(highlighted)) {
-      return highlighted.then(res => renderFence(token, res || fallback(), info, langName, options, self))
+      return highlighted.then(res => renderFence(token, res || fallback, info, langName, options, self))
     }
 
-    const resolved = highlighted || fallback()
-    return renderFence(token, resolved, info, langName, options, self)
+    return renderFence(token, highlighted || fallback, info, langName, options, self)
   },
   image(tokens, idx, options, env, self) {
     const token = tokens[idx]
     const altText = self.renderInlineAsText(token.children || [], options, env)
-    if (typeof token.attrIndex === 'function') {
-      const altIndex = token.attrIndex('alt')
-      if (altIndex >= 0 && token.attrs)
-        token.attrs[altIndex][1] = altText
-      else if (token.attrs)
-        token.attrs.push(['alt', altText])
-      else
-        token.attrs = [['alt', altText]]
-    }
+    const altIndex = token.attrIndex('alt')
+    if (altIndex >= 0 && token.attrs)
+      token.attrs[altIndex][1] = altText
+    else if (token.attrs)
+      token.attrs.push(['alt', altText])
+    else
+      token.attrs = [['alt', altText]]
     return self.renderToken(tokens, idx, options)
   },
   hardbreak(_tokens, _idx, options) {
@@ -149,23 +196,55 @@ export class Renderer {
     const merged = this.mergeOptions(options)
     const envRef = env ?? {}
     const rules = this.rules
-    const out = new Array<string>(tokens.length)
+    const codeBlockRule = rules.code_block
+    const fenceRule = rules.fence
+    const htmlBlockRule = rules.html_block
+    let result = ''
 
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i]
       if (token.type === 'inline') {
-        out[i] = this.renderInlineTokens(token.children || [], merged, envRef)
+        result += this.renderInlineTokens(token.children || [], merged, envRef)
         continue
       }
 
+      switch (token.type) {
+        case 'code_block':
+          if (codeBlockRule === defaultRules.code_block) {
+            result += renderCodeBlockToken(token, this)
+            continue
+          }
+          break
+        case 'fence':
+          if (fenceRule === defaultRules.fence) {
+            result += renderFenceSyncToken(token, merged, this)
+            continue
+          }
+          break
+        case 'html_block':
+          if (htmlBlockRule === defaultRules.html_block) {
+            result += token.content
+            continue
+          }
+          break
+        default:
+          break
+      }
+
       const rule = rules[token.type]
-      if (rule)
-        out[i] = ensureSyncResult(rule(tokens, i, merged, envRef, this), token.type)
+      if (!rule) {
+        result += this.renderToken(tokens, i, merged)
+        continue
+      }
+
+      const rendered = rule(tokens, i, merged, envRef, this)
+      if (typeof rendered === 'string')
+        result += rendered
       else
-        out[i] = this.renderToken(tokens, i, merged)
+        result += ensureSyncResult(rendered, token.type)
     }
 
-    return out.join('')
+    return result
   }
 
   public async renderAsync(tokens: Token[], options?: RendererOptions, env?: RendererEnv): Promise<string> {
@@ -175,23 +254,23 @@ export class Renderer {
     const merged = this.mergeOptions(options)
     const envRef = env ?? {}
     const rules = this.rules
-    const out = new Array<string>(tokens.length)
+    let result = ''
 
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i]
       if (token.type === 'inline') {
-        out[i] = await this.renderInlineTokensAsync(token.children || [], merged, envRef)
+        result += await this.renderInlineTokensAsync(token.children || [], merged, envRef)
         continue
       }
 
       const rule = rules[token.type]
       if (rule)
-        out[i] = await resolveResult(rule(tokens, i, merged, envRef, this))
+        result += await resolveResult(rule(tokens, i, merged, envRef, this))
       else
-        out[i] = this.renderToken(tokens, i, merged)
+        result += this.renderToken(tokens, i, merged)
     }
 
-    return out.join('')
+    return result
   }
 
   public renderInline(tokens: Token[], options?: RendererOptions, env?: RendererEnv): string {
@@ -236,7 +315,8 @@ export class Renderer {
       result += '\n'
 
     result += token.nesting === -1 ? `</${token.tag}` : `<${token.tag}`
-    result += this.renderAttrs(token)
+    if (token.attrs && token.attrs.length > 0)
+      result += this.renderAttrs(token)
 
     if (token.nesting === 0 && options.xhtmlOut)
       result += ' /'
@@ -304,16 +384,72 @@ export class Renderer {
       return ''
 
     const rules = this.rules
-    const out = new Array<string>(tokens.length)
+    const textRule = rules.text
+    const textSpecialRule = rules.text_special
+    const softbreakRule = rules.softbreak
+    const hardbreakRule = rules.hardbreak
+    const htmlInlineRule = rules.html_inline
+    const codeInlineRule = rules.code_inline
+    const inlineBreak = options.xhtmlOut ? '<br />\n' : '<br>\n'
+    const softbreak = options.breaks ? inlineBreak : '\n'
+    let result = ''
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i]
+
+      switch (token.type) {
+        case 'text':
+          if (textRule === defaultRules.text) {
+            result += escapeHtml(token.content)
+            continue
+          }
+          break
+        case 'text_special':
+          if (textSpecialRule === defaultRules.text_special) {
+            result += escapeHtml(token.content)
+            continue
+          }
+          break
+        case 'softbreak':
+          if (softbreakRule === defaultRules.softbreak) {
+            result += softbreak
+            continue
+          }
+          break
+        case 'hardbreak':
+          if (hardbreakRule === defaultRules.hardbreak) {
+            result += inlineBreak
+            continue
+          }
+          break
+        case 'html_inline':
+          if (htmlInlineRule === defaultRules.html_inline) {
+            result += token.content
+            continue
+          }
+          break
+        case 'code_inline':
+          if (codeInlineRule === defaultRules.code_inline) {
+            result += renderCodeInlineToken(token, this)
+            continue
+          }
+          break
+        default:
+          break
+      }
+
       const rule = rules[token.type]
-      if (rule)
-        out[i] = ensureSyncResult(rule(tokens, i, options, env, this), token.type)
+      if (!rule) {
+        result += this.renderToken(tokens, i, options)
+        continue
+      }
+
+      const rendered = rule(tokens, i, options, env, this)
+      if (typeof rendered === 'string')
+        result += rendered
       else
-        out[i] = this.renderToken(tokens, i, options)
+        result += ensureSyncResult(rendered, token.type)
     }
-    return out.join('')
+    return result
   }
 
   private async renderInlineTokensAsync(tokens: Token[], options: RendererOptions, env: RendererEnv): Promise<string> {
@@ -321,16 +457,16 @@ export class Renderer {
       return ''
 
     const rules = this.rules
-    const out = new Array<string>(tokens.length)
+    let result = ''
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i]
       const rule = rules[token.type]
       if (rule)
-        out[i] = await resolveResult(rule(tokens, i, options, env, this))
+        result += await resolveResult(rule(tokens, i, options, env, this))
       else
-        out[i] = this.renderToken(tokens, i, options)
+        result += this.renderToken(tokens, i, options)
     }
-    return out.join('')
+    return result
   }
 
   private renderInlineAsTextInternal(tokens: Token[], options: RendererOptions, env: RendererEnv): string {

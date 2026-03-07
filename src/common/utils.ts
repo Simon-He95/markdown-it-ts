@@ -63,6 +63,21 @@ export function isPunctChar(ch: string): boolean {
   return ucmicro.P.test(ch) || ucmicro.S.test(ch)
 }
 
+const PUNCT_CHAR_CACHE = new Map<number, boolean>()
+
+export function isPunctCode(ch: number): boolean {
+  if (isMdAsciiPunct(ch))
+    return true
+
+  const cached = PUNCT_CHAR_CACHE.get(ch)
+  if (cached !== undefined)
+    return cached
+
+  const value = isPunctChar(String.fromCharCode(ch))
+  PUNCT_CHAR_CACHE.set(ch, value)
+  return value
+}
+
 // Markdown ASCII punctuation characters.
 //
 // !, ", #, $, %, &, ', (, ), *, +, ,, -, ., /, :, ;, <, =, >, ?, @, [, \, ], ^, _, `, {, |, }, or ~

@@ -429,7 +429,7 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       return streamParser ? streamParser.peek() : []
     },
     stats() {
-      return streamParser ? streamParser.getStats() : { total: 0, cacheHits: 0, appendHits: 0, fullParses: 0, resets: 0, chunkedParses: 0, lastMode: 'idle' }
+      return streamParser ? streamParser.getStats() : { total: 0, cacheHits: 0, appendHits: 0, tailHits: 0, fullParses: 0, resets: 0, chunkedParses: 0, lastMode: 'idle' }
     },
     resetStats() {
       if (streamParser)

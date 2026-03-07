@@ -1,32 +1,44 @@
 import type { State } from '../../parse/state'
-import { Token } from '../../common/token'
 
 // Join adjacent text nodes inside inline tokens
 export function text_join(state: State): void {
-  const tokens = state.tokens || []
-  tokens.forEach((tk) => {
-    if (tk.type === 'inline' && Array.isArray(tk.children)) {
-      const out: Token[] = []
-      for (let i = 0; i < tk.children.length; i++) {
-        const ch = tk.children[i]
-        if (ch.type === 'text') {
-          let content = ch.content || ''
-          while (i + 1 < tk.children.length && tk.children[i + 1].type === 'text') {
-            i++
-            content += tk.children[i].content || ''
-          }
-          const textToken = new Token('text', '', 0)
-          textToken.content = content
-          textToken.level = ch.level
-          out.push(textToken)
-        }
-        else {
-          out.push(ch)
-        }
-      }
-      tk.children = out
+  const blockTokens = state.tokens || []
+  const length = blockTokens.length
+
+  for (let j = 0; j < length; j++) {
+    const blockToken = blockTokens[j]
+    if (blockToken.type !== 'inline' || !Array.isArray(blockToken.children))
+      continue
+
+    const tokens = blockToken.children
+    const max = tokens.length
+
+    for (let curr = 0; curr < max; curr++) {
+      if (tokens[curr].type === 'text_special')
+        tokens[curr].type = 'text'
     }
-  })
+
+    let last = 0
+    let curr = 0
+    for (; curr < max; curr++) {
+      if (
+        tokens[curr].type === 'text'
+        && curr + 1 < max
+        && tokens[curr + 1].type === 'text'
+      ) {
+        tokens[curr + 1].content = tokens[curr].content + tokens[curr + 1].content
+      }
+      else {
+        if (curr !== last)
+          tokens[last] = tokens[curr]
+        last++
+      }
+    }
+
+    if (curr !== last) {
+      tokens.length = last
+    }
+  }
 }
 
 export default text_join

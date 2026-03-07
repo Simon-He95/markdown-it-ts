@@ -36,6 +36,27 @@ describe('renderer', () => {
     expect(html).toContain('<span data-lang="js">')
   })
 
+  it('does not mutate fence attrs when adding the language class', () => {
+    const tokens = parse('```js\nconsole.log(1)\n```') as any[]
+    const fence = tokens.find(token => token.type === 'fence')
+
+    fence.attrs = [['data-test', '1']]
+
+    const html = render(tokens as any)
+
+    expect(html).toContain('<code data-test="1" class="language-js">')
+    expect(fence.attrs).toEqual([['data-test', '1']])
+  })
+
+  it('joins escaped punctuation back into a single text child', () => {
+    const tokens = parse('foo\\!bar') as any[]
+    const inline = tokens.find(token => token.type === 'inline')
+
+    expect(inline.children).toHaveLength(1)
+    expect(inline.children[0].type).toBe('text')
+    expect(inline.children[0].content).toBe('foo!bar')
+  })
+
   it('sync render throws when async rule output is provided', () => {
     expect(() => render('```js\n1\n```', {
       highlight: async () => '<span>async</span>',
