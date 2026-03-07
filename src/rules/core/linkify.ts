@@ -1,12 +1,51 @@
 import type { State } from '../../parse/state'
 import { Token } from '../../common/token'
 
+interface LinkifyMatch {
+  schema: string
+  index: number
+  lastIndex: number
+  raw: string
+  text: string
+  url: string
+}
+
+const CJK_CHAR_RE = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u
+const ASCII_DOMAIN_START_RE = /[0-9a-z]/i
+
 function isLinkOpen(str: string): boolean {
   return /^<a[>\s]/i.test(str)
 }
 
 function isLinkClose(str: string): boolean {
   return /^<\/a\s*>/i.test(str)
+}
+
+function trimCjkPrefixFromFuzzyLink(linkify: { match: (text: string) => LinkifyMatch[] | null }, link: LinkifyMatch): LinkifyMatch {
+  if (link.schema || link.index !== 0 || !link.raw)
+    return link
+
+  for (let offset = 1; offset < link.raw.length; offset++) {
+    const prevChar = link.raw[offset - 1]
+    const nextChar = link.raw[offset]
+
+    if (!CJK_CHAR_RE.test(prevChar) || !ASCII_DOMAIN_START_RE.test(nextChar))
+      continue
+
+    const suffix = link.raw.slice(offset)
+    const candidate = linkify.match(suffix)?.[0]
+
+    if (!candidate || candidate.index !== 0 || candidate.lastIndex !== suffix.length)
+      continue
+
+    return {
+      ...candidate,
+      index: link.index + offset,
+      lastIndex: link.index + offset + candidate.lastIndex,
+    }
+  }
+
+  return link
 }
 
 export function linkify(state: State): void {
@@ -59,7 +98,7 @@ export function linkify(state: State): void {
       }
 
       const text = currentToken.content
-      let links = state.md.linkify.match(text) || []
+      let links = (state.md.linkify.match(text) || []).map((link: LinkifyMatch) => trimCjkPrefixFromFuzzyLink(state.md.linkify, link))
 
       if (links.length === 0) {
         continue
