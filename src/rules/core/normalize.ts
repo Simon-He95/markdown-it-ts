@@ -11,8 +11,8 @@ export function normalize(state: State): void {
     return
 
   const src = state.src
-  const hasCR = src.indexOf('\r') !== -1
-  const hasNull = src.indexOf('\0') !== -1
+  const hasCR = src.includes('\r')
+  const hasNull = src.includes('\0')
 
   if (!hasCR && !hasNull)
     return

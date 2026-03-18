@@ -49,11 +49,11 @@ function renderAttrsFromList(attrs: [string, string][] | null | undefined): stri
     return ''
 
   const firstAttr = attrs[0]
-  let result = ' ' + renderAttrName(firstAttr[0]) + '="' + escapeHtml(firstAttr[1]) + '"'
+  let result = ` ${renderAttrName(firstAttr[0])}="${escapeHtml(firstAttr[1])}"`
 
   for (let i = 1; i < attrs.length; i++) {
     const attr = attrs[i]
-    result += ' ' + renderAttrName(attr[0]) + '="' + escapeHtml(attr[1]) + '"'
+    result += ` ${renderAttrName(attr[0])}="${escapeHtml(attr[1])}"`
   }
 
   return result
@@ -90,44 +90,45 @@ function parseFenceInfo(info: string): { langName: string, langAttrs: string } {
 
 function renderFence(token: Token, highlighted: string, info: string, langName: string, options: RendererOptions): string {
   if (highlighted.indexOf('<pre') === 0)
-    return highlighted + '\n'
+    return `${highlighted}\n`
 
   if (info) {
     if (!token.attrs || token.attrs.length === 0) {
       const langClass = escapeHtml(`${options.langPrefix ?? 'language-'}${langName}`)
-      return '<pre><code class="' + langClass + '">' + highlighted + '</code></pre>\n'
+      return `<pre><code class="${langClass}">${highlighted}</code></pre>\n`
     }
 
     const classIndex = token.attrIndex('class')
     const tmpAttrs = token.attrs ? token.attrs.slice() : []
     const langClass = `${options.langPrefix ?? 'language-'}${langName}`
 
-    if (classIndex < 0)
+    if (classIndex < 0) {
       tmpAttrs.push(['class', langClass])
+    }
     else {
       tmpAttrs[classIndex] = tmpAttrs[classIndex].slice() as [string, string]
       tmpAttrs[classIndex][1] += ` ${langClass}`
     }
 
-    return '<pre><code' + renderAttrsFromList(tmpAttrs) + '>' + highlighted + '</code></pre>\n'
+    return `<pre><code${renderAttrsFromList(tmpAttrs)}>${highlighted}</code></pre>\n`
   }
 
-  return '<pre><code' + renderAttrsFromList(token.attrs) + '>' + highlighted + '</code></pre>\n'
+  return `<pre><code${renderAttrsFromList(token.attrs)}>${highlighted}</code></pre>\n`
 }
 
 function renderCodeInlineToken(token: Token): string {
   if (!token.attrs || token.attrs.length === 0)
-    return '<code>' + escapeHtml(token.content) + '</code>'
+    return `<code>${escapeHtml(token.content)}</code>`
 
-  return '<code' + renderAttrsFromList(token.attrs) + '>' + escapeHtml(token.content) + '</code>'
+  return `<code${renderAttrsFromList(token.attrs)}>${escapeHtml(token.content)}</code>`
 }
 
 function renderCodeBlockToken(token: Token): string {
   const content = escapeHtml(token.content)
   if (!token.attrs)
-    return '<pre><code>' + content + '</code></pre>\n'
+    return `<pre><code>${content}</code></pre>\n`
 
-  return '<pre' + renderAttrsFromList(token.attrs) + '><code>' + content + '</code></pre>\n'
+  return `<pre${renderAttrsFromList(token.attrs)}><code>${content}</code></pre>\n`
 }
 
 function renderFastBlockOpenWithInline(token: Token, prefix: string): string | null {
@@ -135,13 +136,13 @@ function renderFastBlockOpenWithInline(token: Token, prefix: string): string | n
   if (!attrs || attrs.length === 0) {
     switch (token.type) {
       case 'paragraph_open':
-        return prefix + '<p>'
+        return `${prefix}<p>`
       case 'heading_open':
-        return '<' + token.tag + '>'
+        return `<${token.tag}>`
       case 'td_open':
-        return prefix + '<td>'
+        return `${prefix}<td>`
       case 'th_open':
-        return prefix + '<th>'
+        return `${prefix}<th>`
       default:
         return null
     }
@@ -149,9 +150,9 @@ function renderFastBlockOpenWithInline(token: Token, prefix: string): string | n
 
   if (attrs.length === 1 && attrs[0][0] === 'style') {
     if (token.type === 'td_open')
-      return prefix + '<td style="' + escapeHtml(attrs[0][1]) + '">'
+      return `${prefix}<td style="${escapeHtml(attrs[0][1])}">`
     if (token.type === 'th_open')
-      return prefix + '<th style="' + escapeHtml(attrs[0][1]) + '">'
+      return `${prefix}<th style="${escapeHtml(attrs[0][1])}">`
   }
 
   return null
@@ -163,14 +164,15 @@ function renderLinkOpenToken(token: Token): string {
     return '<a>'
 
   if (attrs.length === 1)
-    return '<a ' + renderAttrName(attrs[0][0]) + '="' + escapeHtml(attrs[0][1]) + '">'
+    return `<a ${renderAttrName(attrs[0][0])}="${escapeHtml(attrs[0][1])}">`
 
-  if (attrs.length === 2)
-    return '<a '
-      + renderAttrName(attrs[0][0]) + '="' + escapeHtml(attrs[0][1]) + '" '
-      + renderAttrName(attrs[1][0]) + '="' + escapeHtml(attrs[1][1]) + '">'
+  if (attrs.length === 2) {
+    return `<a ${
+      renderAttrName(attrs[0][0])}="${escapeHtml(attrs[0][1])}" ${
+      renderAttrName(attrs[1][0])}="${escapeHtml(attrs[1][1])}">`
+  }
 
-  return '<a' + renderAttrsFromList(attrs) + '>'
+  return `<a${renderAttrsFromList(attrs)}>`
 }
 
 function canUseLinkInlineFastPath(token: Token): boolean {
@@ -212,17 +214,82 @@ function renderFlatToken(token: Token, xhtmlOut: boolean): string {
 
   if (!attrs || attrs.length === 0) {
     if (nesting === 0)
-      return xhtmlOut ? '<' + tag + ' />' : '<' + tag + '>'
-    return nesting === -1 ? '</' + tag + '>' : '<' + tag + '>'
+      return xhtmlOut ? `<${tag} />` : `<${tag}>`
+    return nesting === -1 ? `</${tag}>` : `<${tag}>`
   }
 
   let result = (nesting === -1 ? '</' : '<') + tag + renderAttrsFromList(attrs)
   if (nesting === 0 && xhtmlOut)
     result += ' /'
-  return result + '>'
+  return `${result}>`
 }
 
-function renderFenceSyncToken(token: Token, options: RendererOptions, self: Renderer): string {
+const DEFAULT_RENDERER_OPTIONS: Required<Pick<RendererOptions, 'langPrefix' | 'xhtmlOut' | 'breaks'>> = {
+  langPrefix: 'language-',
+  xhtmlOut: false,
+  breaks: false,
+}
+
+const hasOwn = Object.prototype.hasOwnProperty
+
+const defaultRules: Record<string, RendererRule> = {
+  code_inline(tokens, idx) {
+    return renderCodeInlineToken(tokens[idx])
+  },
+  code_block(tokens, idx) {
+    return renderCodeBlockToken(tokens[idx])
+  },
+  fence(tokens, idx, options, _env, _self) {
+    const token = tokens[idx]
+    const info = token.info ? unescapeAll(token.info).trim() : ''
+    const { langName, langAttrs } = parseFenceInfo(info)
+    const highlight = options.highlight
+    const fallback = escapeHtml(token.content)
+
+    if (!highlight)
+      return renderFence(token, fallback, info, langName, options)
+
+    const highlighted = highlight(token.content, langName, langAttrs)
+
+    if (isPromiseLike(highlighted)) {
+      return highlighted.then(res => renderFence(token, res || fallback, info, langName, options))
+    }
+
+    return renderFence(token, highlighted || fallback, info, langName, options)
+  },
+  image(tokens, idx, options, env, self) {
+    const token = tokens[idx]
+    const altText = self.renderInlineAsText(token.children || [], options, env)
+    const altIndex = token.attrIndex('alt')
+    if (altIndex >= 0 && token.attrs)
+      token.attrs[altIndex][1] = altText
+    else if (token.attrs)
+      token.attrs.push(['alt', altText])
+    else
+      token.attrs = [['alt', altText]]
+    return renderFlatToken(token, options.xhtmlOut === true)
+  },
+  hardbreak(_tokens, _idx, options) {
+    return options.xhtmlOut ? '<br />\n' : '<br>\n'
+  },
+  softbreak(_tokens, _idx, options) {
+    return options.breaks ? (options.xhtmlOut ? '<br />\n' : '<br>\n') : '\n'
+  },
+  text(tokens, idx) {
+    return escapeHtml(tokens[idx].content)
+  },
+  text_special(tokens, idx) {
+    return escapeHtml(tokens[idx].content)
+  },
+  html_block(tokens, idx) {
+    return tokens[idx].content
+  },
+  html_inline(tokens, idx) {
+    return tokens[idx].content
+  },
+}
+
+function renderFenceSyncToken(token: Token, options: RendererOptions, _self: Renderer): string {
   const info = token.info ? unescapeAll(token.info).trim() : ''
   const { langName, langAttrs } = parseFenceInfo(info)
   const highlight = options.highlight
@@ -288,71 +355,6 @@ function renderSingleInlineTokenSync(
   return ensureSyncResult(rendered, token.type)
 }
 
-const DEFAULT_RENDERER_OPTIONS: Required<Pick<RendererOptions, 'langPrefix' | 'xhtmlOut' | 'breaks'>> = {
-  langPrefix: 'language-',
-  xhtmlOut: false,
-  breaks: false,
-}
-
-const hasOwn = Object.prototype.hasOwnProperty
-
-const defaultRules: Record<string, RendererRule> = {
-  code_inline(tokens, idx) {
-    return renderCodeInlineToken(tokens[idx])
-  },
-  code_block(tokens, idx) {
-    return renderCodeBlockToken(tokens[idx])
-  },
-  fence(tokens, idx, options, _env, self) {
-    const token = tokens[idx]
-    const info = token.info ? unescapeAll(token.info).trim() : ''
-    const { langName, langAttrs } = parseFenceInfo(info)
-    const highlight = options.highlight
-    const fallback = escapeHtml(token.content)
-
-    if (!highlight)
-      return renderFence(token, fallback, info, langName, options)
-
-    const highlighted = highlight(token.content, langName, langAttrs)
-
-    if (isPromiseLike(highlighted)) {
-      return highlighted.then(res => renderFence(token, res || fallback, info, langName, options))
-    }
-
-    return renderFence(token, highlighted || fallback, info, langName, options)
-  },
-  image(tokens, idx, options, env, self) {
-    const token = tokens[idx]
-    const altText = self.renderInlineAsText(token.children || [], options, env)
-    const altIndex = token.attrIndex('alt')
-    if (altIndex >= 0 && token.attrs)
-      token.attrs[altIndex][1] = altText
-    else if (token.attrs)
-      token.attrs.push(['alt', altText])
-    else
-      token.attrs = [['alt', altText]]
-    return renderFlatToken(token, options.xhtmlOut === true)
-  },
-  hardbreak(_tokens, _idx, options) {
-    return options.xhtmlOut ? '<br />\n' : '<br>\n'
-  },
-  softbreak(_tokens, _idx, options) {
-    return options.breaks ? (options.xhtmlOut ? '<br />\n' : '<br>\n') : '\n'
-  },
-  text(tokens, idx) {
-    return escapeHtml(tokens[idx].content)
-  },
-  text_special(tokens, idx) {
-    return escapeHtml(tokens[idx].content)
-  },
-  html_block(tokens, idx) {
-    return tokens[idx].content
-  },
-  html_inline(tokens, idx) {
-    return tokens[idx].content
-  },
-}
-
 export class Renderer {
   public readonly rules: Record<string, RendererRule>
   private baseOptions: RendererOptions
@@ -410,7 +412,7 @@ export class Renderer {
           && paragraphClose.type === 'paragraph_close'
           && paragraphClose.hidden
         ) {
-          result += prefix + '<li>' + this.renderInlineTokens(inlineToken.children || [], merged, envRef)
+          result += `${prefix}<li>${this.renderInlineTokens(inlineToken.children || [], merged, envRef)}`
           i += 3
           continue
         }
@@ -428,7 +430,7 @@ export class Renderer {
         ) {
           const open = renderFastBlockOpenWithInline(token, prefix)
           if (open !== null) {
-            result += open + this.renderInlineTokens(inlineToken.children || [], merged, envRef) + '</' + token.tag + '>\n'
+            result += `${open + this.renderInlineTokens(inlineToken.children || [], merged, envRef)}</${token.tag}>\n`
             i += 2
             continue
           }
@@ -507,13 +509,13 @@ export class Renderer {
                 result += xhtmlOut ? '<hr />\n' : '<hr>\n'
                 continue
               case 'heading_open':
-                result += '<' + token.tag + '>'
+                result += `<${token.tag}>`
                 continue
               case 'heading_close':
-                result += '</' + token.tag + '>\n'
+                result += `</${token.tag}>\n`
                 continue
               case 'paragraph_open':
-                result += prefix + '<p>'
+                result += `${prefix}<p>`
                 continue
               case 'paragraph_close':
                 result += '</p>\n'
@@ -531,7 +533,7 @@ export class Renderer {
                 result += '</li>\n'
                 continue
               case 'bullet_list_open':
-                result += prefix + '<ul>\n'
+                result += `${prefix}<ul>\n`
                 continue
               case 'bullet_list_close':
                 result += '</ul>\n'
@@ -547,43 +549,43 @@ export class Renderer {
                 result += '</blockquote>\n'
                 continue
               case 'ordered_list_open':
-                result += prefix + '<ol>\n'
+                result += `${prefix}<ol>\n`
                 continue
               case 'ordered_list_close':
                 result += '</ol>\n'
                 continue
               case 'table_open':
-                result += prefix + '<table>\n'
+                result += `${prefix}<table>\n`
                 continue
               case 'table_close':
                 result += '</table>\n'
                 continue
               case 'thead_open':
-                result += prefix + '<thead>\n'
+                result += `${prefix}<thead>\n`
                 continue
               case 'thead_close':
                 result += '</thead>\n'
                 continue
               case 'tbody_open':
-                result += prefix + '<tbody>\n'
+                result += `${prefix}<tbody>\n`
                 continue
               case 'tbody_close':
                 result += '</tbody>\n'
                 continue
               case 'tr_open':
-                result += prefix + '<tr>\n'
+                result += `${prefix}<tr>\n`
                 continue
               case 'tr_close':
                 result += '</tr>\n'
                 continue
               case 'td_open':
-                result += prefix + '<td>'
+                result += `${prefix}<td>`
                 continue
               case 'td_close':
                 result += '</td>\n'
                 continue
               case 'th_open':
-                result += prefix + '<th>'
+                result += `${prefix}<th>`
                 continue
               case 'th_close':
                 result += '</th>\n'
@@ -595,15 +597,15 @@ export class Renderer {
           else if (attrs.length === 1) {
             const attr = attrs[0]
             if (type === 'ordered_list_open' && attr[0] === 'start') {
-              result += prefix + '<ol start="' + escapeHtml(attr[1]) + '">\n'
+              result += `${prefix}<ol start="${escapeHtml(attr[1])}">\n`
               continue
             }
             if (type === 'td_open' && attr[0] === 'style') {
-              result += prefix + '<td style="' + escapeHtml(attr[1]) + '">'
+              result += `${prefix}<td style="${escapeHtml(attr[1])}">`
               continue
             }
             if (type === 'th_open' && attr[0] === 'style') {
-              result += prefix + '<th style="' + escapeHtml(attr[1]) + '">'
+              result += `${prefix}<th style="${escapeHtml(attr[1])}">`
               continue
             }
           }
@@ -716,12 +718,12 @@ export class Renderer {
     if (!attrs || attrs.length === 0) {
       if (nesting === 0) {
         if (options.xhtmlOut)
-          return prefix + '<' + tag + ' /' + suffix
-        return prefix + '<' + tag + suffix
+          return `${prefix}<${tag} /${suffix}`
+        return `${prefix}<${tag}${suffix}`
       }
       if (nesting === -1)
-        return prefix + '</' + tag + suffix
-      return prefix + '<' + tag + suffix
+        return `${prefix}</${tag}${suffix}`
+      return `${prefix}<${tag}${suffix}`
     }
 
     let result = prefix + (nesting === -1 ? '</' : '<') + tag + renderAttrsFromList(attrs)
@@ -842,9 +844,9 @@ export class Renderer {
         const closeToken = tokens[i + 2]
 
         if (closeToken.type === 'link_close' && canUseLinkInlineFastPath(bodyToken)) {
-          const renderedLink = renderLinkOpenToken(token)
+          const renderedLink = `${renderLinkOpenToken(token)
             + renderSingleInlineTokenSync([bodyToken], options, env, this, rules, inlineBreak, softbreak)
-            + '</a>'
+          }</a>`
 
           if (softbreakRule === defaultRules.softbreak && i + 3 < tokens.length && tokens[i + 3].type === 'softbreak') {
             result += renderedLink + softbreak
@@ -861,7 +863,7 @@ export class Renderer {
       if (token.type === 'link_open' && !linkOpenRule && !linkCloseRule && i + 1 < tokens.length) {
         const closeToken = tokens[i + 1]
         if (closeToken.type === 'link_close') {
-          result += renderLinkOpenToken(token) + '</a>'
+          result += `${renderLinkOpenToken(token)}</a>`
           i += 1
           continue
         }
@@ -872,9 +874,9 @@ export class Renderer {
         const closeToken = tokens[i + 2]
 
         if (closeToken.type === 'em_close' && canUseWrappedInlineFastPath(bodyToken)) {
-          result += '<em>'
-            + renderSingleInlineTokenSync([bodyToken], options, env, this, rules, inlineBreak, softbreak)
-            + '</em>'
+          result += `<em>${
+            renderSingleInlineTokenSync([bodyToken], options, env, this, rules, inlineBreak, softbreak)
+          }</em>`
           i += 2
           continue
         }
@@ -885,9 +887,9 @@ export class Renderer {
         const closeToken = tokens[i + 2]
 
         if (closeToken.type === 'strong_close' && canUseWrappedInlineFastPath(bodyToken)) {
-          result += '<strong>'
-            + renderSingleInlineTokenSync([bodyToken], options, env, this, rules, inlineBreak, softbreak)
-            + '</strong>'
+          result += `<strong>${
+            renderSingleInlineTokenSync([bodyToken], options, env, this, rules, inlineBreak, softbreak)
+          }</strong>`
           i += 2
           continue
         }

@@ -1,10 +1,10 @@
+import { normalizeReference } from '../../common/utils'
 import parseLinkDestination from '../../helpers/parse_link_destination'
 /**
  * Inline rule: link [text](url "title") and [text][ref]
  */
 import parseLinkLabel from '../../helpers/parse_link_label'
 import parseLinkTitle from '../../helpers/parse_link_title'
-import { normalizeReference } from '../../common/utils'
 
 export function link(state: any, silent?: boolean): boolean {
   let code, label, res, ref

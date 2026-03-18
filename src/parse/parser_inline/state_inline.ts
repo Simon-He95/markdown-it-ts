@@ -1,6 +1,6 @@
+import type { ParseSource } from '../source'
 import { Token } from '../../common/token'
 import { isPunctCode, isWhiteSpace } from '../../common/utils'
-import type { ParseSource } from '../source'
 
 /**
  * StateInline - state object for inline parser

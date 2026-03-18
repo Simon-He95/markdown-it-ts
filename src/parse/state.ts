@@ -1,4 +1,4 @@
-import { Token } from '../common/token'
+import type { Token } from '../common/token'
 import type { ParseSource } from './source'
 
 export interface MarkdownItOptions {

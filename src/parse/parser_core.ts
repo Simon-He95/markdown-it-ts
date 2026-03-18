@@ -1,3 +1,4 @@
+import type { ParseSource } from './source'
 import LinkifyIt from 'linkify-it'
 import { parseLinkDestination } from '../helpers/parse_link_destination'
 import { parseLinkLabel } from '../helpers/parse_link_label'
@@ -13,7 +14,6 @@ import { text_join } from '../rules/core/text_join'
 import { normalizeLink, normalizeLinkText, validateLink } from './link_utils'
 import { ParserBlock } from './parser_block'
 import { ParserInline } from './parser_inline'
-import type { ParseSource } from './source'
 import { hasNormalizationChars, sourceToString } from './source'
 import { State } from './state'
 

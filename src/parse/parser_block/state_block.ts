@@ -2,8 +2,8 @@
  * StateBlock - Parser state class for block-level parsing
  */
 
-import { Token } from '../../common/token'
 import type { ParseSource } from '../source'
+import { Token } from '../../common/token'
 
 function isSpace(code: number): boolean {
   switch (code) {

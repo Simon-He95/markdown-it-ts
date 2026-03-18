@@ -1,4 +1,5 @@
 import type { Token } from '../../types'
+import type { ParseSource } from '../source'
 import { Token as TokenClass } from '../../common/token'
 import autolink from '../../rules/inline/autolink'
 import backticks from '../../rules/inline/backticks'
@@ -16,7 +17,6 @@ import { strikethrough } from '../../rules/inline/strikethrough'
 import text from '../../rules/inline/text'
 import { InlineRuler } from './ruler'
 import { StateInline } from './state_inline'
-import type { ParseSource } from '../source'
 
 /**
  * ParserInline - inline parser with Ruler-based rule management
@@ -179,7 +179,7 @@ export class ParserInline {
         continue
       }
 
-      state.pending += state.src[state.pos++]
+      state.pending += state.src.charAt(state.pos++)
     }
 
     if (state.pending) {

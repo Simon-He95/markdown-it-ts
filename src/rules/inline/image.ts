@@ -1,10 +1,10 @@
+import { normalizeReference } from '../../common/utils'
 import parseLinkDestination from '../../helpers/parse_link_destination'
 /**
  * Inline rule: image ![alt](src "title") and ![alt][ref]
  */
 import parseLinkLabel from '../../helpers/parse_link_label'
 import parseLinkTitle from '../../helpers/parse_link_title'
-import { normalizeReference } from '../../common/utils'
 
 export function image(state: any, silent?: boolean): boolean {
   let code, content, label, pos, ref, res, title, start

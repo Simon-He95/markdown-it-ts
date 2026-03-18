@@ -22,7 +22,7 @@ export function heading(state: StateBlock, startLine: number, endLine: number, s
   const tShift = state.tShift
   const eMarks = state.eMarks
   let pos = bMarks[startLine] + tShift[startLine]
-  let max = eMarks[startLine]
+  const max = eMarks[startLine]
 
   // if it's indented more than 3 spaces, it should be a code block
   if (state.sCount[startLine] - state.blkIndent >= 4)

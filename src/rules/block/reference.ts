@@ -3,8 +3,8 @@
  * Parse link reference definitions: [label]: destination "title"
  */
 
-import { normalizeReference } from '../../common/utils'
 import type { StateBlock } from '../../parse/parser_block/state_block'
+import { normalizeReference } from '../../common/utils'
 
 function isSpace(code: number): boolean {
   switch (code) {

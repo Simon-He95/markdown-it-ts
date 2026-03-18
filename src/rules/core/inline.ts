@@ -1,6 +1,6 @@
+import type { State } from '../../parse/state'
 import { Token } from '../../common/token'
 import { isPlainInlineText } from '../../parse/parser_inline'
-import type { State } from '../../parse/state'
 
 /**
  * Core rule: inline

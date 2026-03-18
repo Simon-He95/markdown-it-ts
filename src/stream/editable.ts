@@ -145,7 +145,7 @@ export class EditableBuffer {
     this.source.replace(clampedStart, clampedEnd, text)
     this.statsState.edits += 1
 
-    if (!anchor || anchor.tokenStart <= 0 && anchor.lineStart <= 0)
+    if (!anchor || (anchor.tokenStart <= 0 && anchor.lineStart <= 0))
       return this.fullParse(env)
 
     return this.localizedReparse(anchor, env)

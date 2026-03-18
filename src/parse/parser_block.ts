@@ -5,9 +5,10 @@
  */
 
 import type { Token } from '../types'
+import type { ParseSource } from './source'
 import { blockquote } from '../rules/block/blockquote'
-import { code } from '../rules/block/code'
 
+import { code } from '../rules/block/code'
 import { fence } from '../rules/block/fence'
 import { heading } from '../rules/block/heading'
 import { hr } from '../rules/block/hr'
@@ -19,7 +20,6 @@ import { reference } from '../rules/block/reference'
 import { table } from '../rules/block/table'
 import { BlockRuler } from './parser_block/ruler'
 import { StateBlock } from './parser_block/state_block'
-import type { ParseSource } from './source'
 
 const _rules: [string, any, string[]?][] = [
   // First 2 params - rule name & source. Third param - list of rules,

@@ -1,5 +1,6 @@
 import type { Token } from '../common/token'
 import type { MarkdownIt } from '../index'
+
 export interface ChunkedOptions {
   maxChunkChars?: number // hard limit per chunk by characters
   maxChunkLines?: number // hard limit per chunk by lines

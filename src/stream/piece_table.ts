@@ -1,5 +1,5 @@
-import { countLines } from '../common/utils'
 import type { TextSource } from '../parse/source'
+import { countLines } from '../common/utils'
 
 type PieceBuffer = 'original' | 'add'
 
@@ -166,11 +166,11 @@ export class PieceTable {
     return new PieceTableSourceView(this, start, end, windowSize)
   }
 
-  *iterateChunks(chunkSize = 8192): Iterable<string> {
+  * iterateChunks(chunkSize = 8192): Iterable<string> {
     yield* this.iterateRangeChunks(0, this.totalLength, chunkSize)
   }
 
-  *iterateRangeChunks(start = 0, end = this.totalLength, chunkSize = 8192): Iterable<string> {
+  * iterateRangeChunks(start = 0, end = this.totalLength, chunkSize = 8192): Iterable<string> {
     const from = clampOffset(start, 0, this.totalLength)
     const to = clampOffset(end, from, this.totalLength)
     if (from === to)
@@ -394,6 +394,11 @@ export class PieceTableSourceView implements TextSource {
     }
 
     return -1
+  }
+
+  includes(searchValue: string, fromIndex = 0): boolean {
+    // eslint-disable-next-line unicorn/prefer-includes
+    return this.indexOf(searchValue, fromIndex) !== -1
   }
 
   toString(): string {

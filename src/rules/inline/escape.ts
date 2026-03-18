@@ -105,7 +105,7 @@ export function escape(state: any, silent?: boolean): boolean {
     }
   }
 
-  const origStr = `\\` + escapedStr
+  const origStr = `\\${escapedStr}`
 
   pushEscapeToken(state, ch < 0x100 && ESCAPED[ch] ? escapedStr : origStr, origStr)
 
