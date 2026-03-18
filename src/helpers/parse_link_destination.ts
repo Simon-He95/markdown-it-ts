@@ -1,7 +1,9 @@
+import type { ParseSource } from '../parse/source'
+
 /**
  * Parse link destination: returns { ok, pos, str }
  */
-export function parseLinkDestination(str: string, start: number, max: number) {
+export function parseLinkDestination(str: ParseSource, start: number, max: number) {
   let code
   let pos = start
   const result = { ok: false, pos: 0, str: '' }

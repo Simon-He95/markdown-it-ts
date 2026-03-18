@@ -4,11 +4,19 @@
 
 import type { StateBlock } from '../../parse/parser_block/state_block'
 
+const HEADING_TAGS = ['', 'h1', 'h2']
+
 export function lheading(state: StateBlock, startLine: number, endLine: number): boolean {
   const terminatorRules = state.md.block.ruler.getRules('paragraph')
+  const src = state.src
+  const bMarks = state.bMarks
+  const tShift = state.tShift
+  const eMarks = state.eMarks
+  const sCount = state.sCount
+  const blkIndent = state.blkIndent
 
   // if it's indented more than 3 spaces, it should be a code block
-  if (state.sCount[startLine] - state.blkIndent >= 4)
+  if (sCount[startLine] - blkIndent >= 4)
     return false
 
   const oldParentType = state.parentType
@@ -19,36 +27,51 @@ export function lheading(state: StateBlock, startLine: number, endLine: number):
   let marker: number | undefined
   let nextLine = startLine + 1
 
-  for (; nextLine < endLine && !state.isEmpty(nextLine); nextLine++) {
+  for (; nextLine < endLine; nextLine++) {
+    const lineStart = bMarks[nextLine] + tShift[nextLine]
+    const max = eMarks[nextLine]
+
+    if (lineStart >= max)
+      break
+
     // this would be a code block normally, but after paragraph
     // it's considered a lazy continuation regardless of what's there
-    if (state.sCount[nextLine] - state.blkIndent > 3)
+    if (sCount[nextLine] - blkIndent > 3)
       continue
 
     //
     // Check for underline in setext header
     //
-    if (state.sCount[nextLine] >= state.blkIndent) {
-      let pos = state.bMarks[nextLine] + state.tShift[nextLine]
-      const max = state.eMarks[nextLine]
+    if (sCount[nextLine] >= blkIndent) {
+      marker = src.charCodeAt(lineStart)
 
-      if (pos < max) {
-        marker = state.src.charCodeAt(pos)
+      if (marker === 0x2D /* - */ || marker === 0x3D /* = */) {
+        let pos = lineStart + 1
+        let markerEnd = pos
 
-        if (marker === 0x2D /* - */ || marker === 0x3D /* = */) {
-          pos = state.skipChars(pos, marker)
-          pos = state.skipSpaces(pos)
+        while (pos < max && src.charCodeAt(pos) === marker)
+          pos++
+        markerEnd = pos
 
-          if (pos >= max) {
-            level = (marker === 0x3D /* = */ ? 1 : 2)
+        while (pos < max) {
+          const ch = src.charCodeAt(pos)
+          if (ch !== 0x09 && ch !== 0x20)
             break
-          }
+          pos++
         }
+
+        if (pos >= max) {
+          level = (marker === 0x3D /* = */ ? 1 : 2)
+          break
+        }
+
+        if (markerEnd - lineStart > 1)
+          continue
       }
     }
 
     // quirk for blockquotes, this line should already be checked by that rule
-    if (state.sCount[nextLine] < 0)
+    if (sCount[nextLine] < 0)
       continue
 
     // Some tags can terminate paragraph without empty line.
@@ -68,12 +91,29 @@ export function lheading(state: StateBlock, startLine: number, endLine: number):
     return false
   }
 
-  const content = state.getLines(startLine, nextLine, state.blkIndent, false).trim()
+  let content: string
+  if (nextLine === startLine + 1) {
+    const lineStart = bMarks[startLine] + tShift[startLine]
+    let lineEnd = eMarks[startLine]
+
+    while (lineEnd > lineStart) {
+      const ch = src.charCodeAt(lineEnd - 1)
+      if (ch !== 0x09 && ch !== 0x20)
+        break
+      lineEnd--
+    }
+
+    content = src.slice(lineStart, lineEnd)
+  }
+  else {
+    content = state.getLines(startLine, nextLine, blkIndent, false).trim()
+  }
 
   state.line = nextLine + 1
+  const markup = marker === 0x3D /* = */ ? '=' : '-'
 
-  const token_o = state.push('heading_open', `h${String(level)}`, 1)
-  token_o.markup = String.fromCharCode(marker!)
+  const token_o = state.push('heading_open', HEADING_TAGS[level], 1)
+  token_o.markup = markup
   token_o.map = [startLine, state.line]
 
   const token_i = state.push('inline', '', 0)
@@ -81,8 +121,8 @@ export function lheading(state: StateBlock, startLine: number, endLine: number):
   token_i.map = [startLine, state.line - 1]
   token_i.children = []
 
-  const token_c = state.push('heading_close', `h${String(level)}`, -1)
-  token_c.markup = String.fromCharCode(marker!)
+  const token_c = state.push('heading_close', HEADING_TAGS[level], -1)
+  token_c.markup = markup
 
   state.parentType = oldParentType
 

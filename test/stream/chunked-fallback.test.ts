@@ -28,4 +28,30 @@ describe('stream parser chunked fallback', () => {
 
     parseSpy.mockRestore()
   })
+
+  it('uses auto-tuned stream chunk settings when sizes are not explicitly provided', () => {
+    const md = MarkdownIt({ stream: true, streamChunkedFallback: true })
+    const env: Record<string, unknown> = {}
+    const large = buildDoc(120)
+
+    md.stream.parse(large, env)
+
+    expect((env as any).__mdtsChunkInfo?.maxChunkChars).toBe(16_000)
+    expect((env as any).__mdtsChunkInfo?.maxChunkLines).toBe(200)
+  })
+
+  it('keeps stream chunk fallback available beyond the old 120k ceiling', () => {
+    const md = MarkdownIt({
+      stream: true,
+      streamChunkedFallback: true,
+      streamSkipCacheAboveChars: 5_000_000,
+      streamSkipCacheAboveLines: 500_000,
+    })
+    const env: Record<string, unknown> = {}
+    const huge = buildDoc(900) // >120k chars
+
+    md.stream.parse(huge, env)
+
+    expect((env as any).__mdtsChunkInfo?.count).toBeGreaterThan(0)
+  })
 })

@@ -3,6 +3,7 @@
  * Parse link reference definitions: [label]: destination "title"
  */
 
+import { normalizeReference } from '../../common/utils'
 import type { StateBlock } from '../../parse/parser_block/state_block'
 
 function isSpace(code: number): boolean {
@@ -14,25 +15,11 @@ function isSpace(code: number): boolean {
   return false
 }
 
-function normalizeReference(str: string): string {
-  // Trim and collapse whitespace
-  str = str.trim().replace(/\s+/g, ' ')
-
-  // .toLowerCase().toUpperCase() should get rid of all differences
-  // between letter variants.
-  //
-  // Simple .toLowerCase() doesn't normalize 'ẞ' -> 'ß' and 'ſ' -> 's'
-  if ('ẞ'.toLowerCase() === 'Ṿ'.toLowerCase()) {
-    str = str.toLowerCase()
-  }
-
-  return str.toLowerCase().toUpperCase().toLowerCase()
-}
-
 export function reference(state: StateBlock, startLine: number, _endLine: number, silent?: boolean): boolean {
   let pos = state.bMarks[startLine] + state.tShift[startLine]
   let max = state.eMarks[startLine]
   let nextLine = startLine + 1
+  const terminatorRules = state.md.block.ruler.getRules('reference')
 
   // if it's indented more than 3 spaces, it should be a code block
   if (state.sCount[startLine] - state.blkIndent >= 4)
@@ -61,7 +48,6 @@ export function reference(state: StateBlock, startLine: number, _endLine: number
       isContinuation = true
 
     if (!isContinuation) {
-      const terminatorRules = state.md.block.ruler.getRules('reference')
       const oldParentType = state.parentType
       state.parentType = 'reference'
 

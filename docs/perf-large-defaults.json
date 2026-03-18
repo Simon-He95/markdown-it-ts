@@ -1,0 +1,1806 @@
+{
+  "generatedAt": "2026-03-18T12:20:27.597Z",
+  "sizes": [
+    100000,
+    500000,
+    1000000,
+    5000000,
+    20000000
+  ],
+  "summary": [
+    {
+      "size": 100000,
+      "bestFull": {
+        "id": "iterable-sink",
+        "label": "iterable sink",
+        "oneShotMs": 4.85604579999997,
+        "appendWorkloadMs": 17.360415999999077,
+        "chunkInfo": null,
+        "stats": {
+          "total": 0,
+          "cacheHits": 0,
+          "appendHits": 0,
+          "tailHits": 0,
+          "fullParses": 0,
+          "resets": 0,
+          "chunkedParses": 0,
+          "lastMode": "idle"
+        }
+      },
+      "bestStream": {
+        "id": "unbounded-sink",
+        "label": "unbounded sink",
+        "oneShotMs": 4.948943700000018,
+        "appendWorkloadMs": 4.7089169999999285,
+        "chunkInfo": {
+          "mode": "stream",
+          "maxChunkChars": 32000,
+          "maxChunkLines": 350,
+          "committedChars": 100126,
+          "committedLines": 9192,
+          "pendingChars": 0,
+          "pendingLines": 0,
+          "fedChunks": 13,
+          "parsedChunks": 33
+        },
+        "stats": null
+      },
+      "full": [
+        {
+          "id": "full-plain",
+          "label": "full plain",
+          "oneShotMs": 6.618827100000001,
+          "appendWorkloadMs": 17.301706999999965,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        },
+        {
+          "id": "full-auto",
+          "label": "full auto chunk",
+          "oneShotMs": 6.132177100000002,
+          "appendWorkloadMs": 17.804041999999868,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        },
+        {
+          "id": "full-20k-12",
+          "label": "full 20k/150 x12",
+          "oneShotMs": 6.7446937999999985,
+          "appendWorkloadMs": 20.271292999999332,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        },
+        {
+          "id": "full-32k-16",
+          "label": "full 32k/350 x16",
+          "oneShotMs": 6.639216650000003,
+          "appendWorkloadMs": 18.115040999999792,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        },
+        {
+          "id": "full-64k-16",
+          "label": "full 64k/700 x16",
+          "oneShotMs": 6.439427050000006,
+          "appendWorkloadMs": 17.78437599999984,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        },
+        {
+          "id": "iterable-auto",
+          "label": "iterable auto",
+          "oneShotMs": 7.048164600000007,
+          "appendWorkloadMs": 19.114124999999603,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        },
+        {
+          "id": "iterable-sink",
+          "label": "iterable sink",
+          "oneShotMs": 4.85604579999997,
+          "appendWorkloadMs": 17.360415999999077,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        }
+      ],
+      "stream": [
+        {
+          "id": "stream-cache",
+          "label": "stream cache only",
+          "oneShotMs": 7.164427049999972,
+          "appendWorkloadMs": 7.148834999999963,
+          "chunkInfo": null,
+          "stats": {
+            "total": 58,
+            "cacheHits": 0,
+            "appendHits": 15,
+            "tailHits": 0,
+            "fullParses": 43,
+            "resets": 43,
+            "chunkedParses": 0,
+            "lastMode": "append"
+          }
+        },
+        {
+          "id": "stream-auto",
+          "label": "stream auto chunk",
+          "oneShotMs": 7.2948041500000045,
+          "appendWorkloadMs": 7.967749999998887,
+          "chunkInfo": {
+            "count": 8,
+            "maxChunkChars": 16000,
+            "maxChunkLines": 200
+          },
+          "stats": {
+            "total": 58,
+            "cacheHits": 0,
+            "appendHits": 15,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 43,
+            "chunkedParses": 43,
+            "lastMode": "append"
+          }
+        },
+        {
+          "id": "stream-20k-24",
+          "label": "stream 20k/200 x24",
+          "oneShotMs": 6.978141650000021,
+          "appendWorkloadMs": 9.023623999999927,
+          "chunkInfo": {
+            "count": 8,
+            "maxChunkChars": 20000,
+            "maxChunkLines": 200
+          },
+          "stats": {
+            "total": 58,
+            "cacheHits": 0,
+            "appendHits": 15,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 43,
+            "chunkedParses": 43,
+            "lastMode": "append"
+          }
+        },
+        {
+          "id": "stream-32k-16",
+          "label": "stream 32k/350 x16",
+          "oneShotMs": 6.6797291499999805,
+          "appendWorkloadMs": 7.763499000000138,
+          "chunkInfo": {
+            "count": 5,
+            "maxChunkChars": 32000,
+            "maxChunkLines": 350
+          },
+          "stats": {
+            "total": 58,
+            "cacheHits": 0,
+            "appendHits": 15,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 43,
+            "chunkedParses": 43,
+            "lastMode": "append"
+          }
+        },
+        {
+          "id": "stream-64k-32",
+          "label": "stream 64k/700 x32",
+          "oneShotMs": 7.013887499999987,
+          "appendWorkloadMs": 7.782915999999659,
+          "chunkInfo": {
+            "count": 3,
+            "maxChunkChars": 64000,
+            "maxChunkLines": 700
+          },
+          "stats": {
+            "total": 58,
+            "cacheHits": 0,
+            "appendHits": 15,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 43,
+            "chunkedParses": 43,
+            "lastMode": "append"
+          }
+        },
+        {
+          "id": "unbounded-auto",
+          "label": "unbounded auto",
+          "oneShotMs": 7.412216699999976,
+          "appendWorkloadMs": 6.993208999998387,
+          "chunkInfo": {
+            "mode": "stream",
+            "maxChunkChars": 32000,
+            "maxChunkLines": 350,
+            "committedChars": 100126,
+            "committedLines": 9192,
+            "pendingChars": 0,
+            "pendingLines": 0,
+            "fedChunks": 13,
+            "parsedChunks": 33
+          },
+          "stats": null
+        },
+        {
+          "id": "unbounded-sink",
+          "label": "unbounded sink",
+          "oneShotMs": 4.948943700000018,
+          "appendWorkloadMs": 4.7089169999999285,
+          "chunkInfo": {
+            "mode": "stream",
+            "maxChunkChars": 32000,
+            "maxChunkLines": 350,
+            "committedChars": 100126,
+            "committedLines": 9192,
+            "pendingChars": 0,
+            "pendingLines": 0,
+            "fedChunks": 13,
+            "parsedChunks": 33
+          },
+          "stats": null
+        }
+      ],
+      "baselines": {
+        "markdown-it": {
+          "id": "markdown-it",
+          "label": "markdown-it",
+          "oneShotMs": 6.592243749999989,
+          "appendWorkloadMs": 17.61345800000072,
+          "chunkInfo": null,
+          "stats": null
+        },
+        "markdown-exit": {
+          "id": "markdown-exit",
+          "label": "markdown-exit",
+          "oneShotMs": 7.516249999999946,
+          "appendWorkloadMs": 24.724959000000126,
+          "chunkInfo": null,
+          "stats": null
+        },
+        "remark": {
+          "id": "remark",
+          "label": "remark",
+          "oneShotMs": 182.47604375,
+          "appendWorkloadMs": 572.7674569999981,
+          "chunkInfo": null,
+          "stats": null
+        },
+        "micromark": {
+          "id": "micromark",
+          "label": "micromark",
+          "oneShotMs": 110.2455082999999,
+          "appendWorkloadMs": 373.3604180000002,
+          "chunkInfo": null,
+          "stats": null
+        }
+      },
+      "baselineList": [
+        {
+          "id": "markdown-it",
+          "label": "markdown-it",
+          "oneShotMs": 6.592243749999989,
+          "appendWorkloadMs": 17.61345800000072,
+          "chunkInfo": null,
+          "stats": null
+        },
+        {
+          "id": "markdown-exit",
+          "label": "markdown-exit",
+          "oneShotMs": 7.516249999999946,
+          "appendWorkloadMs": 24.724959000000126,
+          "chunkInfo": null,
+          "stats": null
+        },
+        {
+          "id": "remark",
+          "label": "remark",
+          "oneShotMs": 182.47604375,
+          "appendWorkloadMs": 572.7674569999981,
+          "chunkInfo": null,
+          "stats": null
+        },
+        {
+          "id": "micromark",
+          "label": "micromark",
+          "oneShotMs": 110.2455082999999,
+          "appendWorkloadMs": 373.3604180000002,
+          "chunkInfo": null,
+          "stats": null
+        }
+      ]
+    },
+    {
+      "size": 500000,
+      "bestFull": {
+        "id": "iterable-sink",
+        "label": "iterable sink",
+        "oneShotMs": 24.070396000000073,
+        "appendWorkloadMs": 84.14593599999716,
+        "chunkInfo": null,
+        "stats": {
+          "total": 0,
+          "cacheHits": 0,
+          "appendHits": 0,
+          "tailHits": 0,
+          "fullParses": 0,
+          "resets": 0,
+          "chunkedParses": 0,
+          "lastMode": "idle"
+        }
+      },
+      "bestStream": {
+        "id": "unbounded-sink",
+        "label": "unbounded sink",
+        "oneShotMs": 24.093656250000095,
+        "appendWorkloadMs": 23.80547900000056,
+        "chunkInfo": {
+          "mode": "stream",
+          "maxChunkChars": 64000,
+          "maxChunkLines": 700,
+          "committedChars": 500121,
+          "committedLines": 45324,
+          "pendingChars": 0,
+          "pendingLines": 0,
+          "fedChunks": 62,
+          "parsedChunks": 136
+        },
+        "stats": null
+      },
+      "full": [
+        {
+          "id": "full-plain",
+          "label": "full plain",
+          "oneShotMs": 35.582697999999255,
+          "appendWorkloadMs": 114.50889599999755,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        },
+        {
+          "id": "full-auto",
+          "label": "full auto chunk",
+          "oneShotMs": 32.61088550000022,
+          "appendWorkloadMs": 107.97052149999945,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        },
+        {
+          "id": "full-20k-12",
+          "label": "full 20k/150 x12",
+          "oneShotMs": 32.49601050000001,
+          "appendWorkloadMs": 103.69945849999931,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        },
+        {
+          "id": "full-32k-16",
+          "label": "full 32k/350 x16",
+          "oneShotMs": 32.849645999999666,
+          "appendWorkloadMs": 108.33423050000238,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        },
+        {
+          "id": "full-64k-16",
+          "label": "full 64k/700 x16",
+          "oneShotMs": 32.10717724999995,
+          "appendWorkloadMs": 103.46637450000162,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        },
+        {
+          "id": "iterable-auto",
+          "label": "iterable auto",
+          "oneShotMs": 36.394052000000556,
+          "appendWorkloadMs": 120.10529150000184,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        },
+        {
+          "id": "iterable-sink",
+          "label": "iterable sink",
+          "oneShotMs": 24.070396000000073,
+          "appendWorkloadMs": 84.14593599999716,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        }
+      ],
+      "stream": [
+        {
+          "id": "stream-cache",
+          "label": "stream cache only",
+          "oneShotMs": 34.02804174999983,
+          "appendWorkloadMs": 40.13170800000262,
+          "chunkInfo": null,
+          "stats": {
+            "total": 24,
+            "cacheHits": 0,
+            "appendHits": 2,
+            "tailHits": 8,
+            "fullParses": 14,
+            "resets": 14,
+            "chunkedParses": 0,
+            "lastMode": "tail"
+          }
+        },
+        {
+          "id": "stream-auto",
+          "label": "stream auto chunk",
+          "oneShotMs": 35.51345824999953,
+          "appendWorkloadMs": 39.16210300000603,
+          "chunkInfo": {
+            "count": 16,
+            "maxChunkChars": 32000,
+            "maxChunkLines": 350
+          },
+          "stats": {
+            "total": 24,
+            "cacheHits": 0,
+            "appendHits": 2,
+            "tailHits": 8,
+            "fullParses": 12,
+            "resets": 14,
+            "chunkedParses": 2,
+            "lastMode": "tail"
+          }
+        },
+        {
+          "id": "stream-20k-24",
+          "label": "stream 20k/200 x24",
+          "oneShotMs": 35.98636450000049,
+          "appendWorkloadMs": 37.502582000000984,
+          "chunkInfo": {
+            "count": 24,
+            "maxChunkChars": 20000,
+            "maxChunkLines": 200
+          },
+          "stats": {
+            "total": 24,
+            "cacheHits": 0,
+            "appendHits": 2,
+            "tailHits": 8,
+            "fullParses": 12,
+            "resets": 14,
+            "chunkedParses": 2,
+            "lastMode": "tail"
+          }
+        },
+        {
+          "id": "stream-32k-16",
+          "label": "stream 32k/350 x16",
+          "oneShotMs": 35.78383324999959,
+          "appendWorkloadMs": 36.14626999999928,
+          "chunkInfo": {
+            "count": 16,
+            "maxChunkChars": 32000,
+            "maxChunkLines": 350
+          },
+          "stats": {
+            "total": 24,
+            "cacheHits": 0,
+            "appendHits": 2,
+            "tailHits": 8,
+            "fullParses": 12,
+            "resets": 14,
+            "chunkedParses": 2,
+            "lastMode": "tail"
+          }
+        },
+        {
+          "id": "stream-64k-32",
+          "label": "stream 64k/700 x32",
+          "oneShotMs": 35.25126050000017,
+          "appendWorkloadMs": 41.428728999999294,
+          "chunkInfo": {
+            "count": 11,
+            "maxChunkChars": 64000,
+            "maxChunkLines": 700
+          },
+          "stats": {
+            "total": 24,
+            "cacheHits": 0,
+            "appendHits": 2,
+            "tailHits": 8,
+            "fullParses": 12,
+            "resets": 14,
+            "chunkedParses": 2,
+            "lastMode": "tail"
+          }
+        },
+        {
+          "id": "unbounded-auto",
+          "label": "unbounded auto",
+          "oneShotMs": 36.05431249999947,
+          "appendWorkloadMs": 32.659646000003704,
+          "chunkInfo": {
+            "mode": "stream",
+            "maxChunkChars": 64000,
+            "maxChunkLines": 700,
+            "committedChars": 500121,
+            "committedLines": 45324,
+            "pendingChars": 0,
+            "pendingLines": 0,
+            "fedChunks": 62,
+            "parsedChunks": 136
+          },
+          "stats": null
+        },
+        {
+          "id": "unbounded-sink",
+          "label": "unbounded sink",
+          "oneShotMs": 24.093656250000095,
+          "appendWorkloadMs": 23.80547900000056,
+          "chunkInfo": {
+            "mode": "stream",
+            "maxChunkChars": 64000,
+            "maxChunkLines": 700,
+            "committedChars": 500121,
+            "committedLines": 45324,
+            "pendingChars": 0,
+            "pendingLines": 0,
+            "fedChunks": 62,
+            "parsedChunks": 136
+          },
+          "stats": null
+        }
+      ],
+      "baselines": {
+        "markdown-it": {
+          "id": "markdown-it",
+          "label": "markdown-it",
+          "oneShotMs": 32.88886449999973,
+          "appendWorkloadMs": 105.97383350000018,
+          "chunkInfo": null,
+          "stats": null
+        },
+        "markdown-exit": {
+          "id": "markdown-exit",
+          "label": "markdown-exit",
+          "oneShotMs": 38.87326050000047,
+          "appendWorkloadMs": 129.21499999999833,
+          "chunkInfo": null,
+          "stats": null
+        },
+        "remark": {
+          "id": "remark",
+          "label": "remark",
+          "oneShotMs": 1695.1004269999994,
+          "appendWorkloadMs": 4349.703291500005,
+          "chunkInfo": null,
+          "stats": null
+        },
+        "micromark": {
+          "id": "micromark",
+          "label": "micromark",
+          "oneShotMs": 540.8931250000005,
+          "appendWorkloadMs": 1963.7914569999957,
+          "chunkInfo": null,
+          "stats": null
+        }
+      },
+      "baselineList": [
+        {
+          "id": "markdown-it",
+          "label": "markdown-it",
+          "oneShotMs": 32.88886449999973,
+          "appendWorkloadMs": 105.97383350000018,
+          "chunkInfo": null,
+          "stats": null
+        },
+        {
+          "id": "markdown-exit",
+          "label": "markdown-exit",
+          "oneShotMs": 38.87326050000047,
+          "appendWorkloadMs": 129.21499999999833,
+          "chunkInfo": null,
+          "stats": null
+        },
+        {
+          "id": "remark",
+          "label": "remark",
+          "oneShotMs": 1695.1004269999994,
+          "appendWorkloadMs": 4349.703291500005,
+          "chunkInfo": null,
+          "stats": null
+        },
+        {
+          "id": "micromark",
+          "label": "micromark",
+          "oneShotMs": 540.8931250000005,
+          "appendWorkloadMs": 1963.7914569999957,
+          "chunkInfo": null,
+          "stats": null
+        }
+      ]
+    },
+    {
+      "size": 1000000,
+      "bestFull": {
+        "id": "iterable-sink",
+        "label": "iterable sink",
+        "oneShotMs": 47.090666500000225,
+        "appendWorkloadMs": 163.18277199998556,
+        "chunkInfo": null,
+        "stats": {
+          "total": 0,
+          "cacheHits": 0,
+          "appendHits": 0,
+          "tailHits": 0,
+          "fullParses": 0,
+          "resets": 0,
+          "chunkedParses": 0,
+          "lastMode": "idle"
+        }
+      },
+      "bestStream": {
+        "id": "unbounded-sink",
+        "label": "unbounded sink",
+        "oneShotMs": 47.009062500001164,
+        "appendWorkloadMs": 46.912334000000556,
+        "chunkInfo": {
+          "mode": "stream",
+          "maxChunkChars": 64000,
+          "maxChunkLines": 700,
+          "committedChars": 1000068,
+          "committedLines": 90432,
+          "pendingChars": 0,
+          "pendingLines": 0,
+          "fedChunks": 123,
+          "parsedChunks": 200
+        },
+        "stats": null
+      },
+      "full": [
+        {
+          "id": "full-plain",
+          "label": "full plain",
+          "oneShotMs": 67.06745850000152,
+          "appendWorkloadMs": 232.88341799999762,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        },
+        {
+          "id": "full-auto",
+          "label": "full auto chunk",
+          "oneShotMs": 62.7757500000007,
+          "appendWorkloadMs": 232.0974359999891,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        },
+        {
+          "id": "full-20k-12",
+          "label": "full 20k/150 x12",
+          "oneShotMs": 59.97829199999978,
+          "appendWorkloadMs": 215.60735449998174,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        },
+        {
+          "id": "full-32k-16",
+          "label": "full 32k/350 x16",
+          "oneShotMs": 61.41252099999838,
+          "appendWorkloadMs": 224.77212549997785,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        },
+        {
+          "id": "full-64k-16",
+          "label": "full 64k/700 x16",
+          "oneShotMs": 58.18824999999924,
+          "appendWorkloadMs": 218.9472295000087,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        },
+        {
+          "id": "iterable-auto",
+          "label": "iterable auto",
+          "oneShotMs": 66.58958349999739,
+          "appendWorkloadMs": 247.5438744999774,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        },
+        {
+          "id": "iterable-sink",
+          "label": "iterable sink",
+          "oneShotMs": 47.090666500000225,
+          "appendWorkloadMs": 163.18277199998556,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        }
+      ],
+      "stream": [
+        {
+          "id": "stream-cache",
+          "label": "stream cache only",
+          "oneShotMs": 62.82408349999605,
+          "appendWorkloadMs": 233.5526259999897,
+          "chunkInfo": null,
+          "stats": {
+            "total": 18,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 18,
+            "resets": 8,
+            "chunkedParses": 0,
+            "lastMode": "full"
+          }
+        },
+        {
+          "id": "stream-auto",
+          "label": "stream auto chunk",
+          "oneShotMs": 63.76858299999731,
+          "appendWorkloadMs": 239.93179249999957,
+          "chunkInfo": null,
+          "stats": {
+            "total": 18,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 18,
+            "resets": 8,
+            "chunkedParses": 0,
+            "lastMode": "full"
+          }
+        },
+        {
+          "id": "stream-20k-24",
+          "label": "stream 20k/200 x24",
+          "oneShotMs": 64.75822899999912,
+          "appendWorkloadMs": 233.72883399998682,
+          "chunkInfo": null,
+          "stats": {
+            "total": 18,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 18,
+            "resets": 8,
+            "chunkedParses": 0,
+            "lastMode": "full"
+          }
+        },
+        {
+          "id": "stream-32k-16",
+          "label": "stream 32k/350 x16",
+          "oneShotMs": 68.90547900000092,
+          "appendWorkloadMs": 229.68864600000234,
+          "chunkInfo": null,
+          "stats": {
+            "total": 18,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 18,
+            "resets": 8,
+            "chunkedParses": 0,
+            "lastMode": "full"
+          }
+        },
+        {
+          "id": "stream-64k-32",
+          "label": "stream 64k/700 x32",
+          "oneShotMs": 64.37972949999676,
+          "appendWorkloadMs": 232.33795749997807,
+          "chunkInfo": null,
+          "stats": {
+            "total": 18,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 18,
+            "resets": 8,
+            "chunkedParses": 0,
+            "lastMode": "full"
+          }
+        },
+        {
+          "id": "unbounded-auto",
+          "label": "unbounded auto",
+          "oneShotMs": 67.35454150000442,
+          "appendWorkloadMs": 79.70258399997692,
+          "chunkInfo": {
+            "mode": "stream",
+            "maxChunkChars": 64000,
+            "maxChunkLines": 700,
+            "committedChars": 1000068,
+            "committedLines": 90432,
+            "pendingChars": 0,
+            "pendingLines": 0,
+            "fedChunks": 123,
+            "parsedChunks": 200
+          },
+          "stats": null
+        },
+        {
+          "id": "unbounded-sink",
+          "label": "unbounded sink",
+          "oneShotMs": 47.009062500001164,
+          "appendWorkloadMs": 46.912334000000556,
+          "chunkInfo": {
+            "mode": "stream",
+            "maxChunkChars": 64000,
+            "maxChunkLines": 700,
+            "committedChars": 1000068,
+            "committedLines": 90432,
+            "pendingChars": 0,
+            "pendingLines": 0,
+            "fedChunks": 123,
+            "parsedChunks": 200
+          },
+          "stats": null
+        }
+      ],
+      "baselines": {
+        "markdown-it": {
+          "id": "markdown-it",
+          "label": "markdown-it",
+          "oneShotMs": 64.85314600000129,
+          "appendWorkloadMs": 220.7746665000086,
+          "chunkInfo": null,
+          "stats": null
+        },
+        "markdown-exit": {
+          "id": "markdown-exit",
+          "label": "markdown-exit",
+          "oneShotMs": 80.19808349999948,
+          "appendWorkloadMs": 290.88820850000775,
+          "chunkInfo": null,
+          "stats": null
+        },
+        "remark": {
+          "id": "remark",
+          "label": "remark",
+          "oneShotMs": null,
+          "appendWorkloadMs": null,
+          "chunkInfo": null,
+          "stats": null,
+          "skippedScenario": true
+        },
+        "micromark": {
+          "id": "micromark",
+          "label": "micromark",
+          "oneShotMs": null,
+          "appendWorkloadMs": null,
+          "chunkInfo": null,
+          "stats": null,
+          "skippedScenario": true
+        }
+      },
+      "baselineList": [
+        {
+          "id": "markdown-it",
+          "label": "markdown-it",
+          "oneShotMs": 64.85314600000129,
+          "appendWorkloadMs": 220.7746665000086,
+          "chunkInfo": null,
+          "stats": null
+        },
+        {
+          "id": "markdown-exit",
+          "label": "markdown-exit",
+          "oneShotMs": 80.19808349999948,
+          "appendWorkloadMs": 290.88820850000775,
+          "chunkInfo": null,
+          "stats": null
+        },
+        {
+          "id": "remark",
+          "label": "remark",
+          "oneShotMs": null,
+          "appendWorkloadMs": null,
+          "chunkInfo": null,
+          "stats": null,
+          "skippedScenario": true
+        },
+        {
+          "id": "micromark",
+          "label": "micromark",
+          "oneShotMs": null,
+          "appendWorkloadMs": null,
+          "chunkInfo": null,
+          "stats": null,
+          "skippedScenario": true
+        }
+      ]
+    },
+    {
+      "size": 5000000,
+      "bestFull": {
+        "id": "iterable-sink",
+        "label": "iterable sink",
+        "oneShotMs": 243.9000210000013,
+        "appendWorkloadMs": 849.4332500000019,
+        "chunkInfo": null,
+        "stats": {
+          "total": 0,
+          "cacheHits": 0,
+          "appendHits": 0,
+          "tailHits": 0,
+          "fullParses": 0,
+          "resets": 0,
+          "chunkedParses": 0,
+          "lastMode": "idle"
+        }
+      },
+      "bestStream": {
+        "id": "unbounded-sink",
+        "label": "unbounded sink",
+        "oneShotMs": 244.29049950000626,
+        "appendWorkloadMs": 241.94258299999638,
+        "chunkInfo": {
+          "mode": "stream",
+          "maxChunkChars": 64000,
+          "maxChunkLines": 700,
+          "committedChars": 5000050,
+          "committedLines": 446424,
+          "pendingChars": 0,
+          "pendingLines": 0,
+          "fedChunks": 611,
+          "parsedChunks": 709
+        },
+        "stats": null
+      },
+      "full": [
+        {
+          "id": "full-plain",
+          "label": "full plain",
+          "oneShotMs": 343.8549999999959,
+          "appendWorkloadMs": 1205.177416999999,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        },
+        {
+          "id": "full-auto",
+          "label": "full auto chunk",
+          "oneShotMs": 296.9824374999953,
+          "appendWorkloadMs": 1266.2134159999987,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        },
+        {
+          "id": "full-20k-12",
+          "label": "full 20k/150 x12",
+          "oneShotMs": 382.65991650000797,
+          "appendWorkloadMs": 1366.4453329999815,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        },
+        {
+          "id": "full-32k-16",
+          "label": "full 32k/350 x16",
+          "oneShotMs": 343.9994585000022,
+          "appendWorkloadMs": 1324.829460000008,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        },
+        {
+          "id": "full-64k-16",
+          "label": "full 64k/700 x16",
+          "oneShotMs": 366.6482085000025,
+          "appendWorkloadMs": 1295.4711660000175,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        },
+        {
+          "id": "iterable-auto",
+          "label": "iterable auto",
+          "oneShotMs": 357.0042289999983,
+          "appendWorkloadMs": 1208.0447500000155,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        },
+        {
+          "id": "iterable-sink",
+          "label": "iterable sink",
+          "oneShotMs": 243.9000210000013,
+          "appendWorkloadMs": 849.4332500000019,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        }
+      ],
+      "stream": [
+        {
+          "id": "stream-cache",
+          "label": "stream cache only",
+          "oneShotMs": 353.4719170000026,
+          "appendWorkloadMs": 1133.8531670000084,
+          "chunkInfo": null,
+          "stats": {
+            "total": 8,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 8,
+            "resets": 3,
+            "chunkedParses": 0,
+            "lastMode": "full"
+          }
+        },
+        {
+          "id": "stream-auto",
+          "label": "stream auto chunk",
+          "oneShotMs": 353.0662084999931,
+          "appendWorkloadMs": 1185.0072099999961,
+          "chunkInfo": null,
+          "stats": {
+            "total": 8,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 8,
+            "resets": 3,
+            "chunkedParses": 0,
+            "lastMode": "full"
+          }
+        },
+        {
+          "id": "stream-20k-24",
+          "label": "stream 20k/200 x24",
+          "oneShotMs": 348.6328125000073,
+          "appendWorkloadMs": 1226.9372079999885,
+          "chunkInfo": null,
+          "stats": {
+            "total": 8,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 8,
+            "resets": 3,
+            "chunkedParses": 0,
+            "lastMode": "full"
+          }
+        },
+        {
+          "id": "stream-32k-16",
+          "label": "stream 32k/350 x16",
+          "oneShotMs": 316.88747899999726,
+          "appendWorkloadMs": 1323.2628350000014,
+          "chunkInfo": null,
+          "stats": {
+            "total": 8,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 8,
+            "resets": 3,
+            "chunkedParses": 0,
+            "lastMode": "full"
+          }
+        },
+        {
+          "id": "stream-64k-32",
+          "label": "stream 64k/700 x32",
+          "oneShotMs": 315.3989789999978,
+          "appendWorkloadMs": 1202.35108399998,
+          "chunkInfo": null,
+          "stats": {
+            "total": 8,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 8,
+            "resets": 3,
+            "chunkedParses": 0,
+            "lastMode": "full"
+          }
+        },
+        {
+          "id": "unbounded-auto",
+          "label": "unbounded auto",
+          "oneShotMs": 349.26845850000245,
+          "appendWorkloadMs": 414.4379170000175,
+          "chunkInfo": {
+            "mode": "stream",
+            "maxChunkChars": 64000,
+            "maxChunkLines": 700,
+            "committedChars": 5000050,
+            "committedLines": 446424,
+            "pendingChars": 0,
+            "pendingLines": 0,
+            "fedChunks": 611,
+            "parsedChunks": 709
+          },
+          "stats": null
+        },
+        {
+          "id": "unbounded-sink",
+          "label": "unbounded sink",
+          "oneShotMs": 244.29049950000626,
+          "appendWorkloadMs": 241.94258299999638,
+          "chunkInfo": {
+            "mode": "stream",
+            "maxChunkChars": 64000,
+            "maxChunkLines": 700,
+            "committedChars": 5000050,
+            "committedLines": 446424,
+            "pendingChars": 0,
+            "pendingLines": 0,
+            "fedChunks": 611,
+            "parsedChunks": 709
+          },
+          "stats": null
+        }
+      ],
+      "baselines": {
+        "markdown-it": {
+          "id": "markdown-it",
+          "label": "markdown-it",
+          "oneShotMs": 325.06979149999825,
+          "appendWorkloadMs": 1241.6696679999732,
+          "chunkInfo": null,
+          "stats": null
+        },
+        "markdown-exit": {
+          "id": "markdown-exit",
+          "label": "markdown-exit",
+          "oneShotMs": 457.38827099999617,
+          "appendWorkloadMs": 1333.4512079999986,
+          "chunkInfo": null,
+          "stats": null
+        },
+        "remark": {
+          "id": "remark",
+          "label": "remark",
+          "oneShotMs": null,
+          "appendWorkloadMs": null,
+          "chunkInfo": null,
+          "stats": null,
+          "skippedScenario": true
+        },
+        "micromark": {
+          "id": "micromark",
+          "label": "micromark",
+          "oneShotMs": null,
+          "appendWorkloadMs": null,
+          "chunkInfo": null,
+          "stats": null,
+          "skippedScenario": true
+        }
+      },
+      "baselineList": [
+        {
+          "id": "markdown-it",
+          "label": "markdown-it",
+          "oneShotMs": 325.06979149999825,
+          "appendWorkloadMs": 1241.6696679999732,
+          "chunkInfo": null,
+          "stats": null
+        },
+        {
+          "id": "markdown-exit",
+          "label": "markdown-exit",
+          "oneShotMs": 457.38827099999617,
+          "appendWorkloadMs": 1333.4512079999986,
+          "chunkInfo": null,
+          "stats": null
+        },
+        {
+          "id": "remark",
+          "label": "remark",
+          "oneShotMs": null,
+          "appendWorkloadMs": null,
+          "chunkInfo": null,
+          "stats": null,
+          "skippedScenario": true
+        },
+        {
+          "id": "micromark",
+          "label": "micromark",
+          "oneShotMs": null,
+          "appendWorkloadMs": null,
+          "chunkInfo": null,
+          "stats": null,
+          "skippedScenario": true
+        }
+      ]
+    },
+    {
+      "size": 20000000,
+      "bestFull": {
+        "id": "iterable-sink",
+        "label": "iterable sink",
+        "oneShotMs": 1017.8859999999986,
+        "appendWorkloadMs": 3551.892583000037,
+        "chunkInfo": null,
+        "stats": {
+          "total": 0,
+          "cacheHits": 0,
+          "appendHits": 0,
+          "tailHits": 0,
+          "fullParses": 0,
+          "resets": 0,
+          "chunkedParses": 0,
+          "lastMode": "idle"
+        }
+      },
+      "bestStream": {
+        "id": "unbounded-sink",
+        "label": "unbounded sink",
+        "oneShotMs": 1044.765207999997,
+        "appendWorkloadMs": 1012.788625999965,
+        "chunkInfo": {
+          "mode": "stream",
+          "maxChunkChars": 64000,
+          "maxChunkLines": 700,
+          "committedChars": 20000076,
+          "committedLines": 1771296,
+          "pendingChars": 0,
+          "pendingLines": 0,
+          "fedChunks": 2442,
+          "parsedChunks": 2601
+        },
+        "stats": null
+      },
+      "full": [
+        {
+          "id": "full-plain",
+          "label": "full plain",
+          "oneShotMs": 1355.3947909999988,
+          "appendWorkloadMs": 5570.499372999984,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        },
+        {
+          "id": "full-auto",
+          "label": "full auto chunk",
+          "oneShotMs": 1335.730457999991,
+          "appendWorkloadMs": 6729.93520800001,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        },
+        {
+          "id": "full-20k-12",
+          "label": "full 20k/150 x12",
+          "oneShotMs": 1827.9837499999994,
+          "appendWorkloadMs": 6149.613624999984,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        },
+        {
+          "id": "full-32k-16",
+          "label": "full 32k/350 x16",
+          "oneShotMs": 1716.3984999999811,
+          "appendWorkloadMs": 6067.788415999996,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        },
+        {
+          "id": "full-64k-16",
+          "label": "full 64k/700 x16",
+          "oneShotMs": 1699.1754159999837,
+          "appendWorkloadMs": 6868.859873999958,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        },
+        {
+          "id": "iterable-auto",
+          "label": "iterable auto",
+          "oneShotMs": 1432.7496249999967,
+          "appendWorkloadMs": 5925.817167000001,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        },
+        {
+          "id": "iterable-sink",
+          "label": "iterable sink",
+          "oneShotMs": 1017.8859999999986,
+          "appendWorkloadMs": 3551.892583000037,
+          "chunkInfo": null,
+          "stats": {
+            "total": 0,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 0,
+            "resets": 0,
+            "chunkedParses": 0,
+            "lastMode": "idle"
+          }
+        }
+      ],
+      "stream": [
+        {
+          "id": "stream-cache",
+          "label": "stream cache only",
+          "oneShotMs": 1356.8811249999853,
+          "appendWorkloadMs": 5705.2538760000025,
+          "chunkInfo": null,
+          "stats": {
+            "total": 7,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 7,
+            "resets": 2,
+            "chunkedParses": 0,
+            "lastMode": "full"
+          }
+        },
+        {
+          "id": "stream-auto",
+          "label": "stream auto chunk",
+          "oneShotMs": 1354.8468329999887,
+          "appendWorkloadMs": 5749.078208999999,
+          "chunkInfo": null,
+          "stats": {
+            "total": 7,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 7,
+            "resets": 2,
+            "chunkedParses": 0,
+            "lastMode": "full"
+          }
+        },
+        {
+          "id": "stream-20k-24",
+          "label": "stream 20k/200 x24",
+          "oneShotMs": 1352.992957999988,
+          "appendWorkloadMs": 5682.694458999991,
+          "chunkInfo": null,
+          "stats": {
+            "total": 7,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 7,
+            "resets": 2,
+            "chunkedParses": 0,
+            "lastMode": "full"
+          }
+        },
+        {
+          "id": "stream-32k-16",
+          "label": "stream 32k/350 x16",
+          "oneShotMs": 1357.3605830000015,
+          "appendWorkloadMs": 5640.420790000062,
+          "chunkInfo": null,
+          "stats": {
+            "total": 7,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 7,
+            "resets": 2,
+            "chunkedParses": 0,
+            "lastMode": "full"
+          }
+        },
+        {
+          "id": "stream-64k-32",
+          "label": "stream 64k/700 x32",
+          "oneShotMs": 1358.0321669999976,
+          "appendWorkloadMs": 5779.251042000047,
+          "chunkInfo": null,
+          "stats": {
+            "total": 7,
+            "cacheHits": 0,
+            "appendHits": 0,
+            "tailHits": 0,
+            "fullParses": 7,
+            "resets": 2,
+            "chunkedParses": 0,
+            "lastMode": "full"
+          }
+        },
+        {
+          "id": "unbounded-auto",
+          "label": "unbounded auto",
+          "oneShotMs": 1440.9019589999807,
+          "appendWorkloadMs": 1645.8532920000143,
+          "chunkInfo": {
+            "mode": "stream",
+            "maxChunkChars": 64000,
+            "maxChunkLines": 700,
+            "committedChars": 20000076,
+            "committedLines": 1771296,
+            "pendingChars": 0,
+            "pendingLines": 0,
+            "fedChunks": 2442,
+            "parsedChunks": 2601
+          },
+          "stats": null
+        },
+        {
+          "id": "unbounded-sink",
+          "label": "unbounded sink",
+          "oneShotMs": 1044.765207999997,
+          "appendWorkloadMs": 1012.788625999965,
+          "chunkInfo": {
+            "mode": "stream",
+            "maxChunkChars": 64000,
+            "maxChunkLines": 700,
+            "committedChars": 20000076,
+            "committedLines": 1771296,
+            "pendingChars": 0,
+            "pendingLines": 0,
+            "fedChunks": 2442,
+            "parsedChunks": 2601
+          },
+          "stats": null
+        }
+      ],
+      "baselines": {
+        "markdown-it": {
+          "id": "markdown-it",
+          "label": "markdown-it",
+          "oneShotMs": 1484.5953340000124,
+          "appendWorkloadMs": 5843.1367489999975,
+          "chunkInfo": null,
+          "stats": null
+        },
+        "markdown-exit": {
+          "id": "markdown-exit",
+          "label": "markdown-exit",
+          "oneShotMs": 1867.7463329999882,
+          "appendWorkloadMs": 6751.898666000023,
+          "chunkInfo": null,
+          "stats": null
+        },
+        "remark": {
+          "id": "remark",
+          "label": "remark",
+          "oneShotMs": null,
+          "appendWorkloadMs": null,
+          "chunkInfo": null,
+          "stats": null,
+          "skippedScenario": true
+        },
+        "micromark": {
+          "id": "micromark",
+          "label": "micromark",
+          "oneShotMs": null,
+          "appendWorkloadMs": null,
+          "chunkInfo": null,
+          "stats": null,
+          "skippedScenario": true
+        }
+      },
+      "baselineList": [
+        {
+          "id": "markdown-it",
+          "label": "markdown-it",
+          "oneShotMs": 1484.5953340000124,
+          "appendWorkloadMs": 5843.1367489999975,
+          "chunkInfo": null,
+          "stats": null
+        },
+        {
+          "id": "markdown-exit",
+          "label": "markdown-exit",
+          "oneShotMs": 1867.7463329999882,
+          "appendWorkloadMs": 6751.898666000023,
+          "chunkInfo": null,
+          "stats": null
+        },
+        {
+          "id": "remark",
+          "label": "remark",
+          "oneShotMs": null,
+          "appendWorkloadMs": null,
+          "chunkInfo": null,
+          "stats": null,
+          "skippedScenario": true
+        },
+        {
+          "id": "micromark",
+          "label": "micromark",
+          "oneShotMs": null,
+          "appendWorkloadMs": null,
+          "chunkInfo": null,
+          "stats": null,
+          "skippedScenario": true
+        }
+      ]
+    }
+  ]
+}

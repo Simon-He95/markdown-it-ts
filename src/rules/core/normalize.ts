@@ -9,8 +9,19 @@ const NULL_RE = /\0/g
 export function normalize(state: State): void {
   if (!state || typeof state.src !== 'string')
     return
-  let str = state.src.replace(NEWLINES_RE, '\n')
-  str = str.replace(NULL_RE, '\uFFFD')
+
+  const src = state.src
+  const hasCR = src.indexOf('\r') !== -1
+  const hasNull = src.indexOf('\0') !== -1
+
+  if (!hasCR && !hasNull)
+    return
+
+  let str = src
+  if (hasCR)
+    str = str.replace(NEWLINES_RE, '\n')
+  if (hasNull)
+    str = str.replace(NULL_RE, '\uFFFD')
   state.src = str
 }
 

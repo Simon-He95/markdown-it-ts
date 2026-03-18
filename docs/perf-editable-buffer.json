@@ -1,0 +1,79 @@
+{
+  "generatedAt": "2026-03-18T12:20:48.625Z",
+  "sizes": [
+    100000,
+    500000,
+    1000000,
+    5000000
+  ],
+  "summary": [
+    {
+      "size": 100000,
+      "middle": {
+        "editableMs": 2.9318100624999968,
+        "fullMs": 6.009049375000004,
+        "streamMs": 5.691984375000011,
+        "lastReparsedChars": 50093,
+        "pieceCount": 3
+      },
+      "late": {
+        "editableMs": 1.543299625000003,
+        "fullMs": 5.60263018749999,
+        "streamMs": 5.729950499999958,
+        "lastReparsedChars": 14983,
+        "pieceCount": 3
+      }
+    },
+    {
+      "size": 500000,
+      "middle": {
+        "editableMs": 18.41742699999986,
+        "fullMs": 34.016688000000045,
+        "streamMs": 34.55244800000014,
+        "lastReparsedChars": 251155,
+        "pieceCount": 3
+      },
+      "late": {
+        "editableMs": 8.246520750000172,
+        "fullMs": 33.96496899999988,
+        "streamMs": 34.302781249999725,
+        "lastReparsedChars": 75327,
+        "pieceCount": 3
+      }
+    },
+    {
+      "size": 1000000,
+      "middle": {
+        "editableMs": 42.429979,
+        "fullMs": 71.03852099999995,
+        "streamMs": 76.26345849999962,
+        "lastReparsedChars": 501062,
+        "pieceCount": 3
+      },
+      "late": {
+        "editableMs": 15.257895499999904,
+        "fullMs": 70.31404150000026,
+        "streamMs": 70.63299999999981,
+        "lastReparsedChars": 150339,
+        "pieceCount": 3
+      }
+    },
+    {
+      "size": 5000000,
+      "middle": {
+        "editableMs": 210.5757494999998,
+        "fullMs": 372.1950620000007,
+        "streamMs": 338.0895835000001,
+        "lastReparsedChars": 2511051,
+        "pieceCount": 3
+      },
+      "late": {
+        "editableMs": 96.8851665000002,
+        "fullMs": 351.4752705000001,
+        "streamMs": 335.1789999999992,
+        "lastReparsedChars": 753349,
+        "pieceCount": 3
+      }
+    }
+  ]
+}

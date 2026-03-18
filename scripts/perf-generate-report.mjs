@@ -14,7 +14,7 @@ import remarkParse from 'remark-parse'
 import remarkRehype from 'remark-rehype'
 import rehypeStringify from 'rehype-stringify'
 
-const PERF_BENCHMARK_VERSION = 4
+const PERF_BENCHMARK_VERSION = 5
 
 function para(n) {
   return `## Section ${n}\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod.\n\n- a\n- b\n- c\n\n\`\`\`js\nconsole.log(${n})\n\`\`\`\n\n`
@@ -81,7 +81,9 @@ function pickIters(size) {
   if (size <= 20_000) return { oneIters: 60, appRepeats: 5, stableSamples: 5, appendSequenceIters: 5, appendLineSequenceIters: 4, replaceSequenceIters: 6 }
   if (size <= 50_000) return { oneIters: 30, appRepeats: 4, stableSamples: 5, appendSequenceIters: 4, appendLineSequenceIters: 3, replaceSequenceIters: 5 }
   if (size <= 100_000) return { oneIters: 16, appRepeats: 4, stableSamples: 5, appendSequenceIters: 3, appendLineSequenceIters: 2, replaceSequenceIters: 4 }
-  return { oneIters: 10, appRepeats: 4, stableSamples: 5, appendSequenceIters: 2, appendLineSequenceIters: 2, replaceSequenceIters: 3 }
+  if (size <= 200_000) return { oneIters: 10, appRepeats: 4, stableSamples: 5, appendSequenceIters: 2, appendLineSequenceIters: 2, replaceSequenceIters: 3 }
+  if (size <= 500_000) return { oneIters: 4, appRepeats: 3, stableSamples: 4, appendSequenceIters: 1, appendLineSequenceIters: 1, replaceSequenceIters: 2 }
+  return { oneIters: 2, appRepeats: 2, stableSamples: 3, appendSequenceIters: 1, appendLineSequenceIters: 1, replaceSequenceIters: 1 }
 }
 
 function fmt(ms) {
@@ -90,10 +92,24 @@ function fmt(ms) {
   return `${ms.toFixed(2)}ms`
 }
 
-const SIZES = [5_000, 20_000, 50_000, 100_000, 200_000]
+function formatNumber(value, digits = 2) {
+  return value.toFixed(digits).replace(/(\.\d*?[1-9])0+$/, '$1').replace(/\.0+$/, '')
+}
+
+function describeComparison(baseline, candidate, { speedDigits = 2, percentDigits = 1 } = {}) {
+  const percent = Math.abs((1 - candidate / baseline) * 100)
+  if (candidate <= baseline) {
+    return `${formatNumber(baseline / candidate, speedDigits)}× faster, ${formatNumber(percent, percentDigits)}% less time`
+  }
+  return `${formatNumber(candidate / baseline, speedDigits)}× slower, ${formatNumber(percent, percentDigits)}% more time`
+}
+
+const SIZES = [5_000, 20_000, 50_000, 100_000, 200_000, 500_000, 1_000_000]
 const APP_STEPS = 6
 const COLD_HOT_SIZES = [5_000, 20_000, 50_000, 100_000]
 const COLD_HOT_ITERS = 10
+const HEAVY_PARSE_ONLY_MAX_SIZE = 200_000
+const HEAVY_RENDER_MAX_SIZE = 200_000
 
 function createMicromarkParseOnly() {
   const parser = micromarkParse()
@@ -145,6 +161,16 @@ function runParseScenario(sc, md, input, envStream, envPlain) {
   return md.parse(input, envPlain)
 }
 
+function shouldSkipScenarioAtSize(sc, size) {
+  return size > HEAVY_PARSE_ONLY_MAX_SIZE
+    && (sc.type === 'remark' || sc.type === 'micromark-parse')
+}
+
+function shouldSkipRenderImplAtSize(impl, size) {
+  return size > HEAVY_RENDER_MAX_SIZE
+    && (impl.type === 'remark' || impl.type === 'micromark')
+}
+
 function runMatrix() {
   const scenarios = makeScenarios()
   const results = []
@@ -156,6 +182,9 @@ function runMatrix() {
     const { oneIters, appRepeats, stableSamples, appendSequenceIters, appendLineSequenceIters, replaceSequenceIters } = pickIters(size)
 
     for (const sc of scenarios) {
+      if (shouldSkipScenarioAtSize(sc, size))
+        continue
+
       const md = sc.make()
       const envStream = { bench: true }
       const envOne = { bench: true }
@@ -334,6 +363,9 @@ function measureRenderComparisons() {
     const doc = makeParasByChars(size).join('')
     const { oneIters, stableSamples } = pickIters(size)
     for (const impl of impls) {
+      if (shouldSkipRenderImplAtSize(impl, size))
+        continue
+
       const inst = impl.make()
       const runner = () => (
         impl.type === 'remark'
@@ -356,6 +388,8 @@ function measureRenderComparisons() {
 function toMarkdown(results, coldHot) {
   const lines = []
   lines.push('# Performance Report (latest run)')
+  lines.push('')
+  lines.push('Default API note: normal `md.parse(src)` / `md.render(src)` calls already auto-activate the internal large-input path for very large finite strings. Explicit chunk-stream APIs such as `parseIterable` / `UnboundedBuffer` are advanced tools for sources that already arrive as chunks.')
   lines.push('')
   const ids = ['S1','S2','S3','S4','S5','M1','E1','MM1']
   lines.push('| Size (chars) | ' + ids.map(id => `${id} one`).join(' | ') + ' | ' + ids.map(id => `${id} append(par)`).join(' | ') + ' | ' + ids.map(id => `${id} append(line)`).join(' | ') + ' | ' + ids.map(id => `${id} replace`).join(' | ') + ' |')
@@ -441,10 +475,12 @@ function toMarkdown(results, coldHot) {
   lines.push(`- Append-heavy: ${fmtWins(winsApp)}`)
   lines.push('')
   lines.push('Notes: S2/S3 appendHits should equal 5 when append fast-path triggers (shared env).')
+  lines.push('Large-size rows may show `-` for especially heavy parse-only or render-only baselines (currently remark/micromark above 200k) so `perf:all` stays practical.')
   lines.push('')
-  lines.push('## Render throughput (markdown → HTML)')
+  lines.push('## Render API throughput (markdown → HTML)')
   lines.push('')
-  lines.push('This measures end-to-end markdown → HTML rendering throughput across markdown-it-ts, upstream markdown-it, micromark (CommonMark reference), and remark+rehype (parse + stringify). Lower is better.')
+  lines.push('This measures end-to-end `md.render(markdown)` throughput across markdown-it-ts, upstream markdown-it, micromark (CommonMark reference), and remark+rehype (parse + stringify). Lower is better.')
+  lines.push('It is intentionally a full render-API benchmark (`parse + render`), not a renderer-only hot-path benchmark.')
   lines.push('')
   const renderBySize = groupBy(renderComparisons, 'size')
   lines.push('| Size (chars) | markdown-it-ts.render | markdown-it.render | micromark | remark+rehype | markdown-exit |')
@@ -498,8 +534,8 @@ function toMarkdown(results, coldHot) {
   // Best-of TS vs baseline summary
   lines.push('## Best-of markdown-it-ts vs markdown-it (baseline)')
   lines.push('')
-  lines.push('| Size (chars) | TS best one | Baseline one | One ratio | TS best append | Baseline append | Append ratio | TS scenario (one/append) |')
-  lines.push('|---:|---:|---:|---:|---:|---:|---:|:--|')
+  lines.push('| Size (chars) | TS best one | Baseline one | One comparison | TS best append | Baseline append | Append comparison | TS scenario (one/append) |')
+  lines.push('|---:|---:|---:|:--|---:|---:|:--|:--|')
   // group by size
   const bySize2 = groupBy(results, 'size')
   const isTsScenario = (id) => id.startsWith('S')
@@ -509,13 +545,13 @@ function toMarkdown(results, coldHot) {
     if (!baseline) continue
     const bestTsOne = [...tsOnly].sort((a,b)=>a.oneShotMs-b.oneShotMs)[0]
     const bestTsApp = [...tsOnly].sort((a,b)=>a.appendWorkloadMs-b.appendWorkloadMs)[0]
-    const oneRatio = bestTsOne.oneShotMs / baseline.oneShotMs
-    const appRatio = bestTsApp.appendWorkloadMs / baseline.appendWorkloadMs
-    lines.push(`| ${size} | ${fmt(bestTsOne.oneShotMs)} | ${fmt(baseline.oneShotMs)} | ${(oneRatio).toFixed(2)}x | ${fmt(bestTsApp.appendWorkloadMs)} | ${fmt(baseline.appendWorkloadMs)} | ${(appRatio).toFixed(2)}x | ${bestTsOne.scenario}/${bestTsApp.scenario} |`)
+    const oneComparison = describeComparison(baseline.oneShotMs, bestTsOne.oneShotMs)
+    const appendComparison = describeComparison(baseline.appendWorkloadMs, bestTsApp.appendWorkloadMs)
+    lines.push(`| ${size} | ${fmt(bestTsOne.oneShotMs)} | ${fmt(baseline.oneShotMs)} | ${oneComparison} | ${fmt(bestTsApp.appendWorkloadMs)} | ${fmt(baseline.appendWorkloadMs)} | ${appendComparison} | ${bestTsOne.scenario}/${bestTsApp.scenario} |`)
   }
   lines.push('')
-  lines.push('- One ratio < 1.00 means markdown-it-ts best one-shot is faster than baseline.')
-  lines.push('- Append ratio < 1.00 highlights stream cache optimizations (fast-path appends).')
+  lines.push('- Comparison columns are written from markdown-it-ts against the markdown-it baseline.')
+  lines.push('- `faster / less time` is better; if a future run regresses, the wording will flip to `slower / more time`.')
   lines.push('')
   // Optional diagnostic: chunk info if present
   const hasChunkInfo = results.some(r => r.chunkInfoOne || r.chunkInfoAppendLast)

@@ -1,7 +1,9 @@
+import type { ParseSource } from '../parse/source'
+
 /**
  * Parse link title: returns { ok, can_continue, pos, str, marker }
  */
-export function parseLinkTitle(str: string, start: number, max: number, prev_state?: any) {
+export function parseLinkTitle(str: ParseSource, start: number, max: number, prev_state?: any) {
   let code
   let pos = start
   const state = {

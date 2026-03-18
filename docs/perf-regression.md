@@ -5,7 +5,7 @@ This repo ships a simple, repeatable harness to track performance across sizes a
 ## What it measures
 
 The matrix covers:
-- Sizes: 5k, 20k, 50k, 100k (chars)
+- Sizes: 5k, 20k, 50k, 100k, 200k, 500k, 1M (chars)
 - Scenarios:
   - S1: stream ON, cache OFF, chunk ON
   - S2: stream ON, cache ON, chunk OFF
@@ -17,6 +17,8 @@ The matrix covers:
   - oneShotMs: one full parse time
   - appendWorkloadMs: 1 initial + 5 appends total time
   - chunkInfo diagnostics when chunked
+
+For the largest sizes, very heavy parse-only/render-only baselines such as `remark` and `micromark` may be skipped in the auto-generated report so `perf:all` remains practical.
 
 ## Generate a fresh snapshot
 
@@ -45,6 +47,30 @@ npm run perf:check
 ```
 
 This finds the most recent archived snapshot (excluding current SHA when available) and compares it against docs/perf-latest.json.
+
+## Per-token render check
+
+For renderer-focused changes, use the token-type benchmark that compares `markdown-it-ts` render speed against `markdown-it` on focused fixtures such as heading, list, link, fence, code block, table, and text-heavy inputs:
+
+```bash
+npm run perf:render-rules
+```
+
+This benchmark:
+- reuses the same parsed token stream shape for both renderers
+- scales iterations up for tiny token counts to reduce timer noise
+- alternates sampling order between `markdown-it-ts` and `markdown-it` to reduce warmup/order bias
+- skips zero-token or sub-signal categories from regression gating by default
+
+Useful variants:
+
+```bash
+# fail if any meaningful category regresses by more than 3%
+npm run perf:render-rules:check
+
+# inspect noisy categories too
+node scripts/perf-render-rule-compare.mjs --include-noise
+```
 
 ## CI tips
 

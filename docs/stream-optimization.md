@@ -1,5 +1,11 @@
 # Stream Parser 性能优化总结
 
+首先明确默认原则：
+
+- 普通用户继续使用原来的 `md.parse(src)` / `md.render(src)`。
+- 对于超大但有限的字符串，默认 API 已经会在内部自动切到大文本优化路径，不要求调用方换 API。
+- `parseIterable`、`UnboundedBuffer`、sink 这类入口保留给“输入本来就是 chunk 流”或“明确需要有界输出内存”的高级场景。
+
 ## 优化措施
 
 ### 1. **避免不必要的数组复制** ✅
@@ -259,6 +265,111 @@ const md = MarkdownIt({
 const tokens = md.stream.parse(veryLongMarkdown)
 ```
 
+## 附：真正不依赖单个大字符串的入口
+
+如果你手里已经拿到的是一个普通字符串，那么优先继续使用默认 API：
+
+```ts
+const tokens = md.parse(hugeMarkdown)
+const html = md.render(hugeMarkdown)
+```
+
+这条默认路径在输入超过阈值时，已经会自动切到内部的大文本优化方案；下面这些入口只在“上游输入本来就是文件块、网络流或日志流”时才需要。
+
+### 1. 全量解析：`parseIterable` / `parseAsyncIterable`
+
+```ts
+import MarkdownIt from 'markdown-it-ts'
+
+const md = MarkdownIt()
+const tokens = md.parseIterable(fileChunks)
+```
+
+这条路径会一边接收 chunk，一边按安全边界提交可解析片段，最后再补齐尾巴；适合超大文件、离线批处理和服务端流式读取。它不是普通 `parse` / `render` 的替代品，而是“显式 chunk 输入”的高级入口。
+
+### 2. 增量追加：`UnboundedBuffer`
+
+```ts
+import MarkdownIt, { UnboundedBuffer } from 'markdown-it-ts'
+
+const md = MarkdownIt()
+const buffer = new UnboundedBuffer(md, { mode: 'stream' })
+
+for await (const chunk of incomingChunks) {
+  buffer.feed(chunk)
+  buffer.flushAvailable()
+}
+
+const tokens = buffer.flushForce()
+```
+
+它和默认 `md.parse()` / `md.render()` 的区别是：默认 API 面向“你已经拿到了完整字符串”的场景，而 `UnboundedBuffer` 面向“输入本身就是持续追加 chunk 流”的场景。
+
+它和 `StreamBuffer` 的区别是：
+
+- `StreamBuffer` 适合“内存里已经有完整文档字符串”的编辑器场景，重点是复用 `md.stream.parse(fullText)` 的 append fast-path。
+- `UnboundedBuffer` 适合“输入本身就是持续追加的 chunk 流”，重点是避免把历史全文一直保存在一个超大字符串里。
+
+### 3. 真正有界输出：sink / consumer
+
+如果你不需要最终一次性拿到完整 token 数组，而是希望边解析边消费 token，可以使用 sink 形式。这个也属于高级场景，不是默认 API 的必选项：
+
+```ts
+md.parseIterableToSink(fileChunks, (tokens, info) => {
+  consumeTokenChunk(tokens, info)
+})
+
+const buffer = new UnboundedBuffer(md, {
+  mode: 'stream',
+  retainTokens: false,
+  onChunkTokens(tokens, info) {
+    consumeTokenChunk(tokens, info)
+  },
+})
+```
+
+这种模式下，内存占用主要来自“当前待提交尾巴 + 当前 chunk 的 token”，而不是“完整输入字符串 + 完整 token 数组”。
+
+## 附：任意位置编辑的基础版支持
+
+对于不是 append-only，而是“文档中间任意 insert / delete / replace”的场景，可以使用 `EditableBuffer`：
+
+```ts
+import MarkdownIt, { EditableBuffer } from 'markdown-it-ts'
+
+const md = MarkdownIt()
+const buffer = new EditableBuffer(md, initialDoc)
+
+buffer.parse()
+buffer.replace(start, end, nextText)
+const tokens = buffer.peek()
+```
+
+它的当前策略是：
+
+- 源文本不保存在一个连续大字符串里，而是保存在 piece-table 中。
+- full parse 和 localized reparse 都直接把 `PieceTable.view(...)` 产生的 `SourceView` 交给 `md.core.parseSource(...)`，不再先把对应区间拼成一个超大字符串。
+- inline 层里原本最容易退化成“大尾部字符串切片”的 `entity`、`html_inline`、`linkify` 也已经改成有界前缀扫描/匹配。
+- 发生编辑后，不是整篇重建，而是从受影响块之前的一个安全锚点开始，重新解析后缀。
+- 编辑越靠后，重解析范围越小；编辑越靠前，退化得越接近全量解析。
+
+如果你想自己复用这条低层路径，也可以直接把 piece-table 的区间视图交给 core：
+
+```ts
+import MarkdownIt, { PieceTable } from 'markdown-it-ts'
+
+const md = MarkdownIt()
+const table = new PieceTable(initialDoc)
+const state = md.core.parseSource(table.view(startOffset, endOffset), {}, md)
+```
+
+inline parser 这一层现在也能直接吃 `SourceView`：
+
+```ts
+const inlineTokens: any[] = []
+md.inline.parseSource(table.view(startOffset, endOffset), md, {}, inlineTokens)
+```
+
 注意：分块解析不会做中间编辑的增量复用，它优化的是“超长文档的一次性 parse”。流式增量还是建议用 `StreamParser`。
 
 ### 混合策略（Stream + Chunked）
@@ -284,7 +395,9 @@ const tokens = md.stream.parse(veryLongMarkdown)
 
 ## 非 Stream（一次性 full parse）中的分块
 
-你也可以在非 stream 模式下启用分块解析，用于一次性解析很大的文档：
+默认 `md.parse(hugeString)` 已经会自动兼容大文本。下面这一组 `fullChunkedFallback` 配置不是为了“让默认 API 才能支持大文本”，而是给你在特定工作负载上继续手动调参时使用。
+
+你也可以在非 stream 模式下显式启用分块解析，用于一次性解析很大的文档：
 
 ```ts
 import MarkdownIt from 'markdown-it-ts'

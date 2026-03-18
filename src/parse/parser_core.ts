@@ -13,6 +13,8 @@ import { text_join } from '../rules/core/text_join'
 import { normalizeLink, normalizeLinkText, validateLink } from './link_utils'
 import { ParserBlock } from './parser_block'
 import { ParserInline } from './parser_inline'
+import type { ParseSource } from './source'
+import { hasNormalizationChars, sourceToString } from './source'
 import { State } from './state'
 
 const CORE_RULES: ReadonlyArray<[string, (state: State) => void]> = [
@@ -114,7 +116,7 @@ export class ParserCore {
     return this.fallbackParser
   }
 
-  public createState(src: string, env: Record<string, unknown> = {}, md?: any): State {
+  public createState(src: ParseSource, env: Record<string, unknown> = {}, md?: any): State {
     const parser = this.resolveParser(md)
     return new State(src, parser, env)
   }
@@ -127,15 +129,23 @@ export class ParserCore {
     }
   }
 
-  public parse(src: string, env: Record<string, unknown> = {}, md?: any): State {
-    if (typeof src !== 'string') {
-      throw new TypeError('Input data should be a String')
+  public parseSource(src: ParseSource, env: Record<string, unknown> = {}, md?: any): State {
+    if (typeof src !== 'string' && hasNormalizationChars(src)) {
+      return this.parse(sourceToString(src), env, md)
     }
 
     const state = this.createState(src, env, md)
     this.process(state)
     this.lastState = state
     return state
+  }
+
+  public parse(src: string, env: Record<string, unknown> = {}, md?: any): State {
+    if (typeof src !== 'string') {
+      throw new TypeError('Input data should be a String')
+    }
+
+    return this.parseSource(src, env, md)
   }
 
   public getTokens(): Array<import('../types').Token> {

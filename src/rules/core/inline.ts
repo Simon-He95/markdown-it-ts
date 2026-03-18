@@ -1,3 +1,5 @@
+import { Token } from '../../common/token'
+import { isPlainInlineText } from '../../parse/parser_inline'
 import type { State } from '../../parse/state'
 
 /**
@@ -13,6 +15,12 @@ export function inline(state: State): void {
     if (tok.type === 'inline' && state.md) {
       if (!tok.children) {
         tok.children = []
+      }
+      if (tok.content.length > 0 && isPlainInlineText(tok.content)) {
+        const text = new Token('text', '', 0)
+        text.content = tok.content
+        tok.children.push(text)
+        continue
       }
       state.md.inline.parse(tok.content, state.md, state.env, tok.children)
     }

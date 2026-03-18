@@ -4,6 +4,7 @@ import parseLinkDestination from '../../helpers/parse_link_destination'
  */
 import parseLinkLabel from '../../helpers/parse_link_label'
 import parseLinkTitle from '../../helpers/parse_link_title'
+import { normalizeReference } from '../../common/utils'
 
 export function link(state: any, silent?: boolean): boolean {
   let code, label, res, ref
@@ -33,7 +34,6 @@ export function link(state: any, silent?: boolean): boolean {
     }
     if (pos >= max)
       return false
-    start = pos
     res = parseLinkDestination(state.src, pos, state.posMax)
     if (res.ok) {
       href = state.md.normalizeLink(res.str)
@@ -44,13 +44,14 @@ export function link(state: any, silent?: boolean): boolean {
         href = ''
       }
 
+      start = pos
       for (; pos < max; pos++) {
         code = state.src.charCodeAt(pos)
         if (code !== 0x20 && code !== 0x0A)
           break
       }
       res = parseLinkTitle(state.src, pos, state.posMax)
-      if (pos < max && res.ok) {
+      if (pos < max && start !== pos && res.ok) {
         title = res.str
         pos = res.pos
         for (; pos < max; pos++) {
@@ -83,7 +84,7 @@ export function link(state: any, silent?: boolean): boolean {
     }
     if (!label)
       label = state.src.slice(labelStart, labelEnd)
-    ref = state.env.references[label && label.toLowerCase()]
+    ref = state.env.references[normalizeReference(label)]
     if (!ref) {
       state.pos = oldPos
       return false

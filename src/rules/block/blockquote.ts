@@ -14,17 +14,23 @@ function isSpace(code: number): boolean {
 }
 
 export function blockquote(state: StateBlock, startLine: number, endLine: number, silent?: boolean): boolean {
-  let pos = state.bMarks[startLine] + state.tShift[startLine]
-  let max = state.eMarks[startLine]
+  const src = state.src
+  const bMarks = state.bMarks
+  const eMarks = state.eMarks
+  const tShift = state.tShift
+  const sCount = state.sCount
+  const bsCount = state.bsCount
+  let pos = bMarks[startLine] + tShift[startLine]
+  let max = eMarks[startLine]
 
   const oldLineMax = state.lineMax
 
   // if it's indented more than 3 spaces, it should be a code block
-  if (state.sCount[startLine] - state.blkIndent >= 4)
+  if (sCount[startLine] - state.blkIndent >= 4)
     return false
 
   // check the block quote marker
-  if (state.src.charCodeAt(pos) !== 0x3E /* > */)
+  if (src.charCodeAt(pos) !== 0x3E /* > */)
     return false
 
   // we know that it's going to be a valid blockquote,
@@ -71,26 +77,26 @@ export function blockquote(state: StateBlock, startLine: number, endLine: number
     //    > current blockquote
     // 2. checking this line
     // ```
-    const isOutdented = state.sCount[nextLine] < state.blkIndent
+    const isOutdented = sCount[nextLine] < state.blkIndent
 
-    pos = state.bMarks[nextLine] + state.tShift[nextLine]
-    max = state.eMarks[nextLine]
+    pos = bMarks[nextLine] + tShift[nextLine]
+    max = eMarks[nextLine]
 
     if (pos >= max) {
       // Case 1: line is not inside the blockquote, and this line is empty.
       break
     }
 
-    if (state.src.charCodeAt(pos++) === 0x3E /* > */ && !isOutdented) {
+    if (src.charCodeAt(pos++) === 0x3E /* > */ && !isOutdented) {
       // This line is inside the blockquote.
 
       // set offset past spaces and ">"
-      let initial = state.sCount[nextLine] + 1
+      let initial = sCount[nextLine] + 1
       let spaceAfterMarker
       let adjustTab
 
       // skip one optional space after '>'
-      if (state.src.charCodeAt(pos) === 0x20 /* space */) {
+      if (src.charCodeAt(pos) === 0x20 /* space */) {
         // ' >   test '
         //     ^ -- position start of line here:
         pos++
@@ -98,10 +104,10 @@ export function blockquote(state: StateBlock, startLine: number, endLine: number
         adjustTab = false
         spaceAfterMarker = true
       }
-      else if (state.src.charCodeAt(pos) === 0x09 /* tab */) {
+      else if (src.charCodeAt(pos) === 0x09 /* tab */) {
         spaceAfterMarker = true
 
-        if ((state.bsCount[nextLine] + initial) % 4 === 3) {
+        if ((bsCount[nextLine] + initial) % 4 === 3) {
           // '  >\t  test '
           //       ^ -- position start of line here (tab has width===1)
           pos++
@@ -120,15 +126,15 @@ export function blockquote(state: StateBlock, startLine: number, endLine: number
       }
 
       let offset = initial
-      oldBMarks.push(state.bMarks[nextLine])
-      state.bMarks[nextLine] = pos
+      oldBMarks.push(bMarks[nextLine])
+      bMarks[nextLine] = pos
 
       while (pos < max) {
-        const ch = state.src.charCodeAt(pos)
+        const ch = src.charCodeAt(pos)
 
         if (isSpace(ch)) {
           if (ch === 0x09) {
-            offset += 4 - (offset + state.bsCount[nextLine] + (adjustTab ? 1 : 0)) % 4
+            offset += 4 - (offset + bsCount[nextLine] + (adjustTab ? 1 : 0)) % 4
           }
           else {
             offset++
@@ -143,14 +149,14 @@ export function blockquote(state: StateBlock, startLine: number, endLine: number
 
       lastLineEmpty = pos >= max
 
-      oldBSCount.push(state.bsCount[nextLine])
-      state.bsCount[nextLine] = state.sCount[nextLine] + 1 + (spaceAfterMarker ? 1 : 0)
+      oldBSCount.push(bsCount[nextLine])
+      bsCount[nextLine] = sCount[nextLine] + 1 + (spaceAfterMarker ? 1 : 0)
 
-      oldSCount.push(state.sCount[nextLine])
-      state.sCount[nextLine] = offset - initial
+      oldSCount.push(sCount[nextLine])
+      sCount[nextLine] = offset - initial
 
-      oldTShift.push(state.tShift[nextLine])
-      state.tShift[nextLine] = pos - state.bMarks[nextLine]
+      oldTShift.push(tShift[nextLine])
+      tShift[nextLine] = pos - bMarks[nextLine]
       continue
     }
 
@@ -178,24 +184,24 @@ export function blockquote(state: StateBlock, startLine: number, endLine: number
         // state.blkIndent was non-zero, we now set it to zero,
         // so we need to re-calculate all offsets to appear as
         // if indent wasn't changed
-        oldBMarks.push(state.bMarks[nextLine])
-        oldBSCount.push(state.bsCount[nextLine])
-        oldTShift.push(state.tShift[nextLine])
-        oldSCount.push(state.sCount[nextLine])
-        state.sCount[nextLine] -= state.blkIndent
+        oldBMarks.push(bMarks[nextLine])
+        oldBSCount.push(bsCount[nextLine])
+        oldTShift.push(tShift[nextLine])
+        oldSCount.push(sCount[nextLine])
+        sCount[nextLine] -= state.blkIndent
       }
 
       break
     }
 
-    oldBMarks.push(state.bMarks[nextLine])
-    oldBSCount.push(state.bsCount[nextLine])
-    oldTShift.push(state.tShift[nextLine])
-    oldSCount.push(state.sCount[nextLine])
+    oldBMarks.push(bMarks[nextLine])
+    oldBSCount.push(bsCount[nextLine])
+    oldTShift.push(tShift[nextLine])
+    oldSCount.push(sCount[nextLine])
 
     // A negative indentation means that this is a paragraph continuation
     //
-    state.sCount[nextLine] = -1
+    sCount[nextLine] = -1
   }
 
   const oldIndent = state.blkIndent
@@ -218,10 +224,10 @@ export function blockquote(state: StateBlock, startLine: number, endLine: number
   // Restore original tShift; this might not be necessary since the parser
   // has already been here, but just to make sure we can do that.
   for (let i = 0; i < oldTShift.length; i++) {
-    state.bMarks[i + startLine] = oldBMarks[i]
-    state.tShift[i + startLine] = oldTShift[i]
-    state.sCount[i + startLine] = oldSCount[i]
-    state.bsCount[i + startLine] = oldBSCount[i]
+    bMarks[i + startLine] = oldBMarks[i]
+    tShift[i + startLine] = oldTShift[i]
+    sCount[i + startLine] = oldSCount[i]
+    bsCount[i + startLine] = oldBSCount[i]
   }
   state.blkIndent = oldIndent
 

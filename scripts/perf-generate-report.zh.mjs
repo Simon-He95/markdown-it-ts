@@ -41,7 +41,7 @@ function measure(fn, iters = 1) {
 
 function fmt(ms) { return `${ms.toFixed(2)}ms` }
 
-const SIZES = [5_000, 20_000, 50_000, 100_000]
+const SIZES = [5_000, 20_000, 50_000, 100_000, 200_000, 500_000, 1_000_000]
 const APP_STEPS = 6
 
 function makeScenarios() {
@@ -125,6 +125,8 @@ function runMatrix() {
 function toMarkdown(results) {
   const lines = []
   lines.push('# 性能报告（最新一次）')
+  lines.push('')
+  lines.push('默认 API 说明：普通 `md.parse(src)` / `md.render(src)` 在面对超大但有限的字符串时，已经会自动启用内部大文本优化；`parseIterable` / `UnboundedBuffer` 这类入口只保留给“输入本来就是 chunk 流”的高级场景。')
   lines.push('')
 
   const ids = ['S1','S2','S3','S4','S5','M1']

@@ -4,9 +4,19 @@
 
 import type { StateBlock } from '../../parse/parser_block/state_block'
 
+function isSpace(code: number): boolean {
+  return code === 0x09 || code === 0x20
+}
+
 export function paragraph(state: StateBlock, startLine: number, endLine: number): boolean {
   const terminatorRules = state.md.block.ruler.getRules('paragraph')
   const oldParentType = state.parentType
+  const src = state.src
+  const bMarks = state.bMarks
+  const tShift = state.tShift
+  const eMarks = state.eMarks
+  const sCount = state.sCount
+  const blkIndent = state.blkIndent
   let nextLine = startLine + 1
   state.parentType = 'paragraph'
 
@@ -14,12 +24,58 @@ export function paragraph(state: StateBlock, startLine: number, endLine: number)
   for (; nextLine < endLine && !state.isEmpty(nextLine); nextLine++) {
     // this would be a code block normally, but after paragraph
     // it's considered a lazy continuation regardless of what's there
-    if (state.sCount[nextLine] - state.blkIndent > 3)
+    if (sCount[nextLine] - blkIndent > 3)
       continue
 
     // quirk for blockquotes, this line should already be checked by that rule
-    if (state.sCount[nextLine] < 0)
+    if (sCount[nextLine] < 0)
       continue
+
+    // In list items, sibling list markers are the hot-path paragraph
+    // terminator; detect them before running the full terminator chain.
+    if (oldParentType === 'list' && sCount[nextLine] >= blkIndent) {
+      const start = bMarks[nextLine] + tShift[nextLine]
+      const max = eMarks[nextLine]
+
+      if (start < max) {
+        const marker = src.charCodeAt(start)
+
+        if (marker === 0x2A || marker === 0x2D || marker === 0x2B) {
+          if (start + 1 >= max || isSpace(src.charCodeAt(start + 1)))
+            break
+        }
+        else if (marker >= 0x30 && marker <= 0x39 && start + 1 < max) {
+          let pos = start + 1
+
+          for (;;) {
+            if (pos >= max) {
+              pos = -1
+              break
+            }
+
+            const ch = src.charCodeAt(pos++)
+
+            if (ch >= 0x30 && ch <= 0x39) {
+              if (pos - start >= 10) {
+                pos = -1
+                break
+              }
+              continue
+            }
+
+            if ((ch === 0x29 || ch === 0x2E) && (pos >= max || isSpace(src.charCodeAt(pos)))) {
+              break
+            }
+
+            pos = -1
+            break
+          }
+
+          if (pos >= 0)
+            break
+        }
+      }
+    }
 
     // Some tags can terminate paragraph without empty line.
     let terminate = false
@@ -33,7 +89,7 @@ export function paragraph(state: StateBlock, startLine: number, endLine: number)
       break
   }
 
-  const content = state.getLines(startLine, nextLine, state.blkIndent, false).trim()
+  const content = state.getLines(startLine, nextLine, blkIndent, false).trim()
 
   state.line = nextLine
 

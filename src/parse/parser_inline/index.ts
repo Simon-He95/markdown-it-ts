@@ -1,4 +1,5 @@
 import type { Token } from '../../types'
+import { Token as TokenClass } from '../../common/token'
 import autolink from '../../rules/inline/autolink'
 import backticks from '../../rules/inline/backticks'
 import balance_pairs from '../../rules/inline/balance_pairs'
@@ -15,13 +16,59 @@ import { strikethrough } from '../../rules/inline/strikethrough'
 import text from '../../rules/inline/text'
 import { InlineRuler } from './ruler'
 import { StateInline } from './state_inline'
+import type { ParseSource } from '../source'
 
 /**
  * ParserInline - inline parser with Ruler-based rule management
  */
+
+function isInlineTerminatorChar(ch: number): boolean {
+  switch (ch) {
+    case 0x0A:
+    case 0x21:
+    case 0x23:
+    case 0x24:
+    case 0x25:
+    case 0x26:
+    case 0x2A:
+    case 0x2B:
+    case 0x2D:
+    case 0x3A:
+    case 0x3C:
+    case 0x3D:
+    case 0x3E:
+    case 0x40:
+    case 0x5B:
+    case 0x5C:
+    case 0x5D:
+    case 0x5E:
+    case 0x5F:
+    case 0x60:
+    case 0x7B:
+    case 0x7D:
+    case 0x7E:
+      return true
+    default:
+      return false
+  }
+}
+
+export function isPlainInlineText(src: string): boolean {
+  for (let i = 0; i < src.length; i++) {
+    if (isInlineTerminatorChar(src.charCodeAt(i))) {
+      return false
+    }
+  }
+  return true
+}
+
 export class ParserInline {
   public ruler: InlineRuler
   public ruler2: InlineRuler
+  private cachedRulesVersion = -1
+  private cachedRules: Array<(state: StateInline, silent?: boolean) => boolean | void> = []
+  private cachedRules2Version = -1
+  private cachedRules2: Array<(state: StateInline, silent?: boolean) => void> = []
 
   constructor() {
     this.ruler = new InlineRuler()
@@ -54,11 +101,8 @@ export class ParserInline {
    */
   public skipToken(state: StateInline): void {
     const pos = state.pos
-    const rules = this.ruler.getRules('')
+    const rules = this.getRules()
     const len = rules.length
-    const posMax = state.posMax
-    const maxNesting = state.md?.options?.maxNesting || 100
-
     const cache = state.cache
     const cached = cache[pos]
     if (cached !== undefined) {
@@ -68,7 +112,7 @@ export class ParserInline {
 
     let ok: boolean | void = false
 
-    if (state.level < maxNesting) {
+    if (state.level < state.maxNesting) {
       for (let i = 0; i < len; i++) {
         // Increment state.level and decrement it later to limit recursion.
         // It's harmless to do here, because no tokens are created. But ideally,
@@ -96,7 +140,7 @@ export class ParserInline {
       // TODO: remove this workaround when CM standard will allow nested links
       //       (we can replace it by preventing links from being parsed in
       //       validation mode)
-      state.pos = posMax
+      state.pos = state.posMax
     }
 
     if (!ok)
@@ -109,16 +153,15 @@ export class ParserInline {
    * Generate tokens for input string
    */
   public tokenize(state: StateInline): void {
-    const rules = this.ruler.getRules('')
+    const rules = this.getRules()
     const len = rules.length
     const end = state.posMax
-    const maxNesting = state.md?.options?.maxNesting || 100
 
     while (state.pos < end) {
       const prevPos = state.pos
       let ok: boolean | void = false
 
-      if (state.level < maxNesting) {
+      if (state.level < state.maxNesting) {
         for (let i = 0; i < len; i++) {
           ok = rules[i](state, false)
           if (ok) {
@@ -150,17 +193,44 @@ export class ParserInline {
    * Process input string and push inline tokens into `outTokens`.
    * Matches the signature from original markdown-it/lib/parser_inline.mjs
    */
-  public parse(str: string, md: any, env: any, outTokens: Token[]): void {
-    const state = new StateInline(str, md, env, outTokens)
+  public parseSource(src: ParseSource, md: any, env: any, outTokens: Token[]): void {
+    if (typeof src === 'string' && src.length > 0 && isPlainInlineText(src)) {
+      const token = new TokenClass('text', '', 0)
+      token.content = src
+      outTokens.push(token)
+      return
+    }
+
+    const state = new StateInline(src, md, env, outTokens)
 
     this.tokenize(state)
 
-    const rules2 = this.ruler2.getRules('')
+    const rules2 = this.getRules2()
     const len = rules2.length
 
     for (let i = 0; i < len; i++) {
       rules2[i](state, false)
     }
+  }
+
+  public parse(str: string, md: any, env: any, outTokens: Token[]): void {
+    this.parseSource(str, md, env, outTokens)
+  }
+
+  private getRules(): Array<(state: StateInline, silent?: boolean) => boolean | void> {
+    if (this.cachedRulesVersion !== this.ruler.version) {
+      this.cachedRules = this.ruler.getRules('') as Array<(state: StateInline, silent?: boolean) => boolean | void>
+      this.cachedRulesVersion = this.ruler.version
+    }
+    return this.cachedRules
+  }
+
+  private getRules2(): Array<(state: StateInline, silent?: boolean) => void> {
+    if (this.cachedRules2Version !== this.ruler2.version) {
+      this.cachedRules2 = this.ruler2.getRules('') as Array<(state: StateInline, silent?: boolean) => void>
+      this.cachedRules2Version = this.ruler2.version
+    }
+    return this.cachedRules2
   }
 }
 

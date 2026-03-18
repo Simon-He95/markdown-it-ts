@@ -2,7 +2,9 @@ import type { Token } from '../common/token'
 import type { MarkdownIt } from '../index'
 import type { ParserCore } from '../parse/parser_core'
 import { countLines } from '../common/utils'
+import { recommendStreamChunkStrategy } from '../support/chunk_recommend'
 import { chunkedParse } from './chunked'
+import { getAutoUnboundedDecision, parseStringUnbounded, shouldAutoUseUnbounded } from './unbounded'
 
 interface StreamCache {
   src: string
@@ -57,9 +59,6 @@ export class StreamParser {
   // Allow caching for most real-world docs; skip only for extremely large payloads
   private readonly DEFAULT_SKIP_CACHE_CHARS = 600_000
   private readonly DEFAULT_SKIP_CACHE_LINES = 10_000
-  private readonly MAX_CHUNKS_FOR_FALLBACK = 24
-  // Avoid chunked fallback for very large docs; prefer a single full parse
-  private readonly MAX_CHUNKED_DOC_CHARS = 120_000
   // Container-merge pays off only when the tail list is already sizeable.
   private readonly MIN_LIST_LINES_FOR_MERGE = 80
   private readonly MIN_LIST_CHARS_FOR_MERGE = 800
@@ -99,6 +98,8 @@ export class StreamParser {
       const targetChunks = md.options?.streamChunkTargetChunks ?? 8
       const chunkSizeCharsCfg = md.options?.streamChunkSizeChars
       const chunkSizeLinesCfg = md.options?.streamChunkSizeLines
+      const chunkMaxChunksCfg = md.options?.streamChunkMaxChunks
+      const explicitChunkConfig = !!(md as any).__explicitStreamChunkConfig
       const auto = md.options?.autoTuneChunks !== false
       const chunkFenceAware = md.options?.streamChunkFenceAware ?? true
 
@@ -115,51 +116,36 @@ export class StreamParser {
       // Heuristic: very large one-shot payloads are likely history restore/display.
       // In such cases, treat as non-stream for performance and memory: do not cache.
       if (isVeryLargeOneShot) {
-        const state = this.core.parse(src, workingEnv, md)
-        const tokens = state.tokens
+        const parsed = this.parseFullDocument(src, workingEnv, md, srcLineCount, false)
         // Intentionally skip caching to avoid holding a massive token array in memory
         this.stats.total += 1
         this.stats.fullParses += 1
         this.stats.lastMode = 'full'
-        return tokens
+        return parsed.tokens
       }
-      else if (chunkedEnabled && src.length < this.MAX_CHUNKED_DOC_CHARS) {
+      else if (chunkedEnabled) {
         const clamp = (v: number, lo: number, hi: number) => v < lo ? lo : (v > hi ? hi : v)
-        // Best-practice discrete mapping (append-focused) when user didn't force sizes
         if (srcLineCount === undefined)
           srcLineCount = countLines(src)
-        let useChars = chunkAdaptive ? clamp(Math.ceil(src.length / targetChunks), 8000, 32000) : (chunkSizeCharsCfg ?? 10000)
-        let useLines = chunkAdaptive ? clamp(Math.ceil(srcLineCount / targetChunks), 150, 350) : (chunkSizeLinesCfg ?? 200)
-        if (auto && !chunkSizeCharsCfg && !chunkSizeLinesCfg) {
-          if (src.length <= 5_000) {
-            useChars = 16_000
-            useLines = 250
-          }
-          else if (src.length <= 20_000) {
-            useChars = 16_000
-            useLines = 200
-          }
-          else if (src.length <= 50_000) {
-            useChars = 16_000
-            useLines = 250
-          }
-          else if (src.length <= 100_000) {
-            useChars = 10_000
-            useLines = 200
-          }
-          else {
-            useChars = 20_000
-            useLines = 200
-          }
-        }
+        const recommendation = auto && !explicitChunkConfig
+          ? recommendStreamChunkStrategy(src.length, srcLineCount, md.options)
+          : null
+        const useChars = recommendation?.maxChunkChars
+          ?? (chunkAdaptive ? clamp(Math.ceil(src.length / targetChunks), 8000, 64_000) : (chunkSizeCharsCfg ?? 10000))
+        const useLines = recommendation?.maxChunkLines
+          ?? (chunkAdaptive ? clamp(Math.ceil(srcLineCount / targetChunks), 150, 700) : (chunkSizeLinesCfg ?? 200))
+        const useMaxChunks = recommendation?.maxChunks
+          ?? (chunkAdaptive ? clamp(Math.ceil(src.length / 64_000), targetChunks, 32) : chunkMaxChunksCfg)
         // Avoid chunked fallback for character-by-character growth (no trailing newline)
         const hasTrailingNewline = src.length > 0 && src.charCodeAt(src.length - 1) === 0x0A
-        const estimatedChunks = Math.ceil(src.length / useChars)
-        if ((src.length >= (useChars * 2) || srcLineCount >= (useLines * 2)) && hasTrailingNewline && estimatedChunks <= this.MAX_CHUNKS_FOR_FALLBACK) {
+        if (recommendation?.strategy !== 'plain'
+          && (src.length >= (useChars * 2) || srcLineCount >= (useLines * 2))
+          && hasTrailingNewline) {
           const tokens = chunkedParse(md, src, workingEnv, {
             maxChunkChars: useChars,
             maxChunkLines: useLines,
-            fenceAware: chunkFenceAware,
+            fenceAware: recommendation?.fenceAware ?? chunkFenceAware,
+            maxChunks: useMaxChunks,
           })
           this.cache = { src, tokens, env: workingEnv, lineCount: srcLineCount, lastSegment: undefined }
           this.updateCacheLineCount(this.cache, srcLineCount)
@@ -171,15 +157,15 @@ export class StreamParser {
       }
 
       // initial parse
-      const state = this.core.parse(src, workingEnv, md)
-      const tokens = state.tokens
+      const parsed = this.parseFullDocument(src, workingEnv, md, srcLineCount)
+      srcLineCount = parsed.lineCount
 
-      this.cache = { src, tokens, env: workingEnv, lineCount: srcLineCount, lastSegment: undefined }
+      this.cache = { src, tokens: parsed.tokens, env: workingEnv, lineCount: srcLineCount, lastSegment: undefined }
       this.updateCacheLineCount(this.cache, srcLineCount)
       this.stats.total += 1
       this.stats.fullParses += 1
       this.stats.lastMode = 'full'
-      return tokens
+      return parsed.tokens
     }
 
     if (src === cached.src) {
@@ -197,9 +183,9 @@ export class StreamParser {
     if (isGrowingFromSmall && !src.startsWith(cached.src)) {
       // Small document with non-append edit - just reparse
       const fallbackEnv = envProvided ?? cached.env
-      const fullState = this.core.parse(src, fallbackEnv, md)
-      const nextTokens = fullState.tokens
-      const lineCount = countLines(src)
+      const parsed = this.parseFullDocument(src, fallbackEnv, md)
+      const nextTokens = parsed.tokens
+      const lineCount = parsed.lineCount
       this.cache = { src, tokens: nextTokens, env: fallbackEnv, lineCount, lastSegment: undefined }
       this.updateCacheLineCount(this.cache, lineCount)
       this.stats.total += 1
@@ -578,45 +564,34 @@ export class StreamParser {
     const targetChunks = md.options?.streamChunkTargetChunks ?? 8
     const chunkSizeCharsCfg = md.options?.streamChunkSizeChars
     const chunkSizeLinesCfg = md.options?.streamChunkSizeLines
+    const chunkMaxChunksCfg = md.options?.streamChunkMaxChunks
+    const explicitChunkConfig = !!(md as any).__explicitStreamChunkConfig
     const auto = md.options?.autoTuneChunks !== false
     const chunkFenceAware = md.options?.streamChunkFenceAware ?? true
 
     let srcLineCount2: number | undefined = cached.lineCount
-    if (chunkedEnabled && src.length < this.MAX_CHUNKED_DOC_CHARS) {
+    if (chunkedEnabled) {
       if (srcLineCount2 === undefined)
         srcLineCount2 = countLines(src)
       const clamp = (v: number, lo: number, hi: number) => v < lo ? lo : (v > hi ? hi : v)
-      let useChars = chunkAdaptive ? clamp(Math.ceil(src.length / targetChunks), 8000, 32000) : (chunkSizeCharsCfg ?? 10000)
-      let useLines = chunkAdaptive ? clamp(Math.ceil(srcLineCount2 / targetChunks), 150, 350) : (chunkSizeLinesCfg ?? 200)
-      if (auto && !chunkSizeCharsCfg && !chunkSizeLinesCfg) {
-        if (src.length <= 5_000) {
-          useChars = 16_000
-          useLines = 250
-        }
-        else if (src.length <= 20_000) {
-          useChars = 16_000
-          useLines = 200
-        }
-        else if (src.length <= 50_000) {
-          useChars = 16_000
-          useLines = 250
-        }
-        else if (src.length <= 100_000) {
-          useChars = 10_000
-          useLines = 200
-        }
-        else {
-          useChars = 20_000
-          useLines = 200
-        }
-      }
+      const recommendation = auto && !explicitChunkConfig
+        ? recommendStreamChunkStrategy(src.length, srcLineCount2, md.options)
+        : null
+      const useChars = recommendation?.maxChunkChars
+        ?? (chunkAdaptive ? clamp(Math.ceil(src.length / targetChunks), 8000, 64_000) : (chunkSizeCharsCfg ?? 10000))
+      const useLines = recommendation?.maxChunkLines
+        ?? (chunkAdaptive ? clamp(Math.ceil(srcLineCount2 / targetChunks), 150, 700) : (chunkSizeLinesCfg ?? 200))
+      const useMaxChunks = recommendation?.maxChunks
+        ?? (chunkAdaptive ? clamp(Math.ceil(src.length / 64_000), targetChunks, 32) : chunkMaxChunksCfg)
       const hasTrailingNewline2 = src.length > 0 && src.charCodeAt(src.length - 1) === 0x0A
-      const estimatedChunks = Math.ceil(src.length / useChars)
-      if ((src.length >= (useChars * 2) || srcLineCount2 >= (useLines * 2)) && hasTrailingNewline2 && estimatedChunks <= this.MAX_CHUNKS_FOR_FALLBACK) {
+      if (recommendation?.strategy !== 'plain'
+        && (src.length >= (useChars * 2) || srcLineCount2 >= (useLines * 2))
+        && hasTrailingNewline2) {
         const tokens = chunkedParse(md, src, fallbackEnv, {
           maxChunkChars: useChars,
           maxChunkLines: useLines,
-          fenceAware: chunkFenceAware,
+          fenceAware: recommendation?.fenceAware ?? chunkFenceAware,
+          maxChunks: useMaxChunks,
         })
         this.cache = { src, tokens, env: fallbackEnv, lineCount: srcLineCount2, lastSegment: undefined }
         this.updateCacheLineCount(this.cache, srcLineCount2)
@@ -628,14 +603,43 @@ export class StreamParser {
     }
 
     // full fallback parse
-    const fullState = this.core.parse(src, fallbackEnv, md)
-    const nextTokens = fullState.tokens
+    const parsed = this.parseFullDocument(src, fallbackEnv, md, srcLineCount2)
+    const nextTokens = parsed.tokens
+    srcLineCount2 = parsed.lineCount
     this.cache = { src, tokens: nextTokens, env: fallbackEnv, lineCount: srcLineCount2, lastSegment: undefined }
     this.updateCacheLineCount(this.cache, srcLineCount2)
     this.stats.total += 1
     this.stats.fullParses += 1
     this.stats.lastMode = 'full'
     return nextTokens
+  }
+
+  private parseFullDocument(
+    src: string,
+    env: Record<string, unknown>,
+    md: MarkdownIt,
+    knownLineCount?: number,
+    needLineCount = true,
+  ): { tokens: Token[], lineCount: number } {
+    const autoUnboundedDecision = getAutoUnboundedDecision(md, src.length, knownLineCount)
+    if (autoUnboundedDecision === 'yes') {
+      return {
+        tokens: parseStringUnbounded(md, src, env),
+        lineCount: knownLineCount ?? (needLineCount ? countLines(src) : 0),
+      }
+    }
+
+    let lineCount = knownLineCount
+    if (autoUnboundedDecision === 'need-lines') {
+      lineCount = countLines(src)
+      if (shouldAutoUseUnbounded(md, src.length, lineCount))
+        return { tokens: parseStringUnbounded(md, src, env), lineCount }
+    }
+
+    if (lineCount === undefined)
+      lineCount = needLineCount ? countLines(src) : 0
+
+    return { tokens: this.core.parse(src, env, md).tokens, lineCount }
   }
 
   private getAppendedSegment(prev: string, next: string): string | null {

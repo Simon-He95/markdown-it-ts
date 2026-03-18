@@ -1,4 +1,5 @@
 import { Token } from '../common/token'
+import type { ParseSource } from './source'
 
 export interface MarkdownItOptions {
   html?: boolean
@@ -12,20 +13,18 @@ export interface MarkdownItOptions {
 }
 
 export class State {
-  public src: string
+  public src: ParseSource
   public env: Record<string, unknown>
   public tokens: Token[]
   public inlineMode: boolean
   public md: any
-  public Token: typeof Token
 
-  constructor(src: string, md: any, env: Record<string, unknown> = {}) {
-    this.src = src || ''
+  constructor(src: ParseSource, md: any, env: Record<string, unknown> = {}) {
+    this.src = typeof src === 'string' ? (src || '') : src
     this.env = env
     this.tokens = []
     this.inlineMode = false
     this.md = md
-    this.Token = Token
   }
 }
 

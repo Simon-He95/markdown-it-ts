@@ -3,8 +3,9 @@
  */
 
 export function backticks(state: any, silent?: boolean): boolean {
+  const src = state.src
   let pos = state.pos
-  const ch = state.src.charCodeAt(pos)
+  const ch = src.charCodeAt(pos)
 
   if (ch !== 0x60 /* ` */) {
     return false
@@ -15,11 +16,11 @@ export function backticks(state: any, silent?: boolean): boolean {
   const max = state.posMax
 
   // scan marker length
-  while (pos < max && state.src.charCodeAt(pos) === 0x60 /* ` */) {
+  while (pos < max && src.charCodeAt(pos) === 0x60 /* ` */) {
     pos++
   }
 
-  const marker = state.src.slice(start, pos)
+  const marker = src.slice(start, pos)
   const openerLength = marker.length
 
   if (state.backticksScanned && (state.backticks[openerLength] || 0) <= start) {
@@ -33,11 +34,11 @@ export function backticks(state: any, silent?: boolean): boolean {
   let matchStart
 
   // Nothing found in the cache, scan until the end of the line (or until marker is found)
-  while ((matchStart = state.src.indexOf('`', matchEnd)) !== -1) {
+  while ((matchStart = src.indexOf('`', matchEnd)) !== -1) {
     matchEnd = matchStart + 1
 
     // scan marker length
-    while (matchEnd < max && state.src.charCodeAt(matchEnd) === 0x60 /* ` */) {
+    while (matchEnd < max && src.charCodeAt(matchEnd) === 0x60 /* ` */) {
       matchEnd++
     }
 
@@ -48,10 +49,14 @@ export function backticks(state: any, silent?: boolean): boolean {
       if (!silent) {
         const token = state.push('code_inline', 'code', 0)
         token.markup = marker
-        token.content = state.src
-          .slice(pos, matchStart)
-          .replace(/\n/g, ' ')
-          .replace(/^ (.+) $/, '$1')
+        let content = src.slice(pos, matchStart)
+        if (content.includes('\n')) {
+          content = content.replace(/\n/g, ' ')
+        }
+        if (content.length > 2 && content.charCodeAt(0) === 0x20 && content.charCodeAt(content.length - 1) === 0x20) {
+          content = content.slice(1, -1)
+        }
+        token.content = content
       }
       state.pos = matchEnd
       return true

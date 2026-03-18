@@ -2,35 +2,73 @@
  * Process autolinks '<protocol:...>'
  */
 
-const EMAIL_RE = /^[\w.!#$%&'*+/=?^`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/i
-// eslint-disable-next-line no-control-regex
-const AUTOLINK_RE = /^[a-z][a-z0-9+.-]{1,31}:[^<>\x00-\x20]*$/i
+const EMAIL_RE = /^([a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*)$/
 
-export function autolink(state: any, silent?: boolean): boolean {
-  let pos = state.pos
+function isAsciiLetter(ch: number): boolean {
+  const lc = ch | 0x20
+  return lc >= 0x61 && lc <= 0x7A
+}
 
-  if (state.src.charCodeAt(pos) !== 0x3C /* < */) {
+function isAutolinkScheme(src: string, start: number, end: number): boolean {
+  const len = end - start
+  if (len < 2 || len > 32 || !isAsciiLetter(src.charCodeAt(start)))
+    return false
+
+  for (let pos = start + 1; pos < end; pos++) {
+    const ch = src.charCodeAt(pos)
+    if ((ch >= 0x30 && ch <= 0x39)
+      || (ch >= 0x41 && ch <= 0x5A)
+      || (ch >= 0x61 && ch <= 0x7A)
+      || ch === 0x2B /* + */
+      || ch === 0x2D /* - */
+      || ch === 0x2E /* . */) {
+      continue
+    }
     return false
   }
 
-  const start = state.pos
+  return true
+}
+
+export function autolink(state: any, silent?: boolean): boolean {
+  let pos = state.pos
+  const src = state.src
+
+  if (src.charCodeAt(pos) !== 0x3C /* < */) {
+    return false
+  }
+
+  const start = pos
   const max = state.posMax
+  let colonPos = -1
+  let hasAt = false
 
   for (;;) {
     if (++pos >= max)
       return false
 
-    const ch = state.src.charCodeAt(pos)
+    const ch = src.charCodeAt(pos)
 
     if (ch === 0x3C /* < */)
       return false
     if (ch === 0x3E /* > */)
       break
+    if (ch <= 0x20)
+      return false
+    if (ch === 0x3A /* : */) {
+      if (colonPos < 0)
+        colonPos = pos
+    }
+    else if (ch === 0x40 /* @ */) {
+      hasAt = true
+    }
   }
 
-  const url = state.src.slice(start + 1, pos)
+  if (colonPos < 0 && !hasAt)
+    return false
 
-  if (AUTOLINK_RE.test(url)) {
+  if (colonPos > start + 2 && isAutolinkScheme(src, start + 1, colonPos)) {
+    const url = src.slice(start + 1, pos)
     const fullUrl = state.md.normalizeLink(url)
     if (!state.md.validateLink(fullUrl)) {
       return false
@@ -42,7 +80,7 @@ export function autolink(state: any, silent?: boolean): boolean {
       token_o.markup = 'autolink'
       token_o.info = 'auto'
 
-      const token_t = state.push('text', '', 0)
+      const token_t = state.pushSimple('text', '')
       token_t.content = state.md.normalizeLinkText(url)
 
       const token_c = state.push('link_close', 'a', -1)
@@ -50,11 +88,16 @@ export function autolink(state: any, silent?: boolean): boolean {
       token_c.info = 'auto'
     }
 
-    state.pos += url.length + 2
+    state.pos = pos + 1
     return true
   }
 
-  if (EMAIL_RE.test(url)) {
+  if (hasAt) {
+    const url = src.slice(start + 1, pos)
+    if (!EMAIL_RE.test(url)) {
+      return false
+    }
+
     const fullUrl = state.md.normalizeLink(`mailto:${url}`)
     if (!state.md.validateLink(fullUrl)) {
       return false
@@ -66,7 +109,7 @@ export function autolink(state: any, silent?: boolean): boolean {
       token_o.markup = 'autolink'
       token_o.info = 'auto'
 
-      const token_t = state.push('text', '', 0)
+      const token_t = state.pushSimple('text', '')
       token_t.content = state.md.normalizeLinkText(url)
 
       const token_c = state.push('link_close', 'a', -1)
@@ -74,7 +117,7 @@ export function autolink(state: any, silent?: boolean): boolean {
       token_c.info = 'auto'
     }
 
-    state.pos += url.length + 2
+    state.pos = pos + 1
     return true
   }
 

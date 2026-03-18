@@ -2,8 +2,44 @@
 
 import type { StateInline } from '../../parse/parser_inline/state_inline'
 
-// RFC3986: scheme = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
-const SCHEME_RE = /(?:^|[^a-z0-9.+-])([a-z][a-z0-9.+-]*)$/i
+function isAsciiLetter(code: number): boolean {
+  const lower = code | 0x20
+  return lower >= 0x61 && lower <= 0x7A
+}
+
+function isDigit(code: number): boolean {
+  return code >= 0x30 && code <= 0x39
+}
+
+function isSchemeChar(code: number): boolean {
+  return isAsciiLetter(code) || isDigit(code) || code === 0x2B /* + */ || code === 0x2D /* - */ || code === 0x2E /* . */
+}
+
+function extractTrailingScheme(pending: string): string | null {
+  if (pending.length === 0)
+    return null
+
+  let start = pending.length - 1
+  while (start >= 0 && isSchemeChar(pending.charCodeAt(start)))
+    start--
+  start++
+
+  if (start >= pending.length || !isAsciiLetter(pending.charCodeAt(start)))
+    return null
+
+  return pending.slice(start)
+}
+
+function scanLinkifyCandidate(src: any, start: number, max: number): string {
+  let end = start
+  while (end < max) {
+    const ch = src.charCodeAt(end)
+    if (ch <= 0x20 || ch === 0x7F || ch === 0x3C /* < */)
+      break
+    end++
+  }
+  return src.slice(start, end)
+}
 
 export default function linkify(state: StateInline, silent?: boolean): boolean {
   if (!state.md.options.linkify)
@@ -23,13 +59,12 @@ export default function linkify(state: StateInline, silent?: boolean): boolean {
   if (state.src.charCodeAt(pos + 2) !== 0x2F /* / */)
     return false
 
-  const match = state.pending.match(SCHEME_RE)
-  if (!match)
+  const proto = extractTrailingScheme(state.pending)
+  if (!proto)
     return false
 
-  const proto = match[1]
-
-  const link = state.md.linkify.matchAtStart(state.src.slice(pos - proto.length))
+  const candidate = scanLinkifyCandidate(state.src, pos - proto.length, max)
+  const link = state.md.linkify.matchAtStart(candidate)
   if (!link)
     return false
 

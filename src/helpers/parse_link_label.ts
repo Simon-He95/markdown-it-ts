@@ -7,13 +7,15 @@ export function parseLinkLabel(state: any, start: number, disableNested?: boolea
   let found = false
   let marker
   let prevPos
+  const src = state.src
   const max = state.posMax
   const oldPos = state.pos
+  const inline = state.md.inline
 
   state.pos = start + 1
 
   while (state.pos < max) {
-    marker = state.src.charCodeAt(state.pos)
+    marker = src.charCodeAt(state.pos)
     if (marker === 0x5D /* ] */) {
       level--
       if (level === 0) {
@@ -22,7 +24,7 @@ export function parseLinkLabel(state: any, start: number, disableNested?: boolea
       }
     }
     prevPos = state.pos
-    state.md.inline.skipToken(state)
+    inline.skipToken(state)
     if (marker === 0x5B /* [ */) {
       if (prevPos === state.pos - 1) {
         level++

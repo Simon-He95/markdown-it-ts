@@ -15,8 +15,19 @@ function formatMs(ms) {
   if (ms < 10) return `${ms.toFixed(4)}ms`
   return `${ms.toFixed(2)}ms`
 }
-function formatFx(baseline, ts) { return (baseline / ts).toFixed(1) + '×' }
-function formatFrac(baseline, ts) { return (ts / baseline).toFixed(2) + '×' }
+function formatNumber(value, digits = 1) {
+  return value.toFixed(digits).replace(/(\.\d*?[1-9])0+$/, '$1').replace(/\.0+$/, '')
+}
+function formatFx(baseline, ts) { return formatNumber(baseline / ts, 1) + '×' }
+function formatTimeSaved(baseline, ts) { return formatNumber((1 - ts / baseline) * 100, 0) + '%' }
+function formatComparisonSummary(baseline, ts) {
+  if (ts <= baseline) {
+    return `~${formatFx(baseline, ts)} faster, ~${formatTimeSaved(baseline, ts)} less time`
+  }
+  const slowerBy = formatNumber(ts / baseline, 1)
+  const moreTime = formatNumber((ts / baseline - 1) * 100, 0)
+  return `~${slowerBy}× slower, ~${moreTime}% more time`
+}
 
 function isTsScenarioId(id) {
   return typeof id === 'string' && id.startsWith('S')
@@ -43,7 +54,7 @@ function buildOneExamples(bySize, sizes) {
     if (!arr) continue
     const base = arr.find(r => r.scenario === 'M1')
     const bestTs = pickBestTsBy(arr, 'oneShotMs')
-    const l = `- ${size.toLocaleString()} chars: ${formatMs(bestTs.oneShotMs)} vs ${formatMs(base.oneShotMs)} → ~${formatFx(base.oneShotMs, bestTs.oneShotMs)} faster (${formatFrac(base.oneShotMs, bestTs.oneShotMs)} time)`
+    const l = `- ${size.toLocaleString()} chars: ${formatMs(bestTs.oneShotMs)} vs ${formatMs(base.oneShotMs)} → ${formatComparisonSummary(base.oneShotMs, bestTs.oneShotMs)}`
     lines.push(l)
   }
   return lines
@@ -56,7 +67,7 @@ function buildAppendExamples(bySize, sizes) {
     if (!arr) continue
     const base = arr.find(r => r.scenario === 'M1')
     const bestTs = pickBestTsBy(arr, 'appendWorkloadMs')
-    const l = `- ${size.toLocaleString()} chars: ${formatMs(bestTs.appendWorkloadMs)} vs ${formatMs(base.appendWorkloadMs)} → ~${formatFx(base.appendWorkloadMs, bestTs.appendWorkloadMs)} faster (${formatFrac(base.appendWorkloadMs, bestTs.appendWorkloadMs)} time)`
+    const l = `- ${size.toLocaleString()} chars: ${formatMs(bestTs.appendWorkloadMs)} vs ${formatMs(base.appendWorkloadMs)} → ${formatComparisonSummary(base.appendWorkloadMs, bestTs.appendWorkloadMs)}`
     lines.push(l)
   }
   return lines
@@ -160,6 +171,87 @@ function buildRenderVsMicromark(bySize, sizes) {
   return lines
 }
 
+function buildRenderVsExit(bySize, sizes) {
+  const lines = []
+  for (const size of sizes) {
+    const arr = bySize.get(size)
+    if (!arr) continue
+    const ts = arr.find(r => r.scenario === 'TS_RENDER')
+    const exit = arr.find(r => r.scenario === 'EX_RENDER')
+    if (!ts || !exit) continue
+    const l = `- ${size.toLocaleString()} chars: ${formatMs(ts.renderMs)} vs ${formatMs(exit.renderMs)} → ~${formatFx(exit.renderMs, ts.renderMs)} faster`
+    lines.push(l)
+  }
+  return lines
+}
+
+function buildExitOneTable(bySize, sizes) {
+  const lines = [
+    '| Size (chars) | markdown-it-ts (best one-shot) | markdown-exit (one-shot) |',
+    '|---:|---:|---:|',
+  ]
+  for (const size of sizes) {
+    const arr = bySize.get(size)
+    if (!arr) continue
+    const bestTs = pickBestTsBy(arr, 'oneShotMs')
+    const exit = arr.find(r => r.scenario === 'E1')
+    if (!bestTs || !exit) continue
+    lines.push(`| ${size.toLocaleString()} | ${formatMs(bestTs.oneShotMs)} | ${formatMs(exit.oneShotMs)} |`)
+  }
+  return lines
+}
+
+function buildZhRanking(bySize, renderBySize, sizes) {
+  const lines = []
+  lines.push('为了更直观地查看四个实现（markdown-it-ts、markdown-it、markdown-exit、remark）在不同规模下的 parse / render 名次，下面直接基于最新 `docs/perf-latest.json` 的快照生成。')
+  lines.push('其中 parse 排名取 markdown-it-ts 在对应规模下 oneShotMs 最低的场景（S1~S5）；render 排名则使用默认 `MarkdownIt().render()` 的端到端耗时，因此两张表不能直接理解为“同一条 parse + renderer 链路”的组合排名。')
+  lines.push('')
+  lines.push('**Parse 排名（one-shot 解析耗时，单位：ms）**')
+  lines.push('')
+  lines.push('| Size | Rank | Library | oneShotMs |')
+  lines.push('|---:|---:|---|---:|')
+  for (const size of sizes) {
+    const arr = bySize.get(size)
+    if (!arr) continue
+    const rows = []
+    const bestTs = pickBestTsBy(arr, 'oneShotMs')
+    const baseline = arr.find(r => r.scenario === 'M1')
+    const exit = arr.find(r => r.scenario === 'E1')
+    const remark = arr.find(r => r.scenario === 'R1')
+    if (bestTs) rows.push({ library: 'markdown-it-ts', value: bestTs.oneShotMs })
+    if (baseline) rows.push({ library: 'markdown-it', value: baseline.oneShotMs })
+    if (exit) rows.push({ library: 'markdown-exit', value: exit.oneShotMs })
+    if (remark) rows.push({ library: 'remark', value: remark.oneShotMs })
+    rows.sort((a, b) => a.value - b.value)
+    rows.forEach((row, index) => {
+      lines.push(`| ${size.toLocaleString()} | ${index + 1} | ${row.library} | ${formatMs(row.value)} |`)
+    })
+  }
+  lines.push('')
+  lines.push('**Render 排名（解析 + HTML 输出耗时，单位：ms）**')
+  lines.push('')
+  lines.push('| Size | Rank | Library | renderMs |')
+  lines.push('|---:|---:|---|---:|')
+  for (const size of sizes) {
+    const arr = renderBySize.get(size)
+    if (!arr) continue
+    const rows = []
+    const ts = arr.find(r => r.scenario === 'TS_RENDER')
+    const baseline = arr.find(r => r.scenario === 'MD_RENDER')
+    const exit = arr.find(r => r.scenario === 'EX_RENDER')
+    const remark = arr.find(r => r.scenario === 'RM_RENDER')
+    if (ts) rows.push({ library: 'markdown-it-ts', value: ts.renderMs })
+    if (baseline) rows.push({ library: 'markdown-it', value: baseline.renderMs })
+    if (exit) rows.push({ library: 'markdown-exit', value: exit.renderMs })
+    if (remark) rows.push({ library: 'remark + rehype', value: remark.renderMs })
+    rows.sort((a, b) => a.value - b.value)
+    rows.forEach((row, index) => {
+      lines.push(`| ${size.toLocaleString()} | ${index + 1} | ${row.library} | ${formatMs(row.value)} |`)
+    })
+  }
+  return lines
+}
+
 function buildComparisonTable(bySize, sizes) {
   // Build a markdown table with columns: Scenario, Config, One-shot, Append(par), Append(line), Replace
   const header = ['| Scenario | Config summary | One-shot | Append (paragraph) | Append (line) | Replace (paragraph) |', '|:--|:--|---:|---:|---:|---:|']
@@ -223,9 +315,11 @@ function main() {
   const bySize = getBySize(perf.results)
   const renderBySize = getBySize(perf.renderComparisons || [])
 
-  const oneSizes = [5000, 20000, 50000, 100000, 200000]
-  const appendSizes = [5000, 20000, 50000, 100000, 200000]
-  const renderSizes = [5000, 20000, 50000, 100000, 200000]
+  const oneSizes = [5000, 20000, 100000, 500000, 1000000]
+  const appendSizes = [5000, 20000, 100000, 500000, 1000000]
+  const renderSizes = [5000, 20000, 100000, 500000, 1000000]
+  const exitSizes = [5000, 20000, 50000, 100000, 200000]
+  const rankingSizes = [5000, 20000, 50000, 100000, 200000]
 
   const blocks = {
     one: buildOneExamples(bySize, oneSizes),
@@ -237,6 +331,9 @@ function main() {
     renderMd: buildRenderVsMarkdownIt(renderBySize, renderSizes),
     renderRemark: buildRenderVsRemark(renderBySize, renderSizes),
     renderMicromark: buildRenderVsMicromark(renderBySize, renderSizes),
+    renderExit: buildRenderVsExit(renderBySize, exitSizes),
+    exitOne: buildExitOneTable(bySize, exitSizes),
+    rankingZh: buildZhRanking(bySize, renderBySize, rankingSizes),
     comparison: buildComparisonTable(bySize, oneSizes),
   }
 
@@ -268,6 +365,12 @@ function applyBlocks(content, blocks) {
   const endRenderMicromark = '<!-- perf-auto:render-micromark:end -->'
   const startRenderRemark = '<!-- perf-auto:render-remark:start -->'
   const endRenderRemark = '<!-- perf-auto:render-remark:end -->'
+  const startRenderExit = '<!-- perf-auto:render-exit:start -->'
+  const endRenderExit = '<!-- perf-auto:render-exit:end -->'
+  const startExitOne = '<!-- perf-auto:exit-one:start -->'
+  const endExitOne = '<!-- perf-auto:exit-one:end -->'
+  const startRankingZh = '<!-- perf-auto:ranking-zh:start -->'
+  const endRankingZh = '<!-- perf-auto:ranking-zh:end -->'
   const startComparison = '<!-- perf-auto:comparison:start -->'
   const endComparison = '<!-- perf-auto:comparison:end -->'
 
@@ -281,6 +384,9 @@ function applyBlocks(content, blocks) {
   updated = replaceBetween(updated, startRenderMd, endRenderMd, blocks.renderMd)
   updated = replaceBetween(updated, startRenderMicromark, endRenderMicromark, blocks.renderMicromark)
   updated = replaceBetween(updated, startRenderRemark, endRenderRemark, blocks.renderRemark)
+  updated = replaceBetween(updated, startRenderExit, endRenderExit, blocks.renderExit)
+  updated = replaceBetween(updated, startExitOne, endExitOne, blocks.exitOne)
+  updated = replaceBetween(updated, startRankingZh, endRankingZh, blocks.rankingZh)
   updated = replaceBetween(updated, startComparison, endComparison, blocks.comparison)
   return updated
 }

@@ -7,16 +7,16 @@ For full details and raw scenario matrix, see `docs/perf-latest.md`.
 
 ## Summary table (mirrored)
 
-| Size (chars) | TS best one | Baseline one | One ratio | TS best append | Baseline append | Append ratio | TS scenario (one/append) |
-|---:|---:|---:|---:|---:|---:|---:|:--|
-| 5000 | 0.70ms | 5.47ms | 0.13x | 0.73ms | 2.71ms | 0.27x | S4/S3 |
-| 20000 | 1.10ms | 1.82ms | 0.60x | 1.26ms | 4.77ms | 0.26x | S5/S3 |
-| 50000 | 2.50ms | 3.61ms | 0.69x | 2.48ms | 10.09ms | 0.25x | S2/S2 |
-| 100000 | 5.50ms | 5.73ms | 0.96x | 18.68ms | 17.24ms | 1.08x | S5/S5 |
+| Size (chars) | TS best one | Baseline one | One comparison | TS best append | Baseline append | Append comparison | TS scenario (one/append) |
+|---:|---:|---:|:--|---:|---:|:--|:--|
+| 5000 | 0.70ms | 5.47ms | 7.81× faster, 87.2% less time | 0.73ms | 2.71ms | 3.71× faster, 73.1% less time | S4/S3 |
+| 20000 | 1.10ms | 1.82ms | 1.65× faster, 39.6% less time | 1.26ms | 4.77ms | 3.79× faster, 73.6% less time | S5/S3 |
+| 50000 | 2.50ms | 3.61ms | 1.44× faster, 30.7% less time | 2.48ms | 10.09ms | 4.07× faster, 75.4% less time | S2/S2 |
+| 100000 | 5.50ms | 5.73ms | 1.04× faster, 4.0% less time | 18.68ms | 17.24ms | 1.08× slower, 8.4% more time | S5/S5 |
 
 Notes:
-- One ratio < 1.00 means markdown-it-ts best one-shot is faster than baseline.
-- Append ratio < 1.00 highlights stream cache optimizations (fast-path appends).
+- Comparison columns are written from markdown-it-ts against the markdown-it baseline.
+- `faster / less time` is better; if a row regresses, the wording flips to `slower / more time`.
 
 ## Regenerate
 

@@ -4,13 +4,13 @@
  */
 
 export function newline(state: any, silent?: boolean): boolean {
-  const { pos, src, posMax } = state
+  let pos = state.pos
 
-  if (src.charCodeAt(pos) !== 0x0A /* \n */)
+  if (state.src.charCodeAt(pos) !== 0x0A /* \n */)
     return false
 
   const pmax = state.pending.length - 1
-  const max = posMax
+  const max = state.posMax
 
   // Check if it's a hard break (2+ spaces before newline)
   if (!silent) {
@@ -22,23 +22,29 @@ export function newline(state: any, silent?: boolean): boolean {
           ws--
 
         state.pending = state.pending.slice(0, ws)
-        state.push('hardbreak', 'br', 0)
+        state.pushSimple('hardbreak', 'br')
       }
       else {
         state.pending = state.pending.slice(0, -1)
-        state.push('softbreak', 'br', 0)
+        state.pushSimple('softbreak', 'br')
       }
     }
     else {
-      state.push('softbreak', 'br', 0)
+      state.pushSimple('softbreak', 'br')
     }
   }
 
-  state.pos++
+  pos++
 
   // Skip heading spaces for next line
-  while (state.pos < max && src.charCodeAt(state.pos) === 0x20)
-    state.pos++
+  while (pos < max) {
+    const ch = state.src.charCodeAt(pos)
+    if (ch !== 0x09 && ch !== 0x20)
+      break
+    pos++
+  }
+
+  state.pos = pos
 
   return true
 }

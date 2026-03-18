@@ -1,14 +1,14 @@
 import { Token } from '../../common/token'
 import { isPunctCode, isWhiteSpace } from '../../common/utils'
+import type { ParseSource } from '../source'
 
 /**
  * StateInline - state object for inline parser
  */
 export class StateInline {
-  public src: string
+  public src: ParseSource
   public md: any
   public env: any
-  public outTokens: Token[]
   public tokens: Token[] // Alias to outTokens for compatibility
   public tokens_meta: any[]
   public pos: number
@@ -22,13 +22,12 @@ export class StateInline {
   public backticks: Record<number, number>
   public backticksScanned: boolean
   public linkLevel: number
-  public Token: typeof Token
+  public maxNesting: number
 
-  constructor(src: string, md: any, env: any, outTokens: Token[]) {
+  constructor(src: ParseSource, md: any, env: any, outTokens: Token[]) {
     this.src = src
     this.md = md
     this.env = env
-    this.outTokens = outTokens
     this.tokens = outTokens // Alias
     this.tokens_meta = new Array(outTokens.length)
     this.pos = 0
@@ -42,7 +41,7 @@ export class StateInline {
     this.backticks = {}
     this.backticksScanned = false
     this.linkLevel = 0
-    this.Token = Token
+    this.maxNesting = md.options.maxNesting
   }
 
   /**
@@ -58,6 +57,19 @@ export class StateInline {
     return token
   }
 
+  public pushSimple(type: string, tag: string): Token {
+    if (this.pending) {
+      this.pushPending()
+    }
+
+    const token = new Token(type, tag, 0)
+    token.level = this.level
+    this.pendingLevel = this.level
+    this.tokens.push(token)
+    this.tokens_meta.push(null)
+    return token
+  }
+
   /**
    * Push a new token to the output
    */
@@ -66,13 +78,17 @@ export class StateInline {
       this.pushPending()
     }
 
+    if (nesting === 0) {
+      return this.pushSimple(type, tag)
+    }
+
     const token = new Token(type, tag, nesting)
     let token_meta = null
 
     if (nesting < 0) {
       // closing tag
       this.level--
-      this.delimiters = this._prev_delimiters.pop() || []
+      this.delimiters = this._prev_delimiters.pop()
     }
 
     token.level = this.level

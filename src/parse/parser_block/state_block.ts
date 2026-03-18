@@ -3,6 +3,7 @@
  */
 
 import { Token } from '../../common/token'
+import type { ParseSource } from '../source'
 
 function isSpace(code: number): boolean {
   switch (code) {
@@ -14,11 +15,10 @@ function isSpace(code: number): boolean {
 }
 
 export class StateBlock {
-  public src: string
+  public src: ParseSource
   public md: any
   public env: any
   public tokens: Token[]
-  public Token: typeof Token
 
   // Line markers
   public bMarks: number[] = [] // line begin offsets
@@ -37,12 +37,11 @@ export class StateBlock {
   public parentType: string = 'root' // 'blockquote', 'list', 'root', 'paragraph', 'reference'
   public level: number = 0
 
-  constructor(src: string, md: any, env: any, tokens: Token[]) {
+  constructor(src: ParseSource, md: any, env: any, tokens: Token[]) {
     this.src = src
     this.md = md
     this.env = env
     this.tokens = tokens
-    this.Token = Token
 
     // Generate line markers
     const s = this.src
@@ -97,9 +96,15 @@ export class StateBlock {
   }
 
   push(type: string, tag: string, nesting: number): Token {
+    if (nesting === 0) {
+      const token = new Token(type, tag, 0)
+      token.block = true
+      token.level = this.level
+      this.tokens.push(token)
+      return token
+    }
+
     const token = new Token(type, tag, nesting)
-    token.level = this.level
-    token.content = ''
     token.block = true
 
     if (nesting < 0)
@@ -117,8 +122,11 @@ export class StateBlock {
   }
 
   skipEmptyLines(from: number): number {
+    const bMarks = this.bMarks
+    const tShift = this.tShift
+    const eMarks = this.eMarks
     for (let max = this.lineMax; from < max; from++) {
-      if (this.bMarks[from] + this.tShift[from] < this.eMarks[from]) {
+      if (bMarks[from] + tShift[from] < eMarks[from]) {
         break
       }
     }
@@ -126,9 +134,10 @@ export class StateBlock {
   }
 
   skipSpaces(pos: number): number {
-    for (let max = this.src.length; pos < max; pos++) {
-      const ch = this.src.charCodeAt(pos)
-      if (!isSpace(ch))
+    const src = this.src
+    for (let max = src.length; pos < max; pos++) {
+      const ch = src.charCodeAt(pos)
+      if (ch !== 0x09 && ch !== 0x20)
         break
     }
     return pos
@@ -137,16 +146,19 @@ export class StateBlock {
   skipSpacesBack(pos: number, min: number): number {
     if (pos <= min)
       return pos
+    const src = this.src
     while (pos > min) {
-      if (!isSpace(this.src.charCodeAt(--pos)))
+      const ch = src.charCodeAt(--pos)
+      if (ch !== 0x09 && ch !== 0x20)
         return pos + 1
     }
     return pos
   }
 
   skipChars(pos: number, code: number): number {
-    for (let max = this.src.length; pos < max; pos++) {
-      if (this.src.charCodeAt(pos) !== code)
+    const src = this.src
+    for (let max = src.length; pos < max; pos++) {
+      if (src.charCodeAt(pos) !== code)
         break
     }
     return pos
@@ -155,8 +167,9 @@ export class StateBlock {
   skipCharsBack(pos: number, code: number, min: number): number {
     if (pos <= min)
       return pos
+    const src = this.src
     while (pos > min) {
-      if (code !== this.src.charCodeAt(--pos))
+      if (code !== src.charCodeAt(--pos))
         return pos + 1
     }
     return pos
@@ -166,33 +179,28 @@ export class StateBlock {
     if (begin >= end)
       return ''
 
-    const queue: string[] = new Array(end - begin)
-
-    for (let i = 0, line = begin; line < end; line++, i++) {
-      let lineIndent = 0
+    if (begin + 1 === end) {
+      const line = begin
       const lineStart = this.bMarks[line]
       let first = lineStart
-      let last: number
-
-      if (line + 1 < end || keepLastLF) {
-        last = this.eMarks[line] + 1
-      }
-      else {
-        last = this.eMarks[line]
-      }
+      const last = keepLastLF ? this.eMarks[line] + 1 : this.eMarks[line]
+      let lineIndent = 0
+      const src = this.src
+      const bsCount = this.bsCount
+      const tShift = this.tShift
 
       while (first < last && lineIndent < indent) {
-        const ch = this.src.charCodeAt(first)
+        const ch = src.charCodeAt(first)
 
-        if (isSpace(ch)) {
+        if (ch === 0x09 || ch === 0x20) {
           if (ch === 0x09) {
-            lineIndent += 4 - (lineIndent + this.bsCount[line]) % 4
+            lineIndent += 4 - (lineIndent + bsCount[line]) % 4
           }
           else {
             lineIndent++
           }
         }
-        else if (first - lineStart < this.tShift[line]) {
+        else if (first - lineStart < tShift[line]) {
           lineIndent++
         }
         else {
@@ -202,10 +210,57 @@ export class StateBlock {
       }
 
       if (lineIndent > indent) {
-        queue[i] = new Array(lineIndent - indent + 1).join(' ') + this.src.slice(first, last)
+        return new Array(lineIndent - indent + 1).join(' ') + src.slice(first, last)
+      }
+
+      return src.slice(first, last)
+    }
+
+    const queue: string[] = new Array(end - begin)
+    const src = this.src
+    const bMarks = this.bMarks
+    const eMarks = this.eMarks
+    const bsCount = this.bsCount
+    const tShift = this.tShift
+
+    for (let i = 0, line = begin; line < end; line++, i++) {
+      let lineIndent = 0
+      const lineStart = bMarks[line]
+      let first = lineStart
+      let last: number
+
+      if (line + 1 < end || keepLastLF) {
+        last = eMarks[line] + 1
       }
       else {
-        queue[i] = this.src.slice(first, last)
+        last = eMarks[line]
+      }
+
+      while (first < last && lineIndent < indent) {
+        const ch = src.charCodeAt(first)
+
+        if (isSpace(ch)) {
+          if (ch === 0x09) {
+            lineIndent += 4 - (lineIndent + bsCount[line]) % 4
+          }
+          else {
+            lineIndent++
+          }
+        }
+        else if (first - lineStart < tShift[line]) {
+          lineIndent++
+        }
+        else {
+          break
+        }
+        first++
+      }
+
+      if (lineIndent > indent) {
+        queue[i] = new Array(lineIndent - indent + 1).join(' ') + src.slice(first, last)
+      }
+      else {
+        queue[i] = src.slice(first, last)
       }
     }
 

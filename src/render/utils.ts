@@ -4,6 +4,8 @@
 
 const HTML_ESCAPE_TEST_RE = /[&<>"]/
 const HTML_ESCAPE_REPLACE_RE = /[&<>"]/g
+const HTML_ESCAPE_AMP_RE = /&/g
+const HTML_ESCAPE_NO_AMP_RE = /[<>"]/g
 const HTML_REPLACEMENTS: Record<string, string> = {
   '&': '&amp;',
   '<': '&lt;',
@@ -19,10 +21,30 @@ function replaceUnsafeChar(ch: string): string {
  * Escape HTML characters to prevent XSS
  */
 export function escapeHtml(str: string): string {
-  if (HTML_ESCAPE_TEST_RE.test(str)) {
-    return str.replace(HTML_ESCAPE_REPLACE_RE, replaceUnsafeChar)
+  if (str.length === 0)
+    return ''
+
+  if (str.length < 32) {
+    if (HTML_ESCAPE_TEST_RE.test(str))
+      return str.replace(HTML_ESCAPE_REPLACE_RE, replaceUnsafeChar)
+    return str
   }
-  return str
+
+  const hasAmp = str.includes('&')
+  const hasLt = str.includes('<')
+  const hasGt = str.includes('>')
+  const hasQuot = str.includes('"')
+
+  if (!hasAmp && !hasLt && !hasGt && !hasQuot)
+    return str
+
+  if (hasAmp && !hasLt && !hasGt && !hasQuot)
+    return str.replace(HTML_ESCAPE_AMP_RE, '&amp;')
+
+  if (!hasAmp)
+    return str.replace(HTML_ESCAPE_NO_AMP_RE, replaceUnsafeChar)
+
+  return str.replace(HTML_ESCAPE_REPLACE_RE, replaceUnsafeChar)
 }
 
 const UNESCAPE_MD_RE = /\\([!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])/g

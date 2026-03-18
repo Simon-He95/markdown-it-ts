@@ -29,6 +29,15 @@ function getLine(state: StateBlock, line: number): string {
   return state.src.slice(pos, max)
 }
 
+function lineContainsPipe(state: StateBlock, line: number): boolean {
+  for (let pos = state.bMarks[line] + state.tShift[line], max = state.eMarks[line]; pos < max; pos++) {
+    if (state.src.charCodeAt(pos) === 0x7C) {
+      return true
+    }
+  }
+  return false
+}
+
 function escapedSplit(str: string): string[] {
   const result: string[] = []
   const max = str.length
@@ -104,6 +113,9 @@ export function table(state: StateBlock, startLine: number, endLine: number, sil
   if (firstCh === 0x2D /* - */ && isSpace(secondCh))
     return false
 
+  if (!lineContainsPipe(state, startLine))
+    return false
+
   while (pos < state.eMarks[nextLine]) {
     const ch = state.src.charCodeAt(pos)
 
@@ -143,8 +155,6 @@ export function table(state: StateBlock, startLine: number, endLine: number, sil
   }
 
   lineText = getLine(state, startLine).trim()
-  if (!lineText.includes('|'))
-    return false
   if (state.sCount[startLine] - state.blkIndent >= 4)
     return false
   columns = escapedSplit(lineText)

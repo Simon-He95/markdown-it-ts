@@ -41,17 +41,21 @@ function isTerminatorChar(ch: number): boolean {
 }
 
 export function text(state: any, silent?: boolean): boolean {
-  let pos = state.pos
+  const src = state.src
+  const start = state.pos
+  const max = state.posMax
 
-  while (pos < state.posMax && !isTerminatorChar(state.src.charCodeAt(pos))) {
+  if (start >= max || isTerminatorChar(src.charCodeAt(start)))
+    return false
+
+  let pos = start + 1
+  while (pos < max && !isTerminatorChar(src.charCodeAt(pos))) {
     pos++
   }
 
-  if (pos === state.pos)
-    return false
-
-  if (!silent)
-    state.pending += state.src.slice(state.pos, pos)
+  if (!silent) {
+    state.pending += pos === start + 1 ? src[start] : src.slice(start, pos)
+  }
 
   state.pos = pos
 

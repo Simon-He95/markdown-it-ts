@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest'
-import { splitIntoChunks } from '../../src/stream/chunked'
+import { describe, it, expect, vi } from 'vitest'
+import MarkdownIt from '../../src'
+import { chunkedParse, splitIntoChunks } from '../../src/stream/chunked'
 
 describe('splitIntoChunks robustness', () => {
   it('forces a flush when size exceeded and no blank lines for a while (not in fence)', () => {
@@ -52,5 +53,34 @@ describe('splitIntoChunks robustness', () => {
 
     // There should be at least two chunks: fence + following content (depending on thresholds)
     expect(chunks.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('rebalances chunk count without creating a giant tail chunk', () => {
+    const block = [
+      '## Section',
+      '',
+      'alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu',
+      '',
+    ].join('\n')
+    const src = block.repeat(40)
+
+    const md = MarkdownIt()
+    const parseSpy = vi.spyOn(md.core, 'parse')
+
+    chunkedParse(md, src, {}, {
+      maxChunkChars: 160,
+      maxChunkLines: 4,
+      fenceAware: true,
+      maxChunks: 4,
+    })
+
+    const chunkLengths = parseSpy.mock.calls.map(call => (call[0] as string).length)
+    expect(chunkLengths.length).toBe(4)
+    expect(chunkLengths.reduce((sum, len) => sum + len, 0)).toBe(src.length)
+
+    const maxLen = Math.max(...chunkLengths)
+    expect(maxLen).toBeLessThan(src.length / 2)
+
+    parseSpy.mockRestore()
   })
 })

@@ -2,6 +2,11 @@
 
 This report summarizes measured performance across five configurations and four document sizes. Benchmarks were run on Node.js using synthetic paragraph-heavy content.
 
+Default API note:
+- Normal callers should keep using `md.parse(src)` / `md.render(src)`.
+- Large finite strings are already handled by the default API via internal large-input optimizations.
+- Explicit chunk-stream APIs such as `parseIterable` / `UnboundedBuffer` are advanced tools for sources that already arrive as chunks; they are not required to benefit from the default large-text path.
+
 Scenarios:
 - S1: stream ON, cache OFF, chunk ON (stream + chunked, but reset cache each step)
 - S2: stream ON, cache ON, chunk OFF (stream append fast-path only)

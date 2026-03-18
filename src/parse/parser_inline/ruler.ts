@@ -13,9 +13,11 @@ export interface InlineRule {
 export class InlineRuler {
   private rules: InlineRule[] = []
   private cache: Map<string, Array<(state: any, silent?: boolean) => boolean | void>> | null = null
+  public version = 0
 
   private invalidateCache(): void {
     this.cache = null
+    this.version++
   }
 
   /**

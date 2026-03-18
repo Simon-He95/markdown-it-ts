@@ -83,6 +83,47 @@ const html = md.render('# Hello World')
 console.log(html)
 ```
 
+### Large Inputs
+
+For normal usage, keep the original markdown-it-compatible API:
+
+```typescript
+const md = markdownIt()
+const tokens = md.parse(hugeMarkdown)
+const html = md.render(hugeMarkdown)
+```
+
+Those default `parse` / `render` calls now auto-activate the internal large-input path once the document crosses the large-document threshold, so users do not need a separate API just to benefit from huge-text optimizations. If needed, this can be disabled with `autoUnbounded: false`.
+
+Use the explicit stream-oriented APIs only when your upstream input already arrives as chunks and you do not want to join it into one giant string first:
+
+```typescript
+import MarkdownIt, { UnboundedBuffer } from 'markdown-it-ts'
+
+const md = MarkdownIt()
+
+const tokens = md.parseIterable(fileChunks)
+
+const buffer = new UnboundedBuffer(md, { mode: 'stream' })
+for await (const chunk of logChunks) {
+  buffer.feed(chunk)
+  buffer.flushAvailable()
+}
+const finalTokens = buffer.flushForce()
+```
+
+`parseIterable` / `parseAsyncIterable` are advanced entry points for explicit `Iterable<string>` / `AsyncIterable<string>` inputs. `UnboundedBuffer` is the advanced append-only path for real chunk streams and only keeps a bounded tail in memory instead of the whole historical source string.
+
+If you also need bounded output memory for explicit chunk-stream inputs, use the sink form instead of retaining a full token array:
+
+```typescript
+md.parseIterableToSink(fileChunks, (tokens, info) => {
+  consumeTokenChunk(tokens, info)
+})
+```
+
+For arbitrary in-place edits, use `EditableBuffer`. It stores the source in a piece table and reparses only from an anchor before the affected block instead of flattening and reparsing the whole document every time. Internally, both the full parse and the localized reparse paths now hand a `PieceTableSourceView` straight to `md.core.parseSource(...)`, so the selected range no longer needs to be materialized as one giant intermediate string first.
+
 Need async renderer rules (for example, asynchronous syntax highlighting)? Use `renderAsync` which awaits async rule results:
 
 ```typescript
@@ -115,7 +156,7 @@ console.log(html)
 
 ## Why render with markdown-it-ts?
 
-- **Compared with markdown-it**: same API/plugin surface, but rewritten in TypeScript with a modular architecture that can be tree-shaken and that ships streaming/chunked strategies. Default one-shot parse is already faster across most sizes (see benchmarks below), and editor-style flows can enable `stream`, `streamChunkedFallback`, etc., to re-parse only appended content instead of reprocessing entire documents.
+- **Compared with markdown-it**: same API/plugin surface, but rewritten in TypeScript with a modular architecture that can be tree-shaken and that ships streaming/chunked strategies. Normal `parse` / `render` usage stays unchanged, large finite strings now auto-enable internal large-input optimizations, and editor-style flows can additionally opt into `stream`, `streamChunkedFallback`, etc., to re-parse only appended content instead of reprocessing entire documents.
 - **Compared with markdown-exit**: both projects target speed, but markdown-it-ts stays 100% compatible with markdown-it plugins, offers typed APIs plus async rendering (`renderAsync`), and exposes richer tuning knobs (fence-aware chunking, hybrid fallback modes). In our 5k–100k measurements, markdown-it-ts consistently leads one-shot parse latency (see “Parse ranking”), and its streaming path keeps append latency far lower than re-running a full parse per keystroke.
 - **Compared with remark**: remark’s strength is AST transforms, yet rendering Markdown → HTML usually requires a rehype/rehype-stringify pipeline, which adds significant overhead (our measurements show ~29× slower HTML rendering at 20k chars). markdown-it-ts produces HTML directly, keeps markdown-it renderer semantics, and still supports async highlighting or token post-processing, which makes it a better fit for real-time preview, SSR, or any latency-sensitive render workload.
 - **Compared with micromark**: micromark is a CommonMark-oriented reference implementation that can render Markdown → HTML directly. markdown-it-ts targets markdown-it’s plugin API and renderer semantics while keeping end-to-end render throughput competitive (see “Render vs micromark” below).
@@ -402,6 +443,11 @@ To make sure each change is not slower than the previous run at any tested size/
 - Run the regression check against the most recent baseline (same harness):
   - `pnpm run perf:check:latest`
 
+- Run the per-token-type render benchmark against `markdown-it`:
+  - `pnpm run perf:render-rules`
+  - Add `--include-noise` to also show zero-token / sub-signal categories
+  - Use `pnpm run perf:render-rules:check` to fail if any meaningful category regresses beyond the threshold
+
 - Inspect detailed deltas by size/scenario (sorted by worst):
   - `pnpm run perf:diff`
 
@@ -447,11 +493,11 @@ Latest one-shot parse results on this machine (Node.js v23): markdown-it-ts is r
 
 Examples from the latest run (avg over 20 iterations):
 <!-- perf-auto:one-examples:start -->
-- 5,000 chars: 0.1607ms vs 0.1534ms → ~1.0× faster (1.05× time)
-- 20,000 chars: 0.6569ms vs 0.6418ms → ~1.0× faster (1.02× time)
-- 50,000 chars: 1.7537ms vs 1.8359ms → ~1.0× faster (0.96× time)
-- 100,000 chars: 4.5378ms vs 4.4884ms → ~1.0× faster (1.01× time)
-- 200,000 chars: 9.7259ms vs 9.4087ms → ~1.0× faster (1.03× time)
+- 5,000 chars: 0.1471ms vs 0.2034ms → ~1.4× faster, ~28% less time
+- 20,000 chars: 0.5930ms vs 0.8246ms → ~1.4× faster, ~28% less time
+- 100,000 chars: 3.8636ms vs 5.5301ms → ~1.4× faster, ~30% less time
+- 500,000 chars: 25.49ms vs 32.98ms → ~1.3× faster, ~23% less time
+- 1,000,000 chars: 55.19ms vs 62.52ms → ~1.1× faster, ~12% less time
 <!-- perf-auto:one-examples:end -->
 
 - Notes
@@ -465,21 +511,17 @@ We also compare parse-only performance against `remark` (parse-only). The follow
 One-shot parse (oneShotMs) — markdown-it-ts vs remark (lower is better):
 
 <!-- perf-auto:remark-one:start -->
-- 5,000 chars: 0.1607ms vs 5.0036ms → 31.1× faster
-- 20,000 chars: 0.6569ms vs 22.30ms → 33.9× faster
-- 50,000 chars: 1.7537ms vs 64.44ms → 36.7× faster
-- 100,000 chars: 4.5378ms vs 141.17ms → 31.1× faster
-- 200,000 chars: 9.7259ms vs 336.21ms → 34.6× faster
+- 5,000 chars: 0.1471ms vs 5.7177ms → 38.9× faster
+- 20,000 chars: 0.5930ms vs 25.97ms → 43.8× faster
+- 100,000 chars: 3.8636ms vs 173.03ms → 44.8× faster
 <!-- perf-auto:remark-one:end -->
 
 Append workload (appendWorkloadMs) — markdown-it-ts vs remark:
 
 <!-- perf-auto:remark-append:start -->
-- 5,000 chars: 0.2230ms vs 15.00ms → 67.3× faster
-- 20,000 chars: 1.0716ms vs 71.76ms → 67.0× faster
-- 50,000 chars: 2.4638ms vs 200.55ms → 81.4× faster
-- 100,000 chars: 4.6964ms vs 460.69ms → 98.1× faster
-- 200,000 chars: 11.27ms vs 1060.34ms → 94.1× faster
+- 5,000 chars: 0.2409ms vs 17.75ms → 73.7× faster
+- 20,000 chars: 0.9957ms vs 84.65ms → 85× faster
+- 100,000 chars: 4.7039ms vs 566.69ms → 120.5× faster
 <!-- perf-auto:remark-append:end -->
 
 ### Parse performance vs micromark
@@ -489,34 +531,32 @@ We also compare parse-only performance against `micromark` (scenario `MM1`), mea
 One-shot parse (oneShotMs) — markdown-it-ts vs micromark-based parse:
 
 <!-- perf-auto:micromark-one:start -->
-- 5,000 chars: 0.1607ms vs 3.4504ms → 21.5× faster
-- 20,000 chars: 0.6569ms vs 17.26ms → 26.3× faster
-- 50,000 chars: 1.7537ms vs 72.84ms → 41.5× faster
-- 100,000 chars: 4.5378ms vs 94.82ms → 20.9× faster
-- 200,000 chars: 9.7259ms vs 189.84ms → 19.5× faster
+- 5,000 chars: 0.1471ms vs 4.4509ms → 30.3× faster
+- 20,000 chars: 0.5930ms vs 20.23ms → 34.1× faster
+- 100,000 chars: 3.8636ms vs 111.04ms → 28.7× faster
 <!-- perf-auto:micromark-one:end -->
 
 Append workload (appendWorkloadMs) — markdown-it-ts vs micromark-based parse:
 
 <!-- perf-auto:micromark-append:start -->
-- 5,000 chars: 0.2230ms vs 11.16ms → 50.1× faster
-- 20,000 chars: 1.0716ms vs 56.74ms → 52.9× faster
-- 50,000 chars: 2.4638ms vs 226.94ms → 92.1× faster
-- 100,000 chars: 4.6964ms vs 325.22ms → 69.2× faster
-- 200,000 chars: 11.27ms vs 677.15ms → 60.1× faster
+- 5,000 chars: 0.2409ms vs 14.69ms → 61× faster
+- 20,000 chars: 0.9957ms vs 68.93ms → 69.2× faster
+- 100,000 chars: 4.7039ms vs 380.15ms → 80.8× faster
 <!-- perf-auto:micromark-append:end -->
 
 ## Parse performance vs markdown-exit
 
 The following shows one-shot parse times (oneShotMs) comparing the best markdown-it-ts scenario against `markdown-exit` (E1) from the latest perf snapshot.
 
+<!-- perf-auto:exit-one:start -->
 | Size (chars) | markdown-it-ts (best one-shot) | markdown-exit (one-shot) |
 |---:|---:|---:|
-| 5,000 | 0.0001472ms | 0.3588764ms |
-| 20,000 | 0.0001688ms | 0.8871354ms |
-| 50,000 | 0.0003000ms | 2.1539625ms |
-| 100,000 | 0.0004722ms | 5.0225138ms |
-| 200,000 | 9.6601355ms | 12.8995730ms |
+| 5,000 | 0.1471ms | 0.3071ms |
+| 20,000 | 0.5930ms | 1.0877ms |
+| 50,000 | 1.7063ms | 2.8400ms |
+| 100,000 | 3.8636ms | 6.9174ms |
+| 200,000 | 10.05ms | 14.73ms |
+<!-- perf-auto:exit-one:end -->
 
 Notes: markdown-it-ts remains substantially faster for small one-shot parses due to streaming/chunk strategies; for very large documents (200k+) raw one-shot times are closer between implementations. See `docs/perf-latest.json` for full details.
 
@@ -528,36 +568,34 @@ Notes on interpretation
 
 ## Render performance (markdown → HTML)
 
-We also profile end-to-end `md.render` throughput (parse + render) across markdown-it-ts, upstream markdown-it, and a remark+rehype pipeline. Numbers below come from the latest `pnpm run perf:generate` snapshot.
+We also profile end-to-end `md.render` API throughput (parse + render) across markdown-it-ts, upstream markdown-it, and a remark+rehype pipeline. This section is intentionally about the full `render(markdown)` call, not the lower-level renderer-only hot path. Numbers below come from the latest `pnpm run perf:generate` snapshot.
 
-### vs markdown-it renderer
+For large finite strings, these numbers already include the default automatic large-input path; users do not need to switch to `parseIterable` / `UnboundedBuffer` to get those optimizations. Those advanced APIs are reserved for explicit chunk-stream inputs.
+
+### vs markdown-it render API
 
 <!-- perf-auto:render-md:start -->
-- 5,000 chars: 0.2102ms vs 0.1885ms → ~0.9× faster
-- 20,000 chars: 0.8385ms vs 0.7632ms → ~0.9× faster
-- 50,000 chars: 2.2585ms vs 1.9327ms → ~0.9× faster
-- 100,000 chars: 5.5615ms vs 5.0181ms → ~0.9× faster
-- 200,000 chars: 13.36ms vs 12.28ms → ~0.9× faster
+- 5,000 chars: 0.1731ms vs 0.2477ms → ~1.4× faster
+- 20,000 chars: 0.6912ms vs 1.0030ms → ~1.5× faster
+- 100,000 chars: 5.2051ms vs 6.6655ms → ~1.3× faster
+- 500,000 chars: 32.92ms vs 45.63ms → ~1.4× faster
+- 1,000,000 chars: 77.49ms vs 90.37ms → ~1.2× faster
 <!-- perf-auto:render-md:end -->
 
-### vs remark + rehype renderer
+### vs remark + rehype render API
 
 <!-- perf-auto:render-remark:start -->
-- 5,000 chars: 0.2102ms vs 3.9446ms → ~18.8× faster
-- 20,000 chars: 0.8385ms vs 23.91ms → ~28.5× faster
-- 50,000 chars: 2.2585ms vs 66.25ms → ~29.3× faster
-- 100,000 chars: 5.5615ms vs 148.35ms → ~26.7× faster
-- 200,000 chars: 13.36ms vs 348.34ms → ~26.1× faster
+- 5,000 chars: 0.1731ms vs 6.5904ms → ~38.1× faster
+- 20,000 chars: 0.6912ms vs 30.20ms → ~43.7× faster
+- 100,000 chars: 5.2051ms vs 191.28ms → ~36.7× faster
 <!-- perf-auto:render-remark:end -->
 
 ### vs micromark (CommonMark reference)
 
 <!-- perf-auto:render-micromark:start -->
-- 5,000 chars: 0.2102ms vs 3.2989ms → ~15.7× faster
-- 20,000 chars: 0.8385ms vs 19.90ms → ~23.7× faster
-- 50,000 chars: 2.2585ms vs 52.65ms → ~23.3× faster
-- 100,000 chars: 5.5615ms vs 108.30ms → ~19.5× faster
-- 200,000 chars: 13.36ms vs 210.12ms → ~15.7× faster
+- 5,000 chars: 0.1731ms vs 5.4900ms → ~31.7× faster
+- 20,000 chars: 0.6912ms vs 24.88ms → ~36× faster
+- 100,000 chars: 5.2051ms vs 133.60ms → ~25.7× faster
 <!-- perf-auto:render-micromark:end -->
 
 Reproduce locally
@@ -569,14 +607,14 @@ node scripts/quick-benchmark.mjs
 
 This will update `docs/perf-latest.md` and refresh the snippet above.
 
-### vs markdown-exit renderer
+### vs markdown-exit render API
 
 <!-- perf-auto:render-exit:start -->
-- 5,000 chars: 0.2814ms vs 0.2836ms → ~1.01× (markdown-it-ts slightly faster)
-- 20,000 chars: 0.9555ms vs 1.0533ms → ~1.10× (markdown-it-ts faster)
-- 50,000 chars: 2.5337ms vs 2.6055ms → ~1.03× (markdown-it-ts faster)
-- 100,000 chars: 5.7094ms vs 5.8194ms → ~1.02× (markdown-it-ts faster)
-- 200,000 chars: 12.3119ms vs 14.3799ms → ~1.17× (markdown-it-ts faster)
+- 5,000 chars: 0.1731ms vs 0.3167ms → ~1.8× faster
+- 20,000 chars: 0.6912ms vs 1.2681ms → ~1.8× faster
+- 50,000 chars: 1.8822ms vs 3.3118ms → ~1.8× faster
+- 100,000 chars: 5.2051ms vs 8.1449ms → ~1.6× faster
+- 200,000 chars: 11.99ms vs 19.25ms → ~1.6× faster
 <!-- perf-auto:render-exit:end -->
 
 

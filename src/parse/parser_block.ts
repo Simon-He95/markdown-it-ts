@@ -19,6 +19,7 @@ import { reference } from '../rules/block/reference'
 import { table } from '../rules/block/table'
 import { BlockRuler } from './parser_block/ruler'
 import { StateBlock } from './parser_block/state_block'
+import type { ParseSource } from './source'
 
 const _rules: [string, any, string[]?][] = [
   // First 2 params - rule name & source. Third param - list of rules,
@@ -38,6 +39,8 @@ const _rules: [string, any, string[]?][] = [
 
 export class ParserBlock {
   public ruler: BlockRuler
+  private cachedRulesVersion = -1
+  private cachedRules: Array<(state: StateBlock, startLine: number, endLine: number, silent: boolean) => boolean> = []
 
   constructor() {
     this.ruler = new BlockRuler()
@@ -51,20 +54,27 @@ export class ParserBlock {
    * Generate tokens for input range
    */
   tokenize(state: StateBlock, startLine: number, endLine: number): void {
-    const rules = this.ruler.getRules('')
+    const rules = this.getRules()
     const len = rules.length
     const maxNesting = state.md.options.maxNesting
+    const bMarks = state.bMarks
+    const tShift = state.tShift
+    const eMarks = state.eMarks
+    const sCount = state.sCount
     let line = startLine
     let hasEmptyLines = false
 
     while (line < endLine) {
-      state.line = line = state.skipEmptyLines(line)
+      while (line < endLine && bMarks[line] + tShift[line] >= eMarks[line]) {
+        line++
+      }
+      state.line = line
       if (line >= endLine)
         break
 
       // Termination condition for nested calls.
       // Nested calls currently used for blockquotes & lists
-      if (state.sCount[line] < state.blkIndent)
+      if (sCount[line] < state.blkIndent)
         break
 
       // If nesting level exceeded - skip tail to the end. That's not ordinary
@@ -102,13 +112,13 @@ export class ParserBlock {
       state.tight = !hasEmptyLines
 
       // paragraph might "eat" one newline after it in nested lists
-      if (state.isEmpty(state.line - 1)) {
+      if (bMarks[state.line - 1] + tShift[state.line - 1] >= eMarks[state.line - 1]) {
         hasEmptyLines = true
       }
 
       line = state.line
 
-      if (line < endLine && state.isEmpty(line)) {
+      if (line < endLine && bMarks[line] + tShift[line] >= eMarks[line]) {
         hasEmptyLines = true
         line++
         state.line = line
@@ -121,12 +131,20 @@ export class ParserBlock {
    *
    * Process input string and push block tokens into `outTokens`
    */
-  parse(src: string, md: any, env: any, outTokens: Token[]): void {
-    if (!src)
+  parse(src: ParseSource, md: any, env: any, outTokens: Token[]): void {
+    if (!src || src.length === 0)
       return
 
     const state = new StateBlock(src, md, env, outTokens)
 
     this.tokenize(state, state.line, state.lineMax)
+  }
+
+  private getRules(): Array<(state: StateBlock, startLine: number, endLine: number, silent: boolean) => boolean> {
+    if (this.cachedRulesVersion !== this.ruler.version) {
+      this.cachedRules = this.ruler.getRules('') as Array<(state: StateBlock, startLine: number, endLine: number, silent: boolean) => boolean>
+      this.cachedRulesVersion = this.ruler.version
+    }
+    return this.cachedRules
   }
 }

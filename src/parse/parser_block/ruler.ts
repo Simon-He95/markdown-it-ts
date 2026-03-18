@@ -10,10 +10,12 @@ export class BlockRuler {
     alt: string[]
   }> = []
 
-  private cache: Map<string, Array<(state: any, startLine: number, endLine: number, silent: boolean) => boolean>> | null = null
+  private cache: Record<string, Array<(state: any, startLine: number, endLine: number, silent: boolean) => boolean>> | null = null
+  public version = 0
 
   private invalidateCache(): void {
     this.cache = null
+    this.version++
   }
 
   push(name: string, fn: any, options?: { alt?: string[] }): void {
@@ -52,7 +54,7 @@ export class BlockRuler {
     const chain = chainName || ''
     if (!this.cache)
       this.compileCache()
-    return this.cache!.get(chain) ?? []
+    return this.cache![chain] ?? []
   }
 
   at(name: string, fn: any, options?: { alt?: string[] }): void {
@@ -135,7 +137,7 @@ export class BlockRuler {
         chains.add(alt)
     }
 
-    const cache = new Map<string, Array<(state: any, startLine: number, endLine: number, silent: boolean) => boolean>>()
+    const cache: Record<string, Array<(state: any, startLine: number, endLine: number, silent: boolean) => boolean>> = Object.create(null)
     for (const chain of chains) {
       const bucket: Array<(state: any, startLine: number, endLine: number, silent: boolean) => boolean> = []
       for (const rule of this._rules) {
@@ -145,7 +147,7 @@ export class BlockRuler {
           continue
         bucket.push(rule.fn)
       }
-      cache.set(chain, bucket)
+      cache[chain] = bucket
     }
     this.cache = cache
   }

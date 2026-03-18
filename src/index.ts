@@ -1,28 +1,48 @@
 import type { Token as TokenType } from './common/token'
 import type { RendererOptions } from './render/renderer'
 import type { StreamStats } from './stream/parser'
+import type { UnboundedChunkInfo, UnboundedBufferStats } from './stream/unbounded'
 import LinkifyIt from 'linkify-it'
 import * as utils from './common/utils'
 import * as helpers from './helpers'
 import { normalizeLink, normalizeLinkText, validateLink } from './parse/link_utils'
+import type { ParserBlock } from './parse/parser_block'
 import { ParserCore } from './parse/parser_core'
+import type { ParserInline } from './parse/parser_inline'
 import commonmarkPreset from './presets/commonmark'
 import defaultPreset from './presets/default'
 import zeroPreset from './presets/zero'
 import Renderer from './render/renderer'
 import { chunkedParse } from './stream/chunked'
 import { StreamParser } from './stream/parser'
+import {
+  getAutoUnboundedDecision,
+  parseAsyncIterable as parseAsyncIterableSource,
+  parseAsyncIterableToSink as parseAsyncIterableToSinkSource,
+  parseIterable as parseIterableSource,
+  parseIterableToSink as parseIterableToSinkSource,
+  parseStringUnbounded,
+  shouldAutoUseUnbounded,
+} from './stream/unbounded'
+import { recommendFullChunkStrategy } from './support/chunk_recommend'
 
 export { Token } from './common/token'
 export { parse, parseInline } from './parse'
 
 export { withRenderer } from './plugins/with-renderer'
+export type { ParseSource, TextSource } from './parse/source'
 export type { RendererEnv, RendererOptions } from './render'
 export { StreamBuffer } from './stream/buffer'
 export { chunkedParse } from './stream/chunked'
 export type { ChunkedOptions } from './stream/chunked'
 export { DebouncedStreamParser, ThrottledStreamParser } from './stream/debounced'
+export { EditableBuffer } from './stream/editable'
 export type { StreamStats } from './stream/parser'
+export { PieceTable, PieceTableSourceView } from './stream/piece_table'
+export type { EditableBufferStats } from './stream/editable'
+export type { PieceTableStats } from './stream/piece_table'
+export { parseAsyncIterable, parseAsyncIterableToSink, parseIterable, parseIterableToSink, UnboundedBuffer } from './stream/unbounded'
+export type { UnboundedBufferOptions, UnboundedBufferStats, UnboundedChunkInfo, UnboundedTokenConsumer } from './stream/unbounded'
 export { recommendFullChunkStrategy, recommendStreamChunkStrategy } from './support/chunk_recommend'
 
 type QuotesOption = string | [string, string, string, string]
@@ -52,6 +72,7 @@ export interface MarkdownItOptions {
   // Adaptive chunk sizing for stream chunked fallback (if true, sizes chosen by doc size)
   streamChunkAdaptive?: boolean
   streamChunkTargetChunks?: number
+  streamChunkMaxChunks?: number
   // Skip caching for extremely large one-shot payloads (chars or lines)
   streamSkipCacheAboveChars?: number
   streamSkipCacheAboveLines?: number
@@ -68,6 +89,10 @@ export interface MarkdownItOptions {
   fullChunkTargetChunks?: number
   // Auto-tune best-practice chunk strategy by doc size when user did not provide explicit sizes
   autoTuneChunks?: boolean
+  // For large plain-string inputs, transparently switch to the internal unbounded full parser
+  autoUnbounded?: boolean
+  autoUnboundedThresholdChars?: number
+  autoUnboundedThresholdLines?: number
 }
 
 interface Preset { options?: MarkdownItOptions, components?: any }
@@ -81,8 +106,8 @@ const config: Record<string, Preset> = {
 // Define the MarkdownIt instance interface for better type support
 export interface MarkdownIt {
   core: ParserCore
-  block: any
-  inline: any
+  block: ParserBlock
+  inline: ParserInline
   linkify: ReturnType<typeof LinkifyIt>
   renderer: Renderer
   options: MarkdownItOptions
@@ -101,6 +126,8 @@ export interface MarkdownIt {
   use: (plugin: MarkdownItPlugin, ...params: unknown[]) => this
   render: (src: string, env?: Record<string, unknown>) => string
   renderAsync: (src: string, env?: Record<string, unknown>) => Promise<string>
+  renderIterable: (chunks: Iterable<string>, env?: Record<string, unknown>) => string
+  renderAsyncIterable: (chunks: AsyncIterable<string>, env?: Record<string, unknown>) => Promise<string>
   renderInline: (src: string, env?: Record<string, unknown>) => string
   validateLink: typeof validateLink
   normalizeLink: typeof normalizeLink
@@ -108,12 +135,33 @@ export interface MarkdownIt {
   utils: typeof utils
   helpers: typeof helpers
   parse: (src: string, env?: Record<string, unknown>) => TokenType[]
+  parseIterable: (chunks: Iterable<string>, env?: Record<string, unknown>) => TokenType[]
+  parseAsyncIterable: (chunks: AsyncIterable<string>, env?: Record<string, unknown>) => Promise<TokenType[]>
+  parseIterableToSink: (chunks: Iterable<string>, onChunkTokens: (tokens: TokenType[], info: UnboundedChunkInfo) => void, env?: Record<string, unknown>) => UnboundedBufferStats
+  parseAsyncIterableToSink: (chunks: AsyncIterable<string>, onChunkTokens: (tokens: TokenType[], info: UnboundedChunkInfo) => void, env?: Record<string, unknown>) => Promise<UnboundedBufferStats>
   parseInline: (src: string, env?: Record<string, unknown>) => TokenType[]
 }
 
 export type MarkdownItPluginFn = (md: MarkdownIt, ...params: unknown[]) => unknown
 export interface MarkdownItPluginModule { default: MarkdownItPluginFn }
 export type MarkdownItPlugin = MarkdownItPluginFn | MarkdownItPluginModule
+
+function hasExplicitChunkOverride(
+  presetOptions: MarkdownItOptions | undefined,
+  userOptions: MarkdownItOptions | undefined,
+  keys: ReadonlyArray<keyof MarkdownItOptions>,
+): boolean {
+  const hasOwn = (obj: MarkdownItOptions | undefined, key: keyof MarkdownItOptions) =>
+    !!obj && Object.prototype.hasOwnProperty.call(obj, key) && obj[key] !== undefined
+
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i]
+    if (hasOwn(userOptions, key) || hasOwn(presetOptions, key))
+      return true
+  }
+
+  return false
+}
 
 function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownItOptions): MarkdownIt {
   // defaults (core-only)
@@ -135,6 +183,7 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
     streamChunkFenceAware: true,
     streamChunkAdaptive: true,
     streamChunkTargetChunks: 8,
+    streamChunkMaxChunks: undefined,
     streamSkipCacheAboveChars: 600_000,
     streamSkipCacheAboveLines: 10_000,
     fullChunkedFallback: false,
@@ -147,6 +196,9 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
     fullChunkTargetChunks: 8,
     fullChunkMaxChunks: undefined,
     autoTuneChunks: true,
+    autoUnbounded: true,
+    autoUnboundedThresholdChars: 4_000_000,
+    autoUnboundedThresholdLines: 80_000,
   }
 
   // preset and options resolution (compatible semantics)
@@ -192,6 +244,17 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
     }
   }
 
+  let explicitFullChunkConfig = hasExplicitChunkOverride(preset?.options, userOptions, [
+    'fullChunkSizeChars',
+    'fullChunkSizeLines',
+    'fullChunkMaxChunks',
+  ])
+  let explicitStreamChunkConfig = hasExplicitChunkOverride(preset?.options, userOptions, [
+    'streamChunkSizeChars',
+    'streamChunkSizeLines',
+    'streamChunkMaxChunks',
+  ])
+
   // construct minimal core instance; avoid importing renderer here
   const core = new ParserCore()
 
@@ -233,8 +296,18 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
 
     // options & mutators
     options: opts,
+    __explicitFullChunkConfig: explicitFullChunkConfig,
+    __explicitStreamChunkConfig: explicitStreamChunkConfig,
     set(newOpts: MarkdownItOptions) {
       this.options = { ...this.options, ...newOpts }
+      if (newOpts.fullChunkSizeChars !== undefined || newOpts.fullChunkSizeLines !== undefined || newOpts.fullChunkMaxChunks !== undefined) {
+        explicitFullChunkConfig = true
+        this.__explicitFullChunkConfig = true
+      }
+      if (newOpts.streamChunkSizeChars !== undefined || newOpts.streamChunkSizeLines !== undefined || newOpts.streamChunkMaxChunks !== undefined) {
+        explicitStreamChunkConfig = true
+        this.__explicitStreamChunkConfig = true
+      }
       if (renderer)
         renderer.set(newOpts as RendererOptions)
       if (typeof newOpts.stream === 'boolean') {
@@ -320,6 +393,14 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       const tokens = this.parse(src, env)
       return getRenderer().renderAsync(tokens, this.options, env)
     },
+    renderIterable(this: MarkdownIt, chunks: Iterable<string>, env: Record<string, unknown> = {}) {
+      const tokens = this.parseIterable(chunks, env)
+      return getRenderer().render(tokens, this.options, env)
+    },
+    async renderAsyncIterable(this: MarkdownIt, chunks: AsyncIterable<string>, env: Record<string, unknown> = {}) {
+      const tokens = await this.parseAsyncIterable(chunks, env)
+      return getRenderer().renderAsync(tokens, this.options, env)
+    },
     renderInline(this: MarkdownIt, src: string, env: Record<string, unknown> = {}) {
       const tokens = this.parseInline(src, env)
       return getRenderer().render(tokens, this.options, env)
@@ -341,6 +422,16 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
 
       // Fast path: stream disabled and chunked fallback disabled -> direct parse
       if (!this.stream.enabled && !this.options.fullChunkedFallback) {
+        const autoUnboundedDecision = getAutoUnboundedDecision(this, src.length)
+        if (autoUnboundedDecision === 'yes') {
+          return parseStringUnbounded(this, src, env)
+        }
+        if (
+          autoUnboundedDecision === 'need-lines'
+          && shouldAutoUseUnbounded(this, src.length, utils.countLines(src))
+        ) {
+          return parseStringUnbounded(this, src, env)
+        }
         const state = core.parse(src, env, this)
         return state.tokens
       }
@@ -352,55 +443,61 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
           const lines = utils.countLines(src)
           // Best-practice auto-tuning: choose strategy by size if user didn't force a strategy
           const auto = this.options.autoTuneChunks !== false
-          const userForcedChunk = (this.options.fullChunkSizeChars || this.options.fullChunkSizeLines)
-          if (auto && !userForcedChunk) {
-            // Discrete best-practice from tune script (one-shot focus)
-            //  - <=5k: chunk(32k/150, maxChunks=8)
-            //  - <=20k: chunk(24k/200, maxChunks=12)
-            //  - <=50k: plain
-            //  - <=100k: plain
-            //  - >100k and <=200k: chunk(20k/150, maxChunks=12)
-            //  - >200k: adaptive fallback
-            const fenceAware = this.options.fullChunkFenceAware ?? true
-            if (chars <= 5_000) {
-              return chunkedParse(this, src, env, { maxChunkChars: 32_000, maxChunkLines: 150, fenceAware, maxChunks: 8 })
-            }
-            else if (chars <= 20_000) {
-              return chunkedParse(this, src, env, { maxChunkChars: 24_000, maxChunkLines: 200, fenceAware, maxChunks: 12 })
-            }
-            else if (chars <= 100_000) {
-              // plain full parse preferred up to 100k
-            }
-            else if (chars <= 200_000) {
-              return chunkedParse(this, src, env, { maxChunkChars: 20_000, maxChunkLines: 150, fenceAware, maxChunks: 12 })
-            }
-            // For >200k, fall through to adaptive below
-          }
+          const userForcedChunk = explicitFullChunkConfig
+          const autoRecommendation = auto && !userForcedChunk
+            ? recommendFullChunkStrategy(chars, lines, this.options)
+            : null
           const useChunked = (chars >= (this.options.fullChunkThresholdChars ?? 20_000))
             || (lines >= (this.options.fullChunkThresholdLines ?? 400))
           if (useChunked) {
-            // Reuse chunked options but allow full-specific overrides
+            if (autoRecommendation) {
+              if (autoRecommendation.strategy === 'plain') {
+                const state = core.parse(src, env, this)
+                return state.tokens
+              }
+              const tokens = chunkedParse(this, src, env, {
+                maxChunkChars: autoRecommendation.maxChunkChars,
+                maxChunkLines: autoRecommendation.maxChunkLines,
+                fenceAware: autoRecommendation.fenceAware,
+                maxChunks: autoRecommendation.maxChunks,
+              })
+              return tokens
+            }
+
             const clamp = (v: number, lo: number, hi: number) => v < lo ? lo : (v > hi ? hi : v)
             const adaptive = this.options.fullChunkAdaptive !== false
             const target = this.options.fullChunkTargetChunks ?? 8
-            const dynMaxChunkChars = clamp(Math.ceil(chars / target), 8000, 32000)
-            const dynMaxChunkLines = clamp(Math.ceil(lines / target), 150, 350)
+            const dynMaxChunkChars = clamp(Math.ceil(chars / target), 8000, 64_000)
+            const dynMaxChunkLines = clamp(Math.ceil(lines / target), 150, 700)
             const maxChunkChars = adaptive ? dynMaxChunkChars : (this.options.fullChunkSizeChars ?? 10_000)
             const maxChunkLines = adaptive ? dynMaxChunkLines : (this.options.fullChunkSizeLines ?? 200)
-            const maxChunks = adaptive ? Math.max(6, Math.min(12, target)) : this.options.fullChunkMaxChunks
+            const maxChunks = adaptive
+              ? clamp(Math.ceil(chars / 64_000), target, 32)
+              : this.options.fullChunkMaxChunks
 
-            const tokens = chunkedParse(this, src, env, {
+            return chunkedParse(this, src, env, {
               maxChunkChars,
               maxChunkLines,
               fenceAware: this.options.fullChunkFenceAware ?? true,
               maxChunks,
             })
-            return tokens
           }
         }
       }
       const state = core.parse(src, env, this)
       return state.tokens
+    },
+    parseIterable(this: MarkdownIt, chunks: Iterable<string>, env: Record<string, unknown> = {}) {
+      return parseIterableSource(this, chunks, env)
+    },
+    parseAsyncIterable(this: MarkdownIt, chunks: AsyncIterable<string>, env: Record<string, unknown> = {}) {
+      return parseAsyncIterableSource(this, chunks, env)
+    },
+    parseIterableToSink(this: MarkdownIt, chunks: Iterable<string>, onChunkTokens: (tokens: TokenType[], info: UnboundedChunkInfo) => void, env: Record<string, unknown> = {}) {
+      return parseIterableToSinkSource(this, chunks, onChunkTokens, env)
+    },
+    parseAsyncIterableToSink(this: MarkdownIt, chunks: AsyncIterable<string>, onChunkTokens: (tokens: TokenType[], info: UnboundedChunkInfo) => void, env: Record<string, unknown> = {}) {
+      return parseAsyncIterableToSinkSource(this, chunks, onChunkTokens, env)
     },
     parseInline(src: string, env: Record<string, unknown> = {}) {
       if (typeof src !== 'string')
@@ -416,10 +513,8 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
   md.stream = {
     enabled: Boolean(opts.stream),
     parse(src: string, env?: Record<string, unknown>) {
-      if (!md.stream.enabled) {
-        const state = core.parse(src, env ?? {}, md)
-        return state.tokens
-      }
+      if (!md.stream.enabled)
+        return md.parse(src, env ?? {})
       return getStreamParser().parse(src, env, md)
     },
     reset() {

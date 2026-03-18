@@ -16,10 +16,14 @@ function isSpace(code: number): boolean {
 // Search `[-+*][\n ]`, returns next pos after marker on success
 // or -1 on fail.
 function skipBulletListMarker(state: StateBlock, startLine: number): number {
-  const max = state.eMarks[startLine]
-  let pos = state.bMarks[startLine] + state.tShift[startLine]
+  const eMarks = state.eMarks
+  const bMarks = state.bMarks
+  const tShift = state.tShift
+  const src = state.src
+  const max = eMarks[startLine]
+  let pos = bMarks[startLine] + tShift[startLine]
 
-  const marker = state.src.charCodeAt(pos++)
+  const marker = src.charCodeAt(pos++)
   // Check bullet
   if (marker !== 0x2A
     && /* * */ marker !== 0x2D
@@ -28,7 +32,7 @@ function skipBulletListMarker(state: StateBlock, startLine: number): number {
   }
 
   if (pos < max) {
-    const ch = state.src.charCodeAt(pos)
+    const ch = src.charCodeAt(pos)
 
     if (!isSpace(ch)) {
       // " -test " - is not a list item
@@ -42,15 +46,19 @@ function skipBulletListMarker(state: StateBlock, startLine: number): number {
 // Search `\d+[.)][\n ]`, returns next pos after marker on success
 // or -1 on fail.
 function skipOrderedListMarker(state: StateBlock, startLine: number): number {
-  const start = state.bMarks[startLine] + state.tShift[startLine]
-  const max = state.eMarks[startLine]
+  const bMarks = state.bMarks
+  const tShift = state.tShift
+  const eMarks = state.eMarks
+  const src = state.src
+  const start = bMarks[startLine] + tShift[startLine]
+  const max = eMarks[startLine]
   let pos = start
 
   // List marker should have at least 2 chars (digit + dot)
   if (pos + 1 >= max)
     return -1
 
-  let ch = state.src.charCodeAt(pos++)
+  let ch = src.charCodeAt(pos++)
 
   if (ch < 0x30 /* 0 */ || ch > 0x39 /* 9 */)
     return -1
@@ -60,7 +68,7 @@ function skipOrderedListMarker(state: StateBlock, startLine: number): number {
     if (pos >= max)
       return -1
 
-    ch = state.src.charCodeAt(pos++)
+    ch = src.charCodeAt(pos++)
 
     if (ch >= 0x30 /* 0 */ && ch <= 0x39 /* 9 */) {
       // List marker should have no more than 9 digits
@@ -80,7 +88,7 @@ function skipOrderedListMarker(state: StateBlock, startLine: number): number {
   }
 
   if (pos < max) {
-    ch = state.src.charCodeAt(pos)
+    ch = src.charCodeAt(pos)
 
     if (!isSpace(ch)) {
       // " 1.test " - is not a list item
@@ -90,14 +98,41 @@ function skipOrderedListMarker(state: StateBlock, startLine: number): number {
   return pos
 }
 
+function parseOrderedListMarkerValue(state: StateBlock, startLine: number, markerEnd: number): number {
+  const bMarks = state.bMarks
+  const tShift = state.tShift
+  const src = state.src
+  const start = bMarks[startLine] + tShift[startLine]
+  let value = 0
+  for (let pos = start; pos < markerEnd - 1; pos++) {
+    value = value * 10 + src.charCodeAt(pos) - 0x30
+  }
+  return value
+}
+
+const SINGLE_DIGIT_MARKERS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+
 function markTightParagraphs(state: StateBlock, idx: number): void {
   const level = state.level + 2
+  const tokens = state.tokens
 
-  for (let i = idx + 2, l = state.tokens.length - 2; i < l; i++) {
-    if (state.tokens[i].level === level && state.tokens[i].type === 'paragraph_open') {
-      state.tokens[i + 2].hidden = true
-      state.tokens[i].hidden = true
+  for (let i = idx + 2, l = tokens.length - 2; i < l; i++) {
+    const token = tokens[i]
+    if (token.level !== level)
+      continue
+
+    if (token.type === 'paragraph_open') {
+      token.hidden = true
+      tokens[i + 2].hidden = true
       i += 2
+      continue
+    }
+
+    if (token.nesting === 1) {
+      let nesting = 1
+      while (nesting > 0 && ++i < l) {
+        nesting += tokens[i].nesting
+      }
     }
   }
 }
@@ -144,17 +179,35 @@ export function list(state: StateBlock, startLine: number, endLine: number, sile
   let isOrdered: boolean
   let markerValue: number | undefined
   let posAfterMarker: number
-  if ((posAfterMarker = skipOrderedListMarker(state, nextLine)) >= 0) {
+  const src = state.src
+  const bMarks = state.bMarks
+  const tShift = state.tShift
+  const eMarks = state.eMarks
+  const sCount = state.sCount
+  const bsCount = state.bsCount
+  const lineStart = bMarks[nextLine] + tShift[nextLine]
+  if (lineStart >= eMarks[nextLine]) {
+    return false
+  }
+  const marker = src.charCodeAt(lineStart)
+  if (marker >= 0x30 && marker <= 0x39) {
+    posAfterMarker = skipOrderedListMarker(state, nextLine)
+    if (posAfterMarker < 0)
+      return false
+
     isOrdered = true
-    start = state.bMarks[nextLine] + state.tShift[nextLine]
-    markerValue = Number(state.src.slice(start, posAfterMarker - 1))
+    start = lineStart
+    markerValue = parseOrderedListMarkerValue(state, nextLine, posAfterMarker)
 
     // If we're starting a new ordered list right after
     // a paragraph, it should start with 1.
     if (isTerminatingParagraph && markerValue !== 1)
       return false
   }
-  else if ((posAfterMarker = skipBulletListMarker(state, nextLine)) >= 0) {
+  else if (marker === 0x2A || marker === 0x2D || marker === 0x2B) {
+    posAfterMarker = skipBulletListMarker(state, nextLine)
+    if (posAfterMarker < 0)
+      return false
     isOrdered = false
   }
   else {
@@ -164,7 +217,7 @@ export function list(state: StateBlock, startLine: number, endLine: number, sile
   // If we're starting a new unordered list right after
   // a paragraph, first line should not be empty.
   if (isTerminatingParagraph) {
-    if (state.skipSpaces(posAfterMarker) >= state.eMarks[nextLine])
+    if (state.skipSpaces(posAfterMarker) >= eMarks[nextLine])
       return false
   }
 
@@ -173,11 +226,10 @@ export function list(state: StateBlock, startLine: number, endLine: number, sile
     return true
 
   // We should terminate list on style change. Remember first one to compare.
-  const markerCharCode = state.src.charCodeAt(posAfterMarker - 1)
+  const markerCharCode = src.charCodeAt(posAfterMarker - 1)
+  const markerMarkup = String.fromCharCode(markerCharCode)
 
   // Start list
-  const listTokIdx = state.tokens.length
-
   if (isOrdered) {
     const token = state.push('ordered_list_open', 'ol', 1)
     if (markerValue !== undefined && markerValue !== 1) {
@@ -190,13 +242,14 @@ export function list(state: StateBlock, startLine: number, endLine: number, sile
 
   const listLines: [number, number] = [nextLine, 0]
   state.tokens[state.tokens.length - 1].map = listLines
-  state.tokens[state.tokens.length - 1].markup = String.fromCharCode(markerCharCode)
+  state.tokens[state.tokens.length - 1].markup = markerMarkup
 
   //
   // Iterate list items
   //
 
   let prevEmptyEnd = false
+  const listTokIdx = state.tokens.length - 1
   const terminatorRules = state.md.block.ruler.getRules('list')
 
   const oldParentType = state.parentType
@@ -204,16 +257,16 @@ export function list(state: StateBlock, startLine: number, endLine: number, sile
 
   while (nextLine < endLine) {
     pos = posAfterMarker
-    max = state.eMarks[nextLine]
+    max = eMarks[nextLine]
 
-    const initial = state.sCount[nextLine] + posAfterMarker - (state.bMarks[nextLine] + state.tShift[nextLine])
+    const initial = sCount[nextLine] + posAfterMarker - (bMarks[nextLine] + tShift[nextLine])
     let offset = initial
 
     while (pos < max) {
-      const ch = state.src.charCodeAt(pos)
+      const ch = src.charCodeAt(pos)
 
       if (ch === 0x09) {
-        offset += 4 - (offset + state.bsCount[nextLine]) % 4
+        offset += 4 - (offset + bsCount[nextLine]) % 4
       }
       else if (ch === 0x20) {
         offset++
@@ -247,13 +300,15 @@ export function list(state: StateBlock, startLine: number, endLine: number, sile
 
     // Run subparser & write tokens
     const token = state.push('list_item_open', 'li', 1)
-    token.markup = String.fromCharCode(markerCharCode)
+    token.markup = markerMarkup
     const itemLines: [number, number] = [nextLine, 0]
     token.map = itemLines
     if (isOrdered) {
-      token.info = state.src.slice(start, posAfterMarker - 1)
+      const markerDigits = posAfterMarker - start - 1
+      token.info = markerDigits === 1
+        ? SINGLE_DIGIT_MARKERS[src.charCodeAt(start) - 0x30]
+        : src.slice(start, posAfterMarker - 1)
     }
-
     // change current state, then restore it after parser subcall
     const oldTight = state.tight
     const oldTShift = state.tShift[nextLine]
@@ -268,7 +323,7 @@ export function list(state: StateBlock, startLine: number, endLine: number, sile
     state.blkIndent = indent
 
     state.tight = true
-    state.tShift[nextLine] = contentStart - state.bMarks[nextLine]
+    state.tShift[nextLine] = contentStart - bMarks[nextLine]
     state.sCount[nextLine] = offset
 
     if (contentStart >= max && state.isEmpty(nextLine + 1)) {
@@ -299,7 +354,7 @@ export function list(state: StateBlock, startLine: number, endLine: number, sile
     state.sCount[nextLine] = oldSCount
     state.tight = oldTight
 
-    state.push('list_item_close', 'li', -1).markup = String.fromCharCode(markerCharCode)
+    state.push('list_item_close', 'li', -1).markup = markerMarkup
 
     nextLine = state.line
     itemLines[1] = nextLine
@@ -317,6 +372,41 @@ export function list(state: StateBlock, startLine: number, endLine: number, sile
     if (state.sCount[nextLine] - state.blkIndent >= 4)
       break
 
+    if (!isOrdered) {
+      const nextLineStart = bMarks[nextLine] + tShift[nextLine]
+      const nextLineEnd = eMarks[nextLine]
+
+      if (nextLineStart < nextLineEnd && src.charCodeAt(nextLineStart) === markerCharCode) {
+        const afterMarker = nextLineStart + 1
+
+        if (afterMarker >= nextLineEnd) {
+          posAfterMarker = afterMarker
+          continue
+        }
+
+        const nextChar = src.charCodeAt(afterMarker)
+        if (nextChar === 0x09 || nextChar === 0x20) {
+          if (markerCharCode !== 0x2D) {
+            posAfterMarker = afterMarker
+            continue
+          }
+
+          let probe = afterMarker + 1
+          while (probe < nextLineEnd) {
+            const ch = src.charCodeAt(probe)
+            if (ch !== 0x09 && ch !== 0x20)
+              break
+            probe++
+          }
+
+          if (probe >= nextLineEnd || src.charCodeAt(probe) !== 0x2D) {
+            posAfterMarker = afterMarker
+            continue
+          }
+        }
+      }
+    }
+
     // fail if terminating block found
     let terminate = false
     for (let i = 0, l = terminatorRules.length; i < l; i++) {
@@ -333,7 +423,7 @@ export function list(state: StateBlock, startLine: number, endLine: number, sile
       posAfterMarker = skipOrderedListMarker(state, nextLine)
       if (posAfterMarker < 0)
         break
-      start = state.bMarks[nextLine] + state.tShift[nextLine]
+      start = bMarks[nextLine] + tShift[nextLine]
     }
     else {
       posAfterMarker = skipBulletListMarker(state, nextLine)
@@ -341,16 +431,16 @@ export function list(state: StateBlock, startLine: number, endLine: number, sile
         break
     }
 
-    if (markerCharCode !== state.src.charCodeAt(posAfterMarker - 1))
+    if (markerCharCode !== src.charCodeAt(posAfterMarker - 1))
       break
   }
 
   // Finalize list
   if (isOrdered) {
-    state.push('ordered_list_close', 'ol', -1).markup = String.fromCharCode(markerCharCode)
+    state.push('ordered_list_close', 'ol', -1).markup = markerMarkup
   }
   else {
-    state.push('bullet_list_close', 'ul', -1).markup = String.fromCharCode(markerCharCode)
+    state.push('bullet_list_close', 'ul', -1).markup = markerMarkup
   }
 
   listLines[1] = nextLine
@@ -359,9 +449,8 @@ export function list(state: StateBlock, startLine: number, endLine: number, sile
   state.parentType = oldParentType
 
   // mark paragraphs tight if needed
-  if (tight) {
+  if (tight)
     markTightParagraphs(state, listTokIdx)
-  }
 
   return true
 }

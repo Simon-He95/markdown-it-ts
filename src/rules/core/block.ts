@@ -1,4 +1,5 @@
 import { Token } from '../../common/token'
+import { sourceToString } from '../../parse/source'
 
 /**
  * Core rule: block
@@ -8,7 +9,7 @@ export function block(state: any): void {
   if (state.inlineMode) {
     // In inline mode, create a single inline token instead of parsing blocks
     const token = new Token('inline', '', 0)
-    token.content = state.src
+    token.content = sourceToString(state.src)
     token.map = [0, 1]
     token.children = []
     token.level = 0
