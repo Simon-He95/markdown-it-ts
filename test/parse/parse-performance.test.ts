@@ -28,6 +28,49 @@ function measureAverage(fn: (input: string) => void, input: string, iterations: 
   return duration / iterations
 }
 
+function median(values: number[]): number {
+  const sorted = values.slice().sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+  return sorted.length % 2 === 0
+    ? (sorted[mid - 1] + sorted[mid]) / 2
+    : sorted[mid]
+}
+
+function measureStableAverage(fn: (input: string) => void, input: string, iterations: number, samples = 3): number {
+  const values: number[] = []
+  for (let i = 0; i < samples; i++) {
+    values.push(measureAverage(fn, input, iterations))
+  }
+  return median(values)
+}
+
+function measureStablePair(
+  left: (input: string) => void,
+  right: (input: string) => void,
+  input: string,
+  iterations: number,
+  samples = 3,
+): { left: number, right: number } {
+  const leftSamples: number[] = []
+  const rightSamples: number[] = []
+
+  for (let i = 0; i < samples; i++) {
+    if (i % 2 === 0) {
+      leftSamples.push(measureAverage(left, input, iterations))
+      rightSamples.push(measureAverage(right, input, iterations))
+    }
+    else {
+      rightSamples.push(measureAverage(right, input, iterations))
+      leftSamples.push(measureAverage(left, input, iterations))
+    }
+  }
+
+  return {
+    left: median(leftSamples),
+    right: median(rightSamples),
+  }
+}
+
 describe('markdown-it-ts parse performance parity', () => {
   const mdTs = MarkdownItTS()
   const mdJs = new MarkdownItJS()
@@ -53,8 +96,12 @@ describe('markdown-it-ts parse performance parity', () => {
 
   for (const { name, text, iterations, tolerance } of scenarios) {
     it(`ts parser should match markdown-it performance for ${name} input`, () => {
-      const tsTime = measureAverage((input) => mdTs.parse(input, {}), text, iterations)
-      const jsTime = measureAverage((input) => mdJs.parse(input, {}), text, iterations)
+      const { left: tsTime, right: jsTime } = measureStablePair(
+        (input) => mdTs.parse(input, {}),
+        (input) => mdJs.parse(input, {}),
+        text,
+        iterations,
+      )
       const ratio = tsTime / jsTime
 
       console.info(
@@ -64,7 +111,7 @@ describe('markdown-it-ts parse performance parity', () => {
       // If markdown-exit is present, also measure its parse speed (best-effort)
       if (mdExit && typeof mdExit.parse === 'function') {
         try {
-          const exitTime = measureAverage((input) => mdExit.parse(input), text, iterations)
+          const exitTime = measureStableAverage((input) => mdExit.parse(input), text, iterations)
           console.info(`[parse-perf] ${name}: markdown-exit ${exitTime.toFixed(4)}ms`) 
         } catch (e) {
           console.info(`[parse-perf] ${name}: markdown-exit parse not benchmarked (${String(e)})`)
@@ -75,14 +122,19 @@ describe('markdown-it-ts parse performance parity', () => {
     })
 
     it(`render parity for ${name} input`, () => {
+      const renderIterations = Math.max(1, Math.floor(iterations / 10))
       // measure render performance for ts and js
-      const tsRenderTime = measureAverage((input) => mdTs.render(input), text, Math.max(1, Math.floor(iterations / 10)))
-      const jsRenderTime = measureAverage((input) => mdJs.render(input), text, Math.max(1, Math.floor(iterations / 10)))
+      const { left: tsRenderTime, right: jsRenderTime } = measureStablePair(
+        (input) => mdTs.render(input),
+        (input) => mdJs.render(input),
+        text,
+        renderIterations,
+      )
       console.info(`[render-perf] ${name}: markdown-it-ts ${tsRenderTime.toFixed(4)}ms vs markdown-it ${jsRenderTime.toFixed(4)}ms`)
 
       if (mdExit && typeof mdExit.render === 'function') {
         try {
-          const exitRenderTime = measureAverage((input) => mdExit.render(input), text, Math.max(1, Math.floor(iterations / 10)))
+          const exitRenderTime = measureStableAverage((input) => mdExit.render(input), text, renderIterations)
           console.info(`[render-perf] ${name}: markdown-exit ${exitRenderTime.toFixed(4)}ms`)
         } catch (e) {
           console.info(`[render-perf] ${name}: markdown-exit render not benchmarked (${String(e)})`)

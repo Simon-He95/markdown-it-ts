@@ -54,7 +54,7 @@ export function text(state: any, silent?: boolean): boolean {
   }
 
   if (!silent) {
-    state.pending += pos === start + 1 ? src[start] : src.slice(start, pos)
+    state.pending += pos === start + 1 ? src.charAt(start) : src.slice(start, pos)
   }
 
   state.pos = pos

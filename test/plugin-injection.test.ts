@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import footnote from 'markdown-it-footnote'
 import markdownit, { withRenderer } from '../src/index'
 
 describe('plugin injection (withRenderer)', () => {
@@ -19,9 +20,18 @@ describe('plugin injection (withRenderer)', () => {
 
   it('should allow custom highlight via options', () => {
     const md = markdownit({ highlight: (str, lang) => `<pre><code class="${lang}">${str}</code></pre>` })
-  withRenderer(md)
+    withRenderer(md)
     const html = md.render('```js\nconsole.log(1)\n```')
     // Note: fence content includes trailing newline, so highlight function receives 'console.log(1)\n'
     expect(html).toContain('<pre><code class="js">console.log(1)\n</code></pre>')
+  })
+
+  it('supports plugins that construct tokens via state.Token', () => {
+    const md = markdownit().use(footnote)
+    const html = md.render('hello[^note]\n\n[^note]: world')
+
+    expect(html).toContain('footnote-ref')
+    expect(html).toContain('<section class="footnotes">')
+    expect(html).toContain('<li id="fn1" class="footnote-item">')
   })
 })

@@ -96,11 +96,11 @@ export function escape(state: any, silent?: boolean): boolean {
     return true
   }
 
-  let escapedStr = src[pos]
+  let escapedStr = src.charAt(pos)
   if (ch >= 0xD800 && ch <= 0xDBFF && pos + 1 < max) {
     const ch2 = src.charCodeAt(pos + 1)
     if (ch2 >= 0xDC00 && ch2 <= 0xDFFF) {
-      escapedStr += src[pos + 1]
+      escapedStr += src.charAt(pos + 1)
       pos++
     }
   }

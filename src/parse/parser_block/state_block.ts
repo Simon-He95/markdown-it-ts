@@ -19,6 +19,7 @@ export class StateBlock {
   public md: any
   public env: any
   public tokens: Token[]
+  declare public Token: typeof Token
 
   // Line markers
   public bMarks: number[] = [] // line begin offsets
@@ -267,5 +268,8 @@ export class StateBlock {
     return queue.join('')
   }
 }
+
+// Re-export Token for markdown-it plugin compatibility.
+StateBlock.prototype.Token = Token
 
 export default StateBlock

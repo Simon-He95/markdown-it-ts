@@ -10,6 +10,7 @@ export class StateInline {
   public md: any
   public env: any
   public tokens: Token[] // Alias to outTokens for compatibility
+  declare public Token: typeof Token
   public tokens_meta: any[]
   public pos: number
   public posMax: number
@@ -145,5 +146,8 @@ export class StateInline {
     }
   }
 }
+
+// Re-export Token for markdown-it plugin compatibility.
+StateInline.prototype.Token = Token
 
 export default StateInline

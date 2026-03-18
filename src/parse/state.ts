@@ -1,5 +1,5 @@
-import type { Token } from '../common/token'
 import type { ParseSource } from './source'
+import { Token } from '../common/token'
 
 export interface MarkdownItOptions {
   html?: boolean
@@ -18,6 +18,7 @@ export class State {
   public tokens: Token[]
   public inlineMode: boolean
   public md: any
+  declare public Token: typeof Token
 
   constructor(src: ParseSource, md: any, env: Record<string, unknown> = {}) {
     this.src = typeof src === 'string' ? (src || '') : src
@@ -27,5 +28,8 @@ export class State {
     this.md = md
   }
 }
+
+// Re-export Token for markdown-it plugin compatibility.
+State.prototype.Token = Token
 
 export default State
