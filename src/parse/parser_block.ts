@@ -49,6 +49,11 @@ export class ParserBlock {
     for (let i = 0; i < _rules.length; i++) {
       this.ruler.push(_rules[i][0], _rules[i][1], { alt: (_rules[i][2] || []).slice() })
     }
+
+    // Fast paragraph terminator hints are only safe for the stock block rule
+    // set. Plugins that add/replace block rules should automatically fall back
+    // to the full terminator chain.
+    ;(this.ruler as any).__mdtsDefaultVersion = this.ruler.version
   }
 
   /**

@@ -3,7 +3,7 @@
  */
 
 import type { StateBlock } from '../../parse/parser_block/state_block'
-import { couldTerminateParagraph } from './paragraph_terminator_fast'
+import { canUseParagraphTerminatorFastPath, couldTerminateParagraph } from './paragraph_terminator_fast'
 
 function isSpace(code: number): boolean {
   return code === 0x09 || code === 0x20
@@ -18,6 +18,7 @@ export function paragraph(state: StateBlock, startLine: number, endLine: number)
   const eMarks = state.eMarks
   const sCount = state.sCount
   const blkIndent = state.blkIndent
+  const canUseFastTerminatorHint = canUseParagraphTerminatorFastPath(state)
   let nextLine = startLine + 1
   state.parentType = 'paragraph'
 
@@ -81,7 +82,7 @@ export function paragraph(state: StateBlock, startLine: number, endLine: number)
     const start = bMarks[nextLine] + tShift[nextLine]
     const max = eMarks[nextLine]
 
-    if (!couldTerminateParagraph(src, start, max))
+    if (canUseFastTerminatorHint && !couldTerminateParagraph(src, start, max))
       continue
 
     // Some tags can terminate paragraph without empty line.

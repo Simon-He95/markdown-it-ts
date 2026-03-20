@@ -1,10 +1,6 @@
-/**
- * Parse link label: returns the end position of label or -1 if not found
- * Assumes first character ([) already matches
- */
 const FALLBACK_TO_INLINE_SCAN = -2
 
-function scanPlainLinkLabel(src: string, start: number, max: number, disableNested?: boolean): number {
+function scanPlainLinkLabel(src: string, start: number, max: number): number {
   let pos = start + 1
 
   while (pos < max) {
@@ -22,15 +18,13 @@ function scanPlainLinkLabel(src: string, start: number, max: number, disableNest
     if (marker === 0x60 /* ` */ || marker === 0x3C /* < */)
       return FALLBACK_TO_INLINE_SCAN
 
-    // Images inside link labels are valid and may hide nested brackets.
+    // Images and nested brackets need the inline scanner to distinguish
+    // between plain bracket text (`[[8]]`) and nested link-like tokens.
     if (marker === 0x21 /* ! */ && pos + 1 < max && src.charCodeAt(pos + 1) === 0x5B /* [ */)
       return FALLBACK_TO_INLINE_SCAN
 
-    if (marker === 0x5B /* [ */) {
-      if (disableNested)
-        return -1
+    if (marker === 0x5B /* [ */)
       return FALLBACK_TO_INLINE_SCAN
-    }
 
     pos++
   }
@@ -46,8 +40,8 @@ export function parseLinkLabel(state: any, start: number, disableNested?: boolea
   const src = state.src
   const max = state.posMax
   const oldPos = state.pos
-  const inline = state.md.inline
   const noCloseFrom = state.__mdtsLinkLabelNoCloseFrom
+
   if (typeof noCloseFrom === 'number' && start + 1 >= noCloseFrom)
     return -1
 
@@ -57,8 +51,7 @@ export function parseLinkLabel(state: any, start: number, disableNested?: boolea
     return -1
   }
 
-  const fastLabelEnd = scanPlainLinkLabel(src, start, max, disableNested)
-
+  const fastLabelEnd = scanPlainLinkLabel(src, start, max)
   if (fastLabelEnd !== FALLBACK_TO_INLINE_SCAN)
     return fastLabelEnd
 
@@ -74,7 +67,7 @@ export function parseLinkLabel(state: any, start: number, disableNested?: boolea
       }
     }
     prevPos = state.pos
-    inline.skipToken(state)
+    state.md.inline.skipToken(state)
     if (marker === 0x5B /* [ */) {
       if (prevPos === state.pos - 1) {
         level++

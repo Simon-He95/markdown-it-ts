@@ -79,6 +79,7 @@
   "scripts": {
     "build": "tsdown",
     "test": "vitest",
+    "test:markstream-vue": "node scripts/test-markstream-vue-local.mjs",
     "watch": "tsdown -w",
     "doc": "node support/build_doc.mjs",
     "doc:open": "npm run doc && node support/open_apidoc.mjs",

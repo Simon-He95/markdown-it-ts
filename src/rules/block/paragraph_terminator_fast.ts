@@ -6,6 +6,14 @@ function hasPipeOnLine(src: string, start: number, max: number): boolean {
   return false
 }
 
+export function canUseParagraphTerminatorFastPath(state: any): boolean {
+  const ruler = state?.md?.block?.ruler as { version?: number, __mdtsDefaultVersion?: number } | undefined
+  if (!ruler)
+    return false
+
+  return ruler.version === ruler.__mdtsDefaultVersion
+}
+
 export function couldTerminateParagraph(src: string, start: number, max: number): boolean {
   if (start >= max)
     return false

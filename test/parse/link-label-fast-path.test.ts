@@ -28,6 +28,10 @@ const cases: Array<{
     name: 'nested image inside link label',
     text: '[![alt](https://example.com/a.png)](https://example.com)',
   },
+  {
+    name: 'nested bracket label',
+    text: '[[8]](https://example.com)',
+  },
 ]
 
 describe('link label fast path parity', () => {

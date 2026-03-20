@@ -3,7 +3,7 @@
  */
 
 import type { StateBlock } from '../../parse/parser_block/state_block'
-import { couldTerminateParagraph } from './paragraph_terminator_fast'
+import { canUseParagraphTerminatorFastPath, couldTerminateParagraph } from './paragraph_terminator_fast'
 
 const HEADING_TAGS = ['', 'h1', 'h2']
 
@@ -15,6 +15,7 @@ export function lheading(state: StateBlock, startLine: number, endLine: number):
   const eMarks = state.eMarks
   const sCount = state.sCount
   const blkIndent = state.blkIndent
+  const canUseFastTerminatorHint = canUseParagraphTerminatorFastPath(state)
 
   // if it's indented more than 3 spaces, it should be a code block
   if (sCount[startLine] - blkIndent >= 4)
@@ -75,7 +76,7 @@ export function lheading(state: StateBlock, startLine: number, endLine: number):
     if (sCount[nextLine] < 0)
       continue
 
-    if (!couldTerminateParagraph(src, lineStart, max))
+    if (canUseFastTerminatorHint && !couldTerminateParagraph(src, lineStart, max))
       continue
 
     // Some tags can terminate paragraph without empty line.
