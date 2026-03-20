@@ -36,7 +36,7 @@ describe('stream parser chunked fallback', () => {
 
     md.stream.parse(large, env)
 
-    expect((env as any).__mdtsChunkInfo?.maxChunkChars).toBe(16_000)
+    expect((env as any).__mdtsChunkInfo?.maxChunkChars).toBe(20_000)
     expect((env as any).__mdtsChunkInfo?.maxChunkLines).toBe(200)
   })
 

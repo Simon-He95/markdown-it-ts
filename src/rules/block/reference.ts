@@ -19,7 +19,7 @@ export function reference(state: StateBlock, startLine: number, _endLine: number
   let pos = state.bMarks[startLine] + state.tShift[startLine]
   let max = state.eMarks[startLine]
   let nextLine = startLine + 1
-  const terminatorRules = state.md.block.ruler.getRules('reference')
+  const terminatorRules = state.md.block.ruler.getRulesForState(state, 'reference')
 
   // if it's indented more than 3 spaces, it should be a code block
   if (state.sCount[startLine] - state.blkIndent >= 4)

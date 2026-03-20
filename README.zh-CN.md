@@ -119,11 +119,11 @@ pnpm run perf:update-readme
 最新一次在本机环境（Node.js 版本、CPU 请见 `docs/perf-latest.md`）的对比结果（取 20 次平均值）：
 
 <!-- perf-auto:one-examples:start -->
-- 5,000 chars: 0.1471ms vs 0.2034ms → ~1.4× faster, ~28% less time
-- 20,000 chars: 0.5930ms vs 0.8246ms → ~1.4× faster, ~28% less time
-- 100,000 chars: 3.8636ms vs 5.5301ms → ~1.4× faster, ~30% less time
-- 500,000 chars: 25.49ms vs 32.98ms → ~1.3× faster, ~23% less time
-- 1,000,000 chars: 55.19ms vs 62.52ms → ~1.1× faster, ~12% less time
+- 5,000 chars: 0.1654ms vs 0.2015ms → ~1.2× faster, ~18% less time
+- 20,000 chars: 0.6545ms vs 0.7885ms → ~1.2× faster, ~17% less time
+- 100,000 chars: 4.0118ms vs 5.3204ms → ~1.3× faster, ~25% less time
+- 500,000 chars: 24.42ms vs 28.78ms → ~1.2× faster, ~15% less time
+- 1,000,000 chars: 54.82ms vs 57.37ms → ~1× faster, ~4% less time
 <!-- perf-auto:one-examples:end -->
 
 注意：数字会因环境与内容不同而变化，建议在本地按上文“本地复现基准”步骤生成你自己的对比报告。若需在 CI 中进行回归检测，可运行：`pnpm run perf:check`。
@@ -135,17 +135,17 @@ pnpm run perf:update-readme
 单次解析耗时（越低越好）：
 
 <!-- perf-auto:remark-one:start -->
-- 5,000 chars: 0.1471ms vs 5.7177ms → 38.9× faster
-- 20,000 chars: 0.5930ms vs 25.97ms → 43.8× faster
-- 100,000 chars: 3.8636ms vs 173.03ms → 44.8× faster
+- 5,000 chars: 0.1654ms vs 5.2773ms → 31.9× faster
+- 20,000 chars: 0.6545ms vs 23.81ms → 36.4× faster
+- 100,000 chars: 4.0118ms vs 161.03ms → 40.1× faster
 <!-- perf-auto:remark-one:end -->
 
 增量工作负载（append workload）：
 
 <!-- perf-auto:remark-append:start -->
-- 5,000 chars: 0.2409ms vs 17.75ms → 73.7× faster
-- 20,000 chars: 0.9957ms vs 84.65ms → 85× faster
-- 100,000 chars: 4.7039ms vs 566.69ms → 120.5× faster
+- 5,000 chars: 0.2487ms vs 16.34ms → 65.7× faster
+- 20,000 chars: 1.0456ms vs 81.83ms → 78.3× faster
+- 100,000 chars: 5.4090ms vs 530.05ms → 98× faster
 <!-- perf-auto:remark-append:end -->
 
 说明：
@@ -159,17 +159,17 @@ pnpm run perf:update-readme
 一次性解析（oneShotMs）—— markdown-it-ts vs micromark-based parse：
 
 <!-- perf-auto:micromark-one:start -->
-- 5,000 chars: 0.1471ms vs 4.4509ms → 30.3× faster
-- 20,000 chars: 0.5930ms vs 20.23ms → 34.1× faster
-- 100,000 chars: 3.8636ms vs 111.04ms → 28.7× faster
+- 5,000 chars: 0.1654ms vs 4.1778ms → 25.3× faster
+- 20,000 chars: 0.6545ms vs 18.12ms → 27.7× faster
+- 100,000 chars: 4.0118ms vs 103.48ms → 25.8× faster
 <!-- perf-auto:micromark-one:end -->
 
 追加工作负载（appendWorkloadMs）—— markdown-it-ts vs micromark-based parse：
 
 <!-- perf-auto:micromark-append:start -->
-- 5,000 chars: 0.2409ms vs 14.69ms → 61× faster
-- 20,000 chars: 0.9957ms vs 68.93ms → 69.2× faster
-- 100,000 chars: 4.7039ms vs 380.15ms → 80.8× faster
+- 5,000 chars: 0.2487ms vs 13.89ms → 55.9× faster
+- 20,000 chars: 1.0456ms vs 61.35ms → 58.7× faster
+- 100,000 chars: 5.4090ms vs 348.15ms → 64.4× faster
 <!-- perf-auto:micromark-append:end -->
 
 ## 渲染性能（markdown → HTML）
@@ -181,27 +181,27 @@ pnpm run perf:update-readme
 ### 对比 markdown-it render API
 
 <!-- perf-auto:render-md:start -->
-- 5,000 chars: 0.1731ms vs 0.2477ms → ~1.4× faster
-- 20,000 chars: 0.6912ms vs 1.0030ms → ~1.5× faster
-- 100,000 chars: 5.2051ms vs 6.6655ms → ~1.3× faster
-- 500,000 chars: 32.92ms vs 45.63ms → ~1.4× faster
-- 1,000,000 chars: 77.49ms vs 90.37ms → ~1.2× faster
+- 5,000 chars: 0.1877ms vs 0.2377ms → ~1.3× faster
+- 20,000 chars: 0.7574ms vs 0.9580ms → ~1.3× faster
+- 100,000 chars: 5.0904ms vs 6.3302ms → ~1.2× faster
+- 500,000 chars: 37.12ms vs 41.10ms → ~1.1× faster
+- 1,000,000 chars: 69.30ms vs 89.72ms → ~1.3× faster
 <!-- perf-auto:render-md:end -->
 
 ### 对比 remark + rehype render API
 
 <!-- perf-auto:render-remark:start -->
-- 5,000 chars: 0.1731ms vs 6.5904ms → ~38.1× faster
-- 20,000 chars: 0.6912ms vs 30.20ms → ~43.7× faster
-- 100,000 chars: 5.2051ms vs 191.28ms → ~36.7× faster
+- 5,000 chars: 0.1877ms vs 4.7880ms → ~25.5× faster
+- 20,000 chars: 0.7574ms vs 27.23ms → ~36× faster
+- 100,000 chars: 5.0904ms vs 175.89ms → ~34.6× faster
 <!-- perf-auto:render-remark:end -->
 
 ### 对比 micromark（CommonMark 参考实现）
 
 <!-- perf-auto:render-micromark:start -->
-- 5,000 chars: 0.1731ms vs 5.4900ms → ~31.7× faster
-- 20,000 chars: 0.6912ms vs 24.88ms → ~36× faster
-- 100,000 chars: 5.2051ms vs 133.60ms → ~25.7× faster
+- 5,000 chars: 0.1877ms vs 3.9821ms → ~21.2× faster
+- 20,000 chars: 0.7574ms vs 22.72ms → ~30× faster
+- 100,000 chars: 5.0904ms vs 123.07ms → ~24.2× faster
 <!-- perf-auto:render-micromark:end -->
 
 本地复现：
@@ -220,11 +220,11 @@ pnpm run perf:update-readme
 <!-- perf-auto:exit-one:start -->
 | Size (chars) | markdown-it-ts (best one-shot) | markdown-exit (one-shot) |
 |---:|---:|---:|
-| 5,000 | 0.1471ms | 0.3071ms |
-| 20,000 | 0.5930ms | 1.0877ms |
-| 50,000 | 1.7063ms | 2.8400ms |
-| 100,000 | 3.8636ms | 6.9174ms |
-| 200,000 | 10.05ms | 14.73ms |
+| 5,000 | 0.1654ms | 0.2662ms |
+| 20,000 | 0.6545ms | 1.0446ms |
+| 50,000 | 1.7409ms | 2.7569ms |
+| 100,000 | 4.0118ms | 6.4988ms |
+| 200,000 | 10.50ms | 13.83ms |
 <!-- perf-auto:exit-one:end -->
 
 说明：markdown-it-ts 在较小文档上通过流式/分片策略获得显著 one-shot 优势；在非常大的文档（200k）上，各实现的绝对差距缩小。
@@ -234,11 +234,11 @@ pnpm run perf:update-readme
 来自最近一次 perf 快照的 render API（parse + HTML 输出）汇总：
 
 <!-- perf-auto:render-exit:start -->
-- 5,000 chars: 0.1731ms vs 0.3167ms → ~1.8× faster
-- 20,000 chars: 0.6912ms vs 1.2681ms → ~1.8× faster
-- 50,000 chars: 1.8822ms vs 3.3118ms → ~1.8× faster
-- 100,000 chars: 5.2051ms vs 8.1449ms → ~1.6× faster
-- 200,000 chars: 11.99ms vs 19.25ms → ~1.6× faster
+- 5,000 chars: 0.1877ms vs 0.3051ms → ~1.6× faster
+- 20,000 chars: 0.7574ms vs 1.2242ms → ~1.6× faster
+- 50,000 chars: 2.0238ms vs 3.2443ms → ~1.6× faster
+- 100,000 chars: 5.0904ms vs 7.6242ms → ~1.5× faster
+- 200,000 chars: 12.23ms vs 18.20ms → ~1.5× faster
 <!-- perf-auto:render-exit:end -->
 
 
@@ -252,51 +252,51 @@ pnpm run perf:update-readme
 
 | Size | Rank | Library | oneShotMs |
 |---:|---:|---|---:|
-| 5,000 | 1 | markdown-it-ts | 0.1471ms |
-| 5,000 | 2 | markdown-it | 0.2034ms |
-| 5,000 | 3 | markdown-exit | 0.3071ms |
-| 5,000 | 4 | remark | 5.7177ms |
-| 20,000 | 1 | markdown-it-ts | 0.5930ms |
-| 20,000 | 2 | markdown-it | 0.8246ms |
-| 20,000 | 3 | markdown-exit | 1.0877ms |
-| 20,000 | 4 | remark | 25.97ms |
-| 50,000 | 1 | markdown-it-ts | 1.7063ms |
-| 50,000 | 2 | markdown-it | 2.1055ms |
-| 50,000 | 3 | markdown-exit | 2.8400ms |
-| 50,000 | 4 | remark | 76.85ms |
-| 100,000 | 1 | markdown-it-ts | 3.8636ms |
-| 100,000 | 2 | markdown-it | 5.5301ms |
-| 100,000 | 3 | markdown-exit | 6.9174ms |
-| 100,000 | 4 | remark | 173.03ms |
-| 200,000 | 1 | markdown-it-ts | 10.05ms |
-| 200,000 | 2 | markdown-it | 11.89ms |
-| 200,000 | 3 | markdown-exit | 14.73ms |
-| 200,000 | 4 | remark | 480.30ms |
+| 5,000 | 1 | markdown-it-ts | 0.1654ms |
+| 5,000 | 2 | markdown-it | 0.2015ms |
+| 5,000 | 3 | markdown-exit | 0.2662ms |
+| 5,000 | 4 | remark | 5.2773ms |
+| 20,000 | 1 | markdown-it-ts | 0.6545ms |
+| 20,000 | 2 | markdown-it | 0.7885ms |
+| 20,000 | 3 | markdown-exit | 1.0446ms |
+| 20,000 | 4 | remark | 23.81ms |
+| 50,000 | 1 | markdown-it-ts | 1.7409ms |
+| 50,000 | 2 | markdown-it | 2.0481ms |
+| 50,000 | 3 | markdown-exit | 2.7569ms |
+| 50,000 | 4 | remark | 70.48ms |
+| 100,000 | 1 | markdown-it-ts | 4.0118ms |
+| 100,000 | 2 | markdown-it | 5.3204ms |
+| 100,000 | 3 | markdown-exit | 6.4988ms |
+| 100,000 | 4 | remark | 161.03ms |
+| 200,000 | 1 | markdown-it-ts | 10.50ms |
+| 200,000 | 2 | markdown-it | 11.00ms |
+| 200,000 | 3 | markdown-exit | 13.83ms |
+| 200,000 | 4 | remark | 406.15ms |
 
 **Render 排名（解析 + HTML 输出耗时，单位：ms）**
 
 | Size | Rank | Library | renderMs |
 |---:|---:|---|---:|
-| 5,000 | 1 | markdown-it-ts | 0.1731ms |
-| 5,000 | 2 | markdown-it | 0.2477ms |
-| 5,000 | 3 | markdown-exit | 0.3167ms |
-| 5,000 | 4 | remark + rehype | 6.5904ms |
-| 20,000 | 1 | markdown-it-ts | 0.6912ms |
-| 20,000 | 2 | markdown-it | 1.0030ms |
-| 20,000 | 3 | markdown-exit | 1.2681ms |
-| 20,000 | 4 | remark + rehype | 30.20ms |
-| 50,000 | 1 | markdown-it-ts | 1.8822ms |
-| 50,000 | 2 | markdown-it | 2.5533ms |
-| 50,000 | 3 | markdown-exit | 3.3118ms |
-| 50,000 | 4 | remark + rehype | 89.19ms |
-| 100,000 | 1 | markdown-it-ts | 5.2051ms |
-| 100,000 | 2 | markdown-it | 6.6655ms |
-| 100,000 | 3 | markdown-exit | 8.1449ms |
-| 100,000 | 4 | remark + rehype | 191.28ms |
-| 200,000 | 1 | markdown-it-ts | 11.99ms |
-| 200,000 | 2 | markdown-it | 16.10ms |
-| 200,000 | 3 | markdown-exit | 19.25ms |
-| 200,000 | 4 | remark + rehype | 517.24ms |
+| 5,000 | 1 | markdown-it-ts | 0.1877ms |
+| 5,000 | 2 | markdown-it | 0.2377ms |
+| 5,000 | 3 | markdown-exit | 0.3051ms |
+| 5,000 | 4 | remark + rehype | 4.7880ms |
+| 20,000 | 1 | markdown-it-ts | 0.7574ms |
+| 20,000 | 2 | markdown-it | 0.9580ms |
+| 20,000 | 3 | markdown-exit | 1.2242ms |
+| 20,000 | 4 | remark + rehype | 27.23ms |
+| 50,000 | 1 | markdown-it-ts | 2.0238ms |
+| 50,000 | 2 | markdown-it | 2.4198ms |
+| 50,000 | 3 | markdown-exit | 3.2443ms |
+| 50,000 | 4 | remark + rehype | 83.64ms |
+| 100,000 | 1 | markdown-it-ts | 5.0904ms |
+| 100,000 | 2 | markdown-it | 6.3302ms |
+| 100,000 | 3 | markdown-exit | 7.6242ms |
+| 100,000 | 4 | remark + rehype | 175.89ms |
+| 200,000 | 1 | markdown-it-ts | 12.23ms |
+| 200,000 | 2 | markdown-it | 15.78ms |
+| 200,000 | 3 | markdown-exit | 18.20ms |
+| 200,000 | 4 | remark + rehype | 423.21ms |
 <!-- perf-auto:ranking-zh:end -->
 
 

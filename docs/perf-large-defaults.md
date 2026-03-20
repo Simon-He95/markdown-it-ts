@@ -5,150 +5,170 @@ Default API note: for normal string inputs, keep using `md.parse(src)` / `md.ren
 
 ## 100,000 chars
 
-- Fastest measured full parse: iterable-sink 4.8560ms
-- Fastest measured incremental append: unbounded-sink 4.7089ms
-- markdown-it append: 17.61ms
-- markdown-exit append: 24.72ms
-- remark append: 572.77ms
-- micromark append: 373.36ms
+- Fastest measured full parse: full-default 4.0953ms
+- Fastest measured incremental append: unbounded-sink 4.3768ms
+- Default one-shot path: full-default 4.0953ms (0.0% vs best default-eligible)
+- Default append path: stream-default 5.7955ms (0.0% vs best default-eligible)
+- markdown-it append: 17.06ms
+- markdown-exit append: 19.08ms
+- remark append: 554.27ms
+- micromark append: 380.33ms
 
 | Group | Scenario | One-shot | Append workload | Notes |
 |:--|:--|---:|---:|:--|
-| full | full-plain | 6.6188ms | 17.30ms | mode=idle |
-| full | full-auto | 6.1322ms | 17.80ms | mode=idle |
-| full | full-20k-12 | 6.7447ms | 20.27ms | mode=idle |
-| full | full-32k-16 | 6.6392ms | 18.12ms | mode=idle |
-| full | full-64k-16 | 6.4394ms | 17.78ms | mode=idle |
-| full | iterable-auto | 7.0482ms | 19.11ms | mode=idle |
-| full | iterable-sink | 4.8560ms | 17.36ms | mode=idle |
-| stream | stream-cache | 7.1644ms | 7.1488ms | mode=append |
-| stream | stream-auto | 7.2948ms | 7.9677ms | chunks=8 |
-| stream | stream-20k-24 | 6.9781ms | 9.0236ms | chunks=8 |
-| stream | stream-32k-16 | 6.6797ms | 7.7635ms | chunks=5 |
-| stream | stream-64k-32 | 7.0139ms | 7.7829ms | chunks=3 |
-| stream | unbounded-auto | 7.4122ms | 6.9932ms | chunks=33 |
-| stream | unbounded-sink | 4.9489ms | 4.7089ms | chunks=33 |
-| baseline | markdown-it | 6.5922ms | 17.61ms | - |
-| baseline | markdown-exit | 7.5162ms | 24.72ms | - |
-| baseline | remark | 182.48ms | 572.77ms | - |
-| baseline | micromark | 110.25ms | 373.36ms | - |
+| full | full-default | 4.0953ms | 13.35ms | - |
+| full | full-plain | 4.7275ms | 14.30ms | - |
+| full | full-auto | 4.8240ms | 17.84ms | - |
+| full | full-20k-12 | 4.5281ms | 17.45ms | - |
+| full | full-32k-16 | 4.5270ms | 15.51ms | - |
+| full | full-64k-16 | 4.5490ms | 15.95ms | - |
+| full | iterable-auto | 4.9039ms | 18.40ms | - |
+| full | iterable-sink | 4.5256ms | 16.02ms | - |
+| stream | stream-default | 4.8620ms | 5.7955ms | stream-append mode=append |
+| stream | stream-cache | 4.1590ms | 6.3382ms | stream-append mode=append |
+| stream | stream-auto | 4.7969ms | 12.01ms | stream-append chunks=8 mode=append |
+| stream | stream-20k-24 | 4.8113ms | 7.1580ms | stream-append chunks=8 mode=append |
+| stream | stream-32k-16 | 4.5977ms | 7.2135ms | stream-append chunks=5 mode=append |
+| stream | stream-64k-32 | 4.5650ms | 6.9228ms | stream-append chunks=3 mode=append |
+| stream | unbounded-auto | 5.0446ms | 6.3693ms | - |
+| stream | unbounded-sink | 4.5716ms | 4.3768ms | - |
+| baseline | markdown-it | 4.5518ms | 17.06ms | - |
+| baseline | markdown-exit | 5.7860ms | 19.08ms | - |
+| baseline | remark | 181.73ms | 554.27ms | - |
+| baseline | micromark | 107.60ms | 380.33ms | - |
 
 ## 500,000 chars
 
-- Fastest measured full parse: iterable-sink 24.07ms
-- Fastest measured incremental append: unbounded-sink 23.81ms
-- markdown-it append: 105.97ms
-- markdown-exit append: 129.21ms
-- remark append: 4349.70ms
-- micromark append: 1963.79ms
+- Fastest measured full parse: iterable-sink 23.23ms
+- Fastest measured incremental append: unbounded-sink 25.72ms
+- Default one-shot path: full-default 29.03ms (0.0% vs best default-eligible)
+- Default append path: stream-default 32.37ms (0.0% vs best default-eligible)
+- markdown-it append: 95.51ms
+- markdown-exit append: 124.36ms
+- remark append: 4439.48ms
+- micromark append: 1837.10ms
 
 | Group | Scenario | One-shot | Append workload | Notes |
 |:--|:--|---:|---:|:--|
-| full | full-plain | 35.58ms | 114.51ms | mode=idle |
-| full | full-auto | 32.61ms | 107.97ms | mode=idle |
-| full | full-20k-12 | 32.50ms | 103.70ms | mode=idle |
-| full | full-32k-16 | 32.85ms | 108.33ms | mode=idle |
-| full | full-64k-16 | 32.11ms | 103.47ms | mode=idle |
-| full | iterable-auto | 36.39ms | 120.11ms | mode=idle |
-| full | iterable-sink | 24.07ms | 84.15ms | mode=idle |
-| stream | stream-cache | 34.03ms | 40.13ms | mode=tail |
-| stream | stream-auto | 35.51ms | 39.16ms | chunks=16 |
-| stream | stream-20k-24 | 35.99ms | 37.50ms | chunks=24 |
-| stream | stream-32k-16 | 35.78ms | 36.15ms | chunks=16 |
-| stream | stream-64k-32 | 35.25ms | 41.43ms | chunks=11 |
-| stream | unbounded-auto | 36.05ms | 32.66ms | chunks=136 |
-| stream | unbounded-sink | 24.09ms | 23.81ms | chunks=136 |
-| baseline | markdown-it | 32.89ms | 105.97ms | - |
-| baseline | markdown-exit | 38.87ms | 129.21ms | - |
-| baseline | remark | 1695.10ms | 4349.70ms | - |
-| baseline | micromark | 540.89ms | 1963.79ms | - |
+| full | full-default | 29.03ms | 113.21ms | - |
+| full | full-plain | 28.73ms | 105.34ms | - |
+| full | full-auto | 31.12ms | 96.37ms | - |
+| full | full-20k-12 | 30.76ms | 106.51ms | - |
+| full | full-32k-16 | 29.47ms | 99.19ms | - |
+| full | full-64k-16 | 30.07ms | 96.20ms | - |
+| full | iterable-auto | 36.50ms | 114.08ms | - |
+| full | iterable-sink | 23.23ms | 81.19ms | - |
+| stream | stream-default | 29.21ms | 32.37ms | stream-tail mode=tail |
+| stream | stream-cache | 27.72ms | 34.56ms | stream-tail mode=tail |
+| stream | stream-auto | 31.76ms | 35.89ms | stream-tail chunks=24 mode=tail |
+| stream | stream-20k-24 | 32.94ms | 37.18ms | stream-tail chunks=24 mode=tail |
+| stream | stream-32k-16 | 32.69ms | 33.94ms | stream-tail chunks=16 mode=tail |
+| stream | stream-64k-32 | 30.24ms | 51.10ms | stream-tail chunks=11 mode=tail |
+| stream | unbounded-auto | 31.93ms | 33.63ms | - |
+| stream | unbounded-sink | 23.63ms | 25.72ms | - |
+| baseline | markdown-it | 30.63ms | 95.51ms | - |
+| baseline | markdown-exit | 37.05ms | 124.36ms | - |
+| baseline | remark | 1607.87ms | 4439.48ms | - |
+| baseline | micromark | 541.56ms | 1837.10ms | - |
 
 ## 1,000,000 chars
 
-- Fastest measured full parse: iterable-sink 47.09ms
-- Fastest measured incremental append: unbounded-sink 46.91ms
-- markdown-it append: 220.77ms
-- markdown-exit append: 290.89ms
+- Fastest measured full parse: iterable-sink 44.58ms
+- Fastest measured incremental append: unbounded-sink 47.19ms
+- Default one-shot path: full-default 57.94ms (0.0% vs best default-eligible)
+- Default append path: stream-default 65.60ms (0.0% vs best default-eligible)
+- markdown-it append: 202.07ms
+- markdown-exit append: 256.35ms
 - remark append: skipped
 - micromark append: skipped
 
 | Group | Scenario | One-shot | Append workload | Notes |
 |:--|:--|---:|---:|:--|
-| full | full-plain | 67.07ms | 232.88ms | mode=idle |
-| full | full-auto | 62.78ms | 232.10ms | mode=idle |
-| full | full-20k-12 | 59.98ms | 215.61ms | mode=idle |
-| full | full-32k-16 | 61.41ms | 224.77ms | mode=idle |
-| full | full-64k-16 | 58.19ms | 218.95ms | mode=idle |
-| full | iterable-auto | 66.59ms | 247.54ms | mode=idle |
-| full | iterable-sink | 47.09ms | 163.18ms | mode=idle |
-| stream | stream-cache | 62.82ms | 233.55ms | mode=full |
-| stream | stream-auto | 63.77ms | 239.93ms | mode=full |
-| stream | stream-20k-24 | 64.76ms | 233.73ms | mode=full |
-| stream | stream-32k-16 | 68.91ms | 229.69ms | mode=full |
-| stream | stream-64k-32 | 64.38ms | 232.34ms | mode=full |
-| stream | unbounded-auto | 67.35ms | 79.70ms | chunks=200 |
-| stream | unbounded-sink | 47.01ms | 46.91ms | chunks=200 |
-| baseline | markdown-it | 64.85ms | 220.77ms | - |
-| baseline | markdown-exit | 80.20ms | 290.89ms | - |
+| full | full-default | 57.94ms | 195.50ms | - |
+| full | full-plain | 57.30ms | 210.84ms | - |
+| full | full-auto | 63.03ms | 203.60ms | - |
+| full | full-20k-12 | 57.01ms | 203.00ms | - |
+| full | full-32k-16 | 61.91ms | 202.40ms | - |
+| full | full-64k-16 | 56.37ms | 203.87ms | - |
+| full | iterable-auto | 65.80ms | 220.77ms | - |
+| full | iterable-sink | 44.58ms | 150.40ms | - |
+| stream | stream-default | 61.89ms | 65.60ms | stream-tail chunks=22 mode=tail |
+| stream | stream-cache | 59.11ms | 68.75ms | stream-tail mode=tail |
+| stream | stream-auto | 63.19ms | 70.59ms | stream-tail chunks=22 mode=tail |
+| stream | stream-20k-24 | 59.60ms | 70.28ms | stream-tail chunks=24 mode=tail |
+| stream | stream-32k-16 | 61.78ms | 72.19ms | stream-tail chunks=16 mode=tail |
+| stream | stream-64k-32 | 67.08ms | 71.34ms | stream-tail chunks=22 mode=tail |
+| stream | unbounded-auto | 66.48ms | 66.12ms | - |
+| stream | unbounded-sink | 44.54ms | 47.19ms | - |
+| baseline | markdown-it | 61.72ms | 202.07ms | - |
+| baseline | markdown-exit | 75.22ms | 256.35ms | - |
 | baseline | remark | skipped | skipped | - |
 | baseline | micromark | skipped | skipped | - |
 
 ## 5,000,000 chars
 
-- Fastest measured full parse: iterable-sink 243.90ms
-- Fastest measured incremental append: unbounded-sink 241.94ms
-- markdown-it append: 1241.67ms
-- markdown-exit append: 1333.45ms
+- Fastest measured full parse: iterable-sink 224.30ms
+- Fastest measured incremental append: unbounded-sink 232.31ms
+- Default one-shot path: full-default 290.97ms (0.0% vs best default-eligible)
+- Default append path: stream-default 385.01ms (0.0% vs best default-eligible)
+- markdown-it append: 1208.21ms
+- markdown-exit append: 1393.92ms
 - remark append: skipped
 - micromark append: skipped
 
 | Group | Scenario | One-shot | Append workload | Notes |
 |:--|:--|---:|---:|:--|
-| full | full-plain | 343.85ms | 1205.18ms | mode=idle |
-| full | full-auto | 296.98ms | 1266.21ms | mode=idle |
-| full | full-20k-12 | 382.66ms | 1366.45ms | mode=idle |
-| full | full-32k-16 | 344.00ms | 1324.83ms | mode=idle |
-| full | full-64k-16 | 366.65ms | 1295.47ms | mode=idle |
-| full | iterable-auto | 357.00ms | 1208.04ms | mode=idle |
-| full | iterable-sink | 243.90ms | 849.43ms | mode=idle |
-| stream | stream-cache | 353.47ms | 1133.85ms | mode=full |
-| stream | stream-auto | 353.07ms | 1185.01ms | mode=full |
-| stream | stream-20k-24 | 348.63ms | 1226.94ms | mode=full |
-| stream | stream-32k-16 | 316.89ms | 1323.26ms | mode=full |
-| stream | stream-64k-32 | 315.40ms | 1202.35ms | mode=full |
-| stream | unbounded-auto | 349.27ms | 414.44ms | chunks=709 |
-| stream | unbounded-sink | 244.29ms | 241.94ms | chunks=709 |
-| baseline | markdown-it | 325.07ms | 1241.67ms | - |
-| baseline | markdown-exit | 457.39ms | 1333.45ms | - |
+| full | full-default | 290.97ms | 1095.76ms | - |
+| full | full-plain | 315.23ms | 1121.70ms | - |
+| full | full-auto | 327.55ms | 1178.29ms | - |
+| full | full-20k-12 | 317.81ms | 1215.08ms | - |
+| full | full-32k-16 | 349.86ms | 1183.57ms | - |
+| full | full-64k-16 | 381.79ms | 1203.19ms | - |
+| full | iterable-auto | 310.62ms | 1113.30ms | - |
+| full | iterable-sink | 224.30ms | 777.36ms | - |
+| stream | stream-default | 302.78ms | 385.01ms | stream-unbounded-append chunks=32 mode=append |
+| stream | stream-cache | 282.13ms | 391.57ms | stream-unbounded-append mode=append |
+| stream | stream-auto | 312.22ms | 394.84ms | stream-unbounded-append chunks=32 mode=append |
+| stream | stream-20k-24 | 290.48ms | 386.77ms | stream-unbounded-append chunks=24 mode=append |
+| stream | stream-32k-16 | 339.93ms | 391.43ms | stream-unbounded-append chunks=16 mode=append |
+| stream | stream-64k-32 | 323.84ms | 617.60ms | stream-unbounded-append chunks=32 mode=append |
+| stream | unbounded-auto | 306.68ms | 319.95ms | - |
+| stream | unbounded-sink | 223.39ms | 232.31ms | - |
+| baseline | markdown-it | 353.79ms | 1208.21ms | - |
+| baseline | markdown-exit | 375.55ms | 1393.92ms | - |
 | baseline | remark | skipped | skipped | - |
 | baseline | micromark | skipped | skipped | - |
 
 ## 20,000,000 chars
 
-- Fastest measured full parse: iterable-sink 1017.89ms
-- Fastest measured incremental append: unbounded-sink 1012.79ms
-- markdown-it append: 5843.14ms
-- markdown-exit append: 6751.90ms
+- Fastest measured full parse: iterable-sink 924.82ms
+- Fastest measured incremental append: unbounded-sink 1005.20ms
+- Default one-shot path: full-default 1151.20ms (0.0% vs best default-eligible)
+- Default append path: stream-default 4546.08ms (0.0% vs best default-eligible)
+- markdown-it append: 5487.82ms
+- markdown-exit append: 6461.59ms
 - remark append: skipped
 - micromark append: skipped
 
 | Group | Scenario | One-shot | Append workload | Notes |
 |:--|:--|---:|---:|:--|
-| full | full-plain | 1355.39ms | 5570.50ms | mode=idle |
-| full | full-auto | 1335.73ms | 6729.94ms | mode=idle |
-| full | full-20k-12 | 1827.98ms | 6149.61ms | mode=idle |
-| full | full-32k-16 | 1716.40ms | 6067.79ms | mode=idle |
-| full | full-64k-16 | 1699.18ms | 6868.86ms | mode=idle |
-| full | iterable-auto | 1432.75ms | 5925.82ms | mode=idle |
-| full | iterable-sink | 1017.89ms | 3551.89ms | mode=idle |
-| stream | stream-cache | 1356.88ms | 5705.25ms | mode=full |
-| stream | stream-auto | 1354.85ms | 5749.08ms | mode=full |
-| stream | stream-20k-24 | 1352.99ms | 5682.69ms | mode=full |
-| stream | stream-32k-16 | 1357.36ms | 5640.42ms | mode=full |
-| stream | stream-64k-32 | 1358.03ms | 5779.25ms | mode=full |
-| stream | unbounded-auto | 1440.90ms | 1645.85ms | chunks=2601 |
-| stream | unbounded-sink | 1044.77ms | 1012.79ms | chunks=2601 |
-| baseline | markdown-it | 1484.60ms | 5843.14ms | - |
-| baseline | markdown-exit | 1867.75ms | 6751.90ms | - |
+| full | full-default | 1151.20ms | 4599.73ms | - |
+| full | full-plain | 1221.22ms | 4224.19ms | - |
+| full | full-auto | 1550.62ms | 6772.23ms | - |
+| full | full-20k-12 | 1334.17ms | 5673.64ms | - |
+| full | full-32k-16 | 1445.87ms | 5561.87ms | - |
+| full | full-64k-16 | 1656.16ms | 5413.52ms | - |
+| full | iterable-auto | 1267.48ms | 5181.49ms | - |
+| full | iterable-sink | 924.82ms | 3467.00ms | - |
+| stream | stream-default | 1343.67ms | 4546.08ms | stream-full mode=full |
+| stream | stream-cache | 1177.35ms | 4729.37ms | stream-full mode=full |
+| stream | stream-auto | 1262.13ms | 4553.33ms | stream-full mode=full |
+| stream | stream-20k-24 | 1281.34ms | 4379.90ms | stream-full mode=full |
+| stream | stream-32k-16 | 1567.37ms | 4359.07ms | stream-full mode=full |
+| stream | stream-64k-32 | 1188.01ms | 4420.55ms | stream-full mode=full |
+| stream | unbounded-auto | 1651.54ms | 1322.05ms | - |
+| stream | unbounded-sink | 998.18ms | 1005.20ms | - |
+| baseline | markdown-it | 1756.79ms | 5487.82ms | - |
+| baseline | markdown-exit | 1704.10ms | 6461.59ms | - |
 | baseline | remark | skipped | skipped | - |
 | baseline | micromark | skipped | skipped | - |

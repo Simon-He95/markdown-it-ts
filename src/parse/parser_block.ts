@@ -20,6 +20,7 @@ import { reference } from '../rules/block/reference'
 import { table } from '../rules/block/table'
 import { BlockRuler } from './parser_block/ruler'
 import { StateBlock } from './parser_block/state_block'
+import { recordRuleInvocation } from './rule_profile'
 
 const _rules: [string, any, string[]?][] = [
   // First 2 params - rule name & source. Third param - list of rules,
@@ -55,6 +56,7 @@ export class ParserBlock {
    */
   tokenize(state: StateBlock, startLine: number, endLine: number): void {
     const rules = this.getRules()
+    const namedRules = this.ruler.getNamedRules('')
     const len = rules.length
     const maxNesting = state.md.options.maxNesting
     const bMarks = state.bMarks
@@ -63,6 +65,7 @@ export class ParserBlock {
     const sCount = state.sCount
     let line = startLine
     let hasEmptyLines = false
+    const shouldProfile = !!state.env && (Object.prototype.hasOwnProperty.call(state.env, '__mdtsRuleProfile') || Object.prototype.hasOwnProperty.call(state.env, '__mdtsProfileRules'))
 
     while (line < endLine) {
       while (line < endLine && bMarks[line] + tShift[line] >= eMarks[line]) {
@@ -94,7 +97,19 @@ export class ParserBlock {
       let ok = false
 
       for (let i = 0; i < len; i++) {
-        ok = rules[i](state, line, endLine, false)
+        if (!shouldProfile) {
+          ok = rules[i](state, line, endLine, false)
+        }
+        else {
+          const startedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
+            ? performance.now()
+            : Date.now()
+          ok = namedRules[i].fn(state, line, endLine, false)
+          const endedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
+            ? performance.now()
+            : Date.now()
+          recordRuleInvocation(state.env, 'block', namedRules[i].name, endedAt - startedAt, ok, false)
+        }
         if (ok) {
           if (prevLine >= state.line) {
             throw new Error('block rule didn\'t increment state.line')

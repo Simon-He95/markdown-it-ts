@@ -177,7 +177,7 @@ export function table(state: StateBlock, startLine: number, endLine: number, sil
 
   // use 'blockquote' lists for termination because it's
   // the most similar to tables
-  const terminatorRules = state.md.block.ruler.getRules('blockquote')
+  const terminatorRules = state.md.block.ruler.getRulesForState(state, 'blockquote')
 
   const token_to = state.push('table_open', 'table', 1)
   const tableLines: [number, number] = [startLine, 0]

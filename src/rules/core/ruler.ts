@@ -1,4 +1,8 @@
 export type CoreRule = (state: any) => void
+export interface CoreNamedRule {
+  name: string
+  fn: CoreRule
+}
 
 interface CoreRuleRec {
   name: string
@@ -9,9 +13,11 @@ interface CoreRuleRec {
 export class CoreRuler {
   private rules: CoreRuleRec[] = []
   private cache: CoreRule[] | null = null
+  private namedCache: CoreNamedRule[] | null = null
 
   private invalidateCache(): void {
     this.cache = null
+    this.namedCache = null
   }
 
   push(name: string, fn: CoreRule) {
@@ -110,12 +116,21 @@ export class CoreRuler {
 
   private compileCache(): void {
     this.cache = this.rules.filter(r => r.enabled).map(r => r.fn)
+    this.namedCache = this.rules
+      .filter(r => r.enabled)
+      .map(r => ({ name: r.name, fn: r.fn }))
   }
 
   getRules(_chainName = ''): CoreRule[] {
     if (!this.cache)
       this.compileCache()
     return this.cache!
+  }
+
+  getNamedRules(_chainName = ''): CoreNamedRule[] {
+    if (!this.namedCache)
+      this.compileCache()
+    return this.namedCache!
   }
 }
 

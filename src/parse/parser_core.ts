@@ -12,6 +12,7 @@ import { CoreRuler } from '../rules/core/ruler'
 import { smartquotes } from '../rules/core/smartquotes'
 import { text_join } from '../rules/core/text_join'
 import { normalizeLink, normalizeLinkText, validateLink } from './link_utils'
+import { finalizeRuleProfile, recordRuleInvocation } from './rule_profile'
 import { ParserBlock } from './parser_block'
 import { ParserInline } from './parser_inline'
 import { hasNormalizationChars, sourceToString } from './source'
@@ -124,9 +125,25 @@ export class ParserCore {
   public process(state: State): void {
     // Cache the core rule list to avoid re-materializing per parse when unchanged
     const rules = this.cachedCoreRules ?? (this.cachedCoreRules = this.ruler.getRules('') as Array<(state: State) => void>)
+    const namedRules = this.ruler.getNamedRules('')
+    const shouldProfile = !!state.env && (Object.prototype.hasOwnProperty.call(state.env, '__mdtsRuleProfile') || Object.prototype.hasOwnProperty.call(state.env, '__mdtsProfileRules'))
     for (let i = 0; i < rules.length; i++) {
-      rules[i](state)
+      if (!shouldProfile) {
+        rules[i](state)
+        continue
+      }
+
+      const startedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
+        ? performance.now()
+        : Date.now()
+      namedRules[i].fn(state)
+      const endedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
+        ? performance.now()
+        : Date.now()
+      recordRuleInvocation(state.env, 'core', namedRules[i].name, endedAt - startedAt, true, false)
     }
+
+    finalizeRuleProfile(state.env)
   }
 
   public parseSource(src: ParseSource, env: Record<string, unknown> = {}, md?: any): State {

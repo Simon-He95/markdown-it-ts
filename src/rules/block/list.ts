@@ -250,7 +250,7 @@ export function list(state: StateBlock, startLine: number, endLine: number, sile
 
   let prevEmptyEnd = false
   const listTokIdx = state.tokens.length - 1
-  const terminatorRules = state.md.block.ruler.getRules('list')
+  const terminatorRules = state.md.block.ruler.getRulesForState(state, 'list')
 
   const oldParentType = state.parentType
   state.parentType = 'list'

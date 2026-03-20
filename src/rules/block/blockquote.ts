@@ -43,7 +43,7 @@ export function blockquote(state: StateBlock, startLine: number, endLine: number
   const oldSCount: number[] = []
   const oldTShift: number[] = []
 
-  const terminatorRules = state.md.block.ruler.getRules('blockquote')
+  const terminatorRules = state.md.block.ruler.getRulesForState(state, 'blockquote')
 
   const oldParentType = state.parentType
   state.parentType = 'blockquote'

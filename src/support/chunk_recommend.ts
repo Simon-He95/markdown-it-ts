@@ -25,15 +25,19 @@ const FULL_DISCRETE_RECOMMENDATIONS: ReadonlyArray<DiscreteRecommendation> = [
   { max: 20_000, strategy: 'discrete', maxChunkChars: 24_000, maxChunkLines: 200, maxChunks: 12, notes: '<=20k' },
   { max: 100_000, strategy: 'plain', notes: '<=100k plain' },
   { max: 200_000, strategy: 'discrete', maxChunkChars: 20_000, maxChunkLines: 150, maxChunks: 12, notes: '<=200k' },
-  { max: 500_000, strategy: 'discrete', maxChunkChars: 32_000, maxChunkLines: 350, maxChunks: 16, notes: '<=500k' },
+  { max: 500_000, strategy: 'discrete', maxChunkChars: 64_000, maxChunkLines: 700, maxChunks: 16, notes: '<=500k' },
   { max: 5_000_000, strategy: 'discrete', maxChunkChars: 64_000, maxChunkLines: 700, maxChunks: 16, notes: '<=5M' },
 ]
 
 const STREAM_DISCRETE_RECOMMENDATIONS: ReadonlyArray<DiscreteRecommendation> = [
   { max: 5_000, strategy: 'discrete', maxChunkChars: 16_000, maxChunkLines: 250, maxChunks: 8, notes: '<=5k' },
-  { max: 20_000, strategy: 'discrete', maxChunkChars: 16_000, maxChunkLines: 200, maxChunks: 12, notes: '<=20k' },
-  { max: 50_000, strategy: 'discrete', maxChunkChars: 16_000, maxChunkLines: 250, maxChunks: 12, notes: '<=50k' },
-  { max: 500_000, strategy: 'discrete', maxChunkChars: 32_000, maxChunkLines: 350, maxChunks: 16, notes: '<=500k' },
+  { max: 20_000, strategy: 'discrete', maxChunkChars: 20_000, maxChunkLines: 200, maxChunks: 24, notes: '<=20k' },
+  { max: 100_000, strategy: 'discrete', maxChunkChars: 20_000, maxChunkLines: 200, maxChunks: 24, notes: '<=100k' },
+  // Larger stream bootstrap inputs benefit more from fewer, fatter chunks so
+  // append-heavy workloads do not pay extra chunk management before switching
+  // into tail reparses.
+  { max: 500_000, strategy: 'discrete', maxChunkChars: 64_000, maxChunkLines: 700, maxChunks: 32, notes: '<=500k' },
+  { max: 5_000_000, strategy: 'discrete', maxChunkChars: 64_000, maxChunkLines: 700, maxChunks: 32, notes: '<=5M' },
 ]
 
 function toRecommendation(fenceAware: boolean, discrete: DiscreteRecommendation): ChunkRecommendation {
@@ -83,8 +87,8 @@ export function recommendStreamChunkStrategy(sizeChars: number, sizeLines = Math
       break
     }
   }
-  if (sizeChars > 500_000)
-    return { strategy: 'plain', fenceAware, notes: '>500k plain' }
+  if (sizeChars > 5_000_000)
+    return { strategy: 'plain', fenceAware, notes: '>5M plain' }
   if (adaptive) {
     const maxChunkChars = clamp(Math.ceil(sizeChars / target), 8000, 64_000)
     const maxChunkLines = clamp(Math.ceil(sizeLines / target), 150, 700)

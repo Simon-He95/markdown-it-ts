@@ -3,11 +3,12 @@
  */
 
 import type { StateBlock } from '../../parse/parser_block/state_block'
+import { couldTerminateParagraph } from './paragraph_terminator_fast'
 
 const HEADING_TAGS = ['', 'h1', 'h2']
 
 export function lheading(state: StateBlock, startLine: number, endLine: number): boolean {
-  const terminatorRules = state.md.block.ruler.getRules('paragraph')
+  const terminatorRules = state.md.block.ruler.getRulesForState(state, 'paragraph')
   const src = state.src
   const bMarks = state.bMarks
   const tShift = state.tShift
@@ -72,6 +73,9 @@ export function lheading(state: StateBlock, startLine: number, endLine: number):
 
     // quirk for blockquotes, this line should already be checked by that rule
     if (sCount[nextLine] < 0)
+      continue
+
+    if (!couldTerminateParagraph(src, lineStart, max))
       continue
 
     // Some tags can terminate paragraph without empty line.

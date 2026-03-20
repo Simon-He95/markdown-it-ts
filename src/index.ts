@@ -8,6 +8,7 @@ import LinkifyIt from 'linkify-it'
 import * as utils from './common/utils'
 import * as helpers from './helpers'
 import { normalizeLink, normalizeLinkText, validateLink } from './parse/link_utils'
+import { setStrategyDiagnostics } from './parse/strategy_diagnostics'
 import { ParserCore } from './parse/parser_core'
 import commonmarkPreset from './presets/commonmark'
 import defaultPreset from './presets/default'
@@ -163,6 +164,15 @@ function hasExplicitChunkOverride(
   return false
 }
 
+function hasExplicitOption(
+  presetOptions: MarkdownItOptions | undefined,
+  userOptions: MarkdownItOptions | undefined,
+  key: keyof MarkdownItOptions,
+): boolean {
+  return (!!userOptions && Object.prototype.hasOwnProperty.call(userOptions, key))
+    || (!!presetOptions && Object.prototype.hasOwnProperty.call(presetOptions, key))
+}
+
 function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownItOptions): MarkdownIt {
   // defaults (core-only)
   let opts: MarkdownItOptions = {
@@ -184,8 +194,8 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
     streamChunkAdaptive: true,
     streamChunkTargetChunks: 8,
     streamChunkMaxChunks: undefined,
-    streamSkipCacheAboveChars: 600_000,
-    streamSkipCacheAboveLines: 10_000,
+    streamSkipCacheAboveChars: 1_000_000,
+    streamSkipCacheAboveLines: 100_000,
     fullChunkedFallback: false,
     fullChunkThresholdChars: 20_000,
     fullChunkThresholdLines: 400,
@@ -254,6 +264,8 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
     'streamChunkSizeLines',
     'streamChunkMaxChunks',
   ])
+  let explicitFullChunkFallbackSetting = hasExplicitOption(preset?.options, userOptions, 'fullChunkedFallback')
+  let explicitStreamChunkFallbackSetting = hasExplicitOption(preset?.options, userOptions, 'streamChunkedFallback')
 
   // construct minimal core instance; avoid importing renderer here
   const core = new ParserCore()
@@ -298,6 +310,8 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
     options: opts,
     __explicitFullChunkConfig: explicitFullChunkConfig,
     __explicitStreamChunkConfig: explicitStreamChunkConfig,
+    __explicitFullChunkFallbackSetting: explicitFullChunkFallbackSetting,
+    __explicitStreamChunkFallbackSetting: explicitStreamChunkFallbackSetting,
     set(newOpts: MarkdownItOptions) {
       this.options = { ...this.options, ...newOpts }
       if (newOpts.fullChunkSizeChars !== undefined || newOpts.fullChunkSizeLines !== undefined || newOpts.fullChunkMaxChunks !== undefined) {
@@ -307,6 +321,14 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       if (newOpts.streamChunkSizeChars !== undefined || newOpts.streamChunkSizeLines !== undefined || newOpts.streamChunkMaxChunks !== undefined) {
         explicitStreamChunkConfig = true
         this.__explicitStreamChunkConfig = true
+      }
+      if (Object.prototype.hasOwnProperty.call(newOpts, 'fullChunkedFallback')) {
+        explicitFullChunkFallbackSetting = true
+        this.__explicitFullChunkFallbackSetting = true
+      }
+      if (Object.prototype.hasOwnProperty.call(newOpts, 'streamChunkedFallback')) {
+        explicitStreamChunkFallbackSetting = true
+        this.__explicitStreamChunkFallbackSetting = true
       }
       if (renderer)
         renderer.set(newOpts as RendererOptions)
@@ -420,41 +442,51 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       if (typeof src !== 'string')
         throw new TypeError('Input data should be a String')
 
-      // Fast path: stream disabled and chunked fallback disabled -> direct parse
+      let countedLines: number | undefined
+
+      // Fast path: stream disabled and chunked fallback disabled -> direct parse,
+      // unless the default auto large-input strategy selects chunked parsing.
       if (!this.stream.enabled && !this.options.fullChunkedFallback) {
         const autoUnboundedDecision = getAutoUnboundedDecision(this, src.length)
         if (autoUnboundedDecision === 'yes') {
+          setStrategyDiagnostics(env, { area: 'parse', path: 'auto-unbounded', unbounded: true, reason: 'char-threshold' })
           return parseStringUnbounded(this, src, env)
         }
         if (
           autoUnboundedDecision === 'need-lines'
-          && shouldAutoUseUnbounded(this, src.length, utils.countLines(src))
         ) {
-          return parseStringUnbounded(this, src, env)
+          countedLines = utils.countLines(src)
         }
-        const state = core.parse(src, env, this)
-        return state.tokens
       }
 
       // Optional chunked path for full parse (non-stream)
       if (!this.stream.enabled) {
         const chars = src.length
-        if (this.options.fullChunkedFallback) {
-          const lines = utils.countLines(src)
-          // Best-practice auto-tuning: choose strategy by size if user didn't force a strategy
-          const auto = this.options.autoTuneChunks !== false
-          const userForcedChunk = explicitFullChunkConfig
-          const autoRecommendation = auto && !userForcedChunk
-            ? recommendFullChunkStrategy(chars, lines, this.options)
-            : null
-          const useChunked = (chars >= (this.options.fullChunkThresholdChars ?? 20_000))
-            || (lines >= (this.options.fullChunkThresholdLines ?? 400))
+        const lines = countedLines ?? utils.countLines(src)
+        const auto = this.options.autoTuneChunks !== false
+        const userForcedChunk = explicitFullChunkConfig
+        const allowImplicitChunk = !explicitFullChunkFallbackSetting
+        const wantsChunking = !!this.options.fullChunkedFallback
+        const shouldAutoChunk = allowImplicitChunk
+          && chars >= 200_000
+        const autoRecommendation = auto && !userForcedChunk
+          ? recommendFullChunkStrategy(chars, lines, this.options)
+          : null
+
+        if (wantsChunking || shouldAutoChunk) {
+          const useChunked = wantsChunking
+            ? ((chars >= (this.options.fullChunkThresholdChars ?? 20_000))
+                || (lines >= (this.options.fullChunkThresholdLines ?? 400)))
+            : shouldAutoChunk
+
           if (useChunked) {
-            if (autoRecommendation) {
-              if (autoRecommendation.strategy === 'plain') {
-                const state = core.parse(src, env, this)
-                return state.tokens
-              }
+            if (autoRecommendation && autoRecommendation.strategy !== 'plain') {
+              setStrategyDiagnostics(env, {
+                area: 'parse',
+                path: 'full-chunk',
+                chunked: true,
+                reason: wantsChunking ? 'explicit-full-chunk' : 'default-large-string',
+              })
               const tokens = chunkedParse(this, src, env, {
                 maxChunkChars: autoRecommendation.maxChunkChars,
                 maxChunkLines: autoRecommendation.maxChunkLines,
@@ -464,26 +496,40 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
               return tokens
             }
 
-            const clamp = (v: number, lo: number, hi: number) => v < lo ? lo : (v > hi ? hi : v)
-            const adaptive = this.options.fullChunkAdaptive !== false
-            const target = this.options.fullChunkTargetChunks ?? 8
-            const dynMaxChunkChars = clamp(Math.ceil(chars / target), 8000, 64_000)
-            const dynMaxChunkLines = clamp(Math.ceil(lines / target), 150, 700)
-            const maxChunkChars = adaptive ? dynMaxChunkChars : (this.options.fullChunkSizeChars ?? 10_000)
-            const maxChunkLines = adaptive ? dynMaxChunkLines : (this.options.fullChunkSizeLines ?? 200)
-            const maxChunks = adaptive
-              ? clamp(Math.ceil(chars / 64_000), target, 32)
-              : this.options.fullChunkMaxChunks
+            if (wantsChunking) {
+              const clamp = (v: number, lo: number, hi: number) => v < lo ? lo : (v > hi ? hi : v)
+              const adaptive = this.options.fullChunkAdaptive !== false
+              const target = this.options.fullChunkTargetChunks ?? 8
+              const dynMaxChunkChars = clamp(Math.ceil(chars / target), 8000, 64_000)
+              const dynMaxChunkLines = clamp(Math.ceil(lines / target), 150, 700)
+              const maxChunkChars = adaptive ? dynMaxChunkChars : (this.options.fullChunkSizeChars ?? 10_000)
+              const maxChunkLines = adaptive ? dynMaxChunkLines : (this.options.fullChunkSizeLines ?? 200)
+              const maxChunks = adaptive
+                ? clamp(Math.ceil(chars / 64_000), target, 32)
+                : this.options.fullChunkMaxChunks
 
-            return chunkedParse(this, src, env, {
-              maxChunkChars,
-              maxChunkLines,
-              fenceAware: this.options.fullChunkFenceAware ?? true,
-              maxChunks,
-            })
+              setStrategyDiagnostics(env, {
+                area: 'parse',
+                path: 'full-chunk',
+                chunked: true,
+                reason: 'explicit-full-chunk',
+              })
+              return chunkedParse(this, src, env, {
+                maxChunkChars,
+                maxChunkLines,
+                fenceAware: this.options.fullChunkFenceAware ?? true,
+                maxChunks,
+              })
+            }
           }
         }
+
+        if (countedLines !== undefined && shouldAutoUseUnbounded(this, chars, lines)) {
+          setStrategyDiagnostics(env, { area: 'parse', path: 'auto-unbounded', unbounded: true, reason: 'line-threshold' })
+          return parseStringUnbounded(this, src, env)
+        }
       }
+      setStrategyDiagnostics(env, { area: 'parse', path: 'plain', reason: 'default-plain' })
       const state = core.parse(src, env, this)
       return state.tokens
     },
@@ -524,7 +570,9 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       return streamParser ? streamParser.peek() : []
     },
     stats() {
-      return streamParser ? streamParser.getStats() : { total: 0, cacheHits: 0, appendHits: 0, tailHits: 0, fullParses: 0, resets: 0, chunkedParses: 0, lastMode: 'idle' }
+      return streamParser
+        ? streamParser.getStats()
+        : { total: 0, cacheHits: 0, appendHits: 0, unboundedAppendHits: 0, tailHits: 0, fullParses: 0, resets: 0, chunkedParses: 0, lastMode: 'idle' }
     },
     resetStats() {
       if (streamParser)

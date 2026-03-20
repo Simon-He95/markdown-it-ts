@@ -75,6 +75,27 @@ function measureStable(fn, iters = 1, samples = 3) {
   return { ms: median(measurements), res }
 }
 
+function measureStableWarm(fn, iters = 1, samples = 3, warmupsPerSample = 1) {
+  const measurements = []
+  let res
+  for (let sample = 0; sample < samples; sample++) {
+    for (let warm = 0; warm < warmupsPerSample; warm++)
+      fn()
+    const run = measure(fn, iters)
+    measurements.push(run.ms / iters)
+    res = run.res
+  }
+  return { ms: median(measurements), res }
+}
+
+function rotate(items, offset) {
+  if (items.length === 0)
+    return items
+
+  const start = ((offset % items.length) + items.length) % items.length
+  return items.slice(start).concat(items.slice(0, start))
+}
+
 function pickIters(size) {
   // Increase iterations for small sizes to reduce timer noise
   if (size <= 5_000) return { oneIters: 120, appRepeats: 6, stableSamples: 5, appendSequenceIters: 6, appendLineSequenceIters: 4, replaceSequenceIters: 8 }
@@ -161,6 +182,99 @@ function runParseScenario(sc, md, input, envStream, envPlain) {
   return md.parse(input, envPlain)
 }
 
+function createBenchEnvs() {
+  return {
+    stream: { bench: true },
+    plain: { bench: true },
+  }
+}
+
+function normalizeAppendPiece(acc, piece) {
+  let next = acc
+  if (next.length && next.charCodeAt(next.length - 1) !== 0x0A)
+    next += '\n'
+
+  let normalizedPiece = piece
+  if (normalizedPiece.length && normalizedPiece.charCodeAt(normalizedPiece.length - 1) !== 0x0A)
+    normalizedPiece += '\n'
+
+  return next + normalizedPiece
+}
+
+function measureScenarioOneShot(entry, doc, iters) {
+  let lastEnvs = createBenchEnvs()
+  const ms = measure(() => {
+    resetScenario(entry.sc, entry.md)
+    lastEnvs = createBenchEnvs()
+    runParseScenario(entry.sc, entry.md, doc, lastEnvs.stream, lastEnvs.plain)
+  }, iters).ms / iters
+
+  entry.chunkInfoOne = entry.sc.type === 'full-chunk'
+    ? (lastEnvs.plain.__mdtsChunkInfo || null)
+    : (entry.sc.type.startsWith('stream') ? (lastEnvs.stream.__mdtsChunkInfo || null) : null)
+
+  return ms
+}
+
+function measureScenarioAppend(entry, parts, repeatCount = 1) {
+  let totalMs = 0
+  let lastEnvs = createBenchEnvs()
+  for (let seq = 0; seq < repeatCount; seq++) {
+    resetScenario(entry.sc, entry.md)
+    let acc = ''
+    for (let i = 0; i < parts.length; i++) {
+      acc = normalizeAppendPiece(acc, parts[i])
+      if (entry.sc.type === 'stream-no-cache-chunk')
+        entry.md.stream.reset()
+      lastEnvs = createBenchEnvs()
+      const t = performance.now()
+      runParseScenario(entry.sc, entry.md, acc, lastEnvs.stream, lastEnvs.plain)
+      totalMs += performance.now() - t
+    }
+  }
+
+  entry.chunkInfoAppendLast = entry.sc.type === 'full-chunk'
+    ? (lastEnvs.plain.__mdtsChunkInfo || null)
+    : (entry.sc.type.startsWith('stream') ? (lastEnvs.stream.__mdtsChunkInfo || null) : null)
+  entry.lastMode = entry.md.stream?.stats?.().lastMode || 'n/a'
+  entry.appendHits = entry.md.stream?.stats?.().appendHits || 0
+
+  return totalMs / repeatCount
+}
+
+function measureScenarioReplace(entry, paras, repeatCount = 1, sampleIndex = 0) {
+  let totalMs = 0
+  const lastIdx = paras.length - 1
+
+  for (let seq = 0; seq < repeatCount; seq++) {
+    resetScenario(entry.sc, entry.md)
+    const altered = paras.slice()
+    altered[lastIdx] = `${altered[lastIdx]}\n/* edit ${sampleIndex}-${seq} */\n`
+    const full = altered.join('')
+    const envs = createBenchEnvs()
+    const t = performance.now()
+    runParseScenario(entry.sc, entry.md, full, envs.stream, envs.plain)
+    totalMs += performance.now() - t
+  }
+
+  entry.lastMode = entry.md.stream?.stats?.().lastMode || entry.lastMode || 'n/a'
+  entry.appendHits = entry.md.stream?.stats?.().appendHits || entry.appendHits || 0
+
+  return totalMs / repeatCount
+}
+
+function warmAppendScenario(sc, md, parts) {
+  resetScenario(sc, md)
+  let acc = ''
+  for (let i = 0; i < parts.length; i++) {
+    acc = normalizeAppendPiece(acc, parts[i])
+    if (sc.type === 'stream-no-cache-chunk')
+      md.stream.reset()
+    const envs = createBenchEnvs()
+    runParseScenario(sc, md, acc, envs.stream, envs.plain)
+  }
+}
+
 function shouldSkipScenarioAtSize(sc, size) {
   return size > HEAVY_PARSE_ONLY_MAX_SIZE
     && (sc.type === 'remark' || sc.type === 'micromark-parse')
@@ -175,57 +289,46 @@ function runMatrix() {
   const scenarios = makeScenarios()
   const results = []
 
-  for (const size of SIZES) {
+  for (let sizeIndex = 0; sizeIndex < SIZES.length; sizeIndex++) {
+    const size = SIZES[sizeIndex]
     const paras = makeParasByChars(size)
     const doc = paras.join('')
     const appParts = splitParasIntoSteps(paras, APP_STEPS)
     const { oneIters, appRepeats, stableSamples, appendSequenceIters, appendLineSequenceIters, replaceSequenceIters } = pickIters(size)
+    const lineParts = splitLinesIntoSteps(doc, APP_STEPS * 3)
+    const lineRepeats = Math.max(2, Math.floor(appRepeats / 2))
+    const replaceRepeats = Math.max(2, Math.floor(appRepeats / 2))
+    const activeScenarios = rotate(
+      scenarios.filter(sc => !shouldSkipScenarioAtSize(sc, size)),
+      sizeIndex,
+    )
 
-    for (const sc of scenarios) {
-      if (shouldSkipScenarioAtSize(sc, size))
-        continue
-
+    for (const sc of activeScenarios) {
       const md = sc.make()
       const envStream = { bench: true }
       const envOne = { bench: true }
       const envAppend = { bench: true }
 
-      // one-shot
       const oneRunner = () => {
         resetScenario(sc, md)
         return runParseScenario(sc, md, doc, envStream, envOne)
       }
       oneRunner()
       oneRunner()
-      const one = measureStable(oneRunner, oneIters, stableSamples)
+      const one = measureStableWarm(oneRunner, oneIters, stableSamples, 1)
 
-      // append workload
-      // warmup append sequence once (not timed)
-      {
-        let accWarm = ''
-        const envAppendWarm = { bench: true }
-        resetScenario(sc, md)
-        for (let i = 0; i < appParts.length; i++) {
-          if (accWarm.length && accWarm.charCodeAt(accWarm.length - 1) !== 0x0A) accWarm += '\n'
-          let piece = appParts[i]
-          if (piece.length && piece.charCodeAt(piece.length - 1) !== 0x0A) piece += '\n'
-          accWarm += piece
-          if (sc.type === 'stream-no-cache-chunk') md.stream.reset()
-          runParseScenario(sc, md, accWarm, envStream, envAppendWarm)
-        }
-      }
+      warmAppendScenario(sc, md, appParts)
       const appendSamples = []
       for (let rep = 0; rep < appRepeats; rep++) {
+        warmAppendScenario(sc, md, appParts)
         let repMs = 0
         for (let seq = 0; seq < appendSequenceIters; seq++) {
           resetScenario(sc, md)
           let acc = ''
           for (let i = 0; i < appParts.length; i++) {
-            if (acc.length && acc.charCodeAt(acc.length - 1) !== 0x0A) acc += '\n'
-            let piece = appParts[i]
-            if (piece.length && piece.charCodeAt(piece.length - 1) !== 0x0A) piece += '\n'
-            acc += piece
-            if (sc.type === 'stream-no-cache-chunk') md.stream.reset()
+            acc = normalizeAppendPiece(acc, appParts[i])
+            if (sc.type === 'stream-no-cache-chunk')
+              md.stream.reset()
             const t = performance.now()
             runParseScenario(sc, md, acc, envStream, envAppend)
             repMs += performance.now() - t
@@ -235,21 +338,18 @@ function runMatrix() {
       }
       const appendMs = median(appendSamples)
 
-      // LINE-level append workload (finer-grained than paragraph parts)
-      const lineParts = splitLinesIntoSteps(doc, APP_STEPS * 3)
-      const lineRepeats = Math.max(2, Math.floor(appRepeats / 2))
+      warmAppendScenario(sc, md, lineParts)
       const appendLineSamples = []
       for (let rep = 0; rep < lineRepeats; rep++) {
+        warmAppendScenario(sc, md, lineParts)
         let repMs = 0
         for (let seq = 0; seq < appendLineSequenceIters; seq++) {
           resetScenario(sc, md)
           let acc = ''
           for (let i = 0; i < lineParts.length; i++) {
-            if (acc.length && acc.charCodeAt(acc.length - 1) !== 0x0A) acc += '\n'
-            let piece = lineParts[i]
-            if (piece.length && piece.charCodeAt(piece.length - 1) !== 0x0A) piece += '\n'
-            acc += piece
-            if (sc.type === 'stream-no-cache-chunk') md.stream.reset()
+            acc = normalizeAppendPiece(acc, lineParts[i])
+            if (sc.type === 'stream-no-cache-chunk')
+              md.stream.reset()
             const t = performance.now()
             runParseScenario(sc, md, acc, envStream, envAppend)
             repMs += performance.now() - t
@@ -259,18 +359,20 @@ function runMatrix() {
       }
       const appendLineMs = median(appendLineSamples)
 
-      // Paragraph-replace workload: repeatedly change the last paragraph (non-append)
-      // This simulates in-place edits that should cause full reparses in stream mode.
       const parasCopy = paras.slice()
-      const replaceRepeats = Math.max(2, Math.floor(appRepeats / 2))
       const replaceSamples = []
       for (let rep = 0; rep < replaceRepeats; rep++) {
+        resetScenario(sc, md)
+        const alteredWarm = parasCopy.slice()
+        alteredWarm[alteredWarm.length - 1] = `${alteredWarm[alteredWarm.length - 1]}\n/* warm ${rep} */\n`
+        runParseScenario(sc, md, alteredWarm.join(''), envStream, envAppend)
+
         let repMs = 0
         for (let seq = 0; seq < replaceSequenceIters; seq++) {
           resetScenario(sc, md)
           const altered = parasCopy.slice()
           const lastIdx = altered.length - 1
-          altered[lastIdx] = altered[lastIdx] + `\n/* edit ${rep}-${seq} */\n`
+          altered[lastIdx] = `${altered[lastIdx]}\n/* edit ${rep}-${seq} */\n`
           const full = altered.join('')
           const t = performance.now()
           runParseScenario(sc, md, full, envStream, envAppend)
@@ -280,7 +382,7 @@ function runMatrix() {
       }
       const replaceMs = median(replaceSamples)
 
-      const stat = {
+      results.push({
         size,
         scenario: sc.id,
         label: sc.label,
@@ -292,8 +394,7 @@ function runMatrix() {
         appendHits: md.stream?.stats?.().appendHits || 0,
         chunkInfoOne: (sc.type === 'full-chunk') ? (envOne.__mdtsChunkInfo || null) : (sc.type.startsWith('stream') ? (envStream.__mdtsChunkInfo || null) : null),
         chunkInfoAppendLast: (sc.type === 'full-chunk') ? (envAppend.__mdtsChunkInfo || null) : (sc.type.startsWith('stream') ? (envStream.__mdtsChunkInfo || null) : null),
-      }
-      results.push(stat)
+      })
     }
   }
 
@@ -315,34 +416,37 @@ function measureColdHot() {
   for (const size of COLD_HOT_SIZES) {
     const doc = makeParasByChars(size).join('')
     for (const impl of impls) {
-      // cold: new instance, single parse, no warmup
-      const coldInst = impl.make()
-      const coldRunner = () => (
-        impl.type === 'remark'
-          ? coldInst.parse(doc)
-          : impl.type === 'md-original'
-            ? coldInst.parse(doc, {})
-            : impl.type === 'ts'
-              ? (coldInst.stream.reset(), coldInst.stream.parse(doc, {}))
-            : coldInst.parse(doc, {})
-      )
-      const coldMs = measure(coldRunner, 1).ms
+      const coldSamples = []
+      const hotSamples = []
 
-      // hot: new instance, warmup, then average
-      const hotInst = impl.make()
-      const hotRunner = () => (
-        impl.type === 'remark'
-          ? hotInst.parse(doc)
-          : impl.type === 'md-original'
-            ? hotInst.parse(doc, {})
-            : impl.type === 'ts'
-              ? (hotInst.stream.reset(), hotInst.stream.parse(doc, {}))
-            : hotInst.parse(doc, {})
-      )
-      measure(hotRunner, 3) // warmup
-      const hotMs = measure(hotRunner, COLD_HOT_ITERS).ms / COLD_HOT_ITERS
+      for (let sample = 0; sample < 3; sample++) {
+        const coldInst = impl.make()
+        const coldRunner = () => (
+          impl.type === 'remark'
+            ? coldInst.parse(doc)
+            : impl.type === 'md-original'
+              ? coldInst.parse(doc, {})
+              : impl.type === 'ts'
+                ? (coldInst.stream.reset(), coldInst.stream.parse(doc, {}))
+                : coldInst.parse(doc, {})
+        )
+        coldSamples.push(measure(coldRunner, 1).ms)
 
-      coldHot.push({ size, ...impl, coldMs, hotMs })
+        const hotInst = impl.make()
+        const hotRunner = () => (
+          impl.type === 'remark'
+            ? hotInst.parse(doc)
+            : impl.type === 'md-original'
+              ? hotInst.parse(doc, {})
+              : impl.type === 'ts'
+                ? (hotInst.stream.reset(), hotInst.stream.parse(doc, {}))
+                : hotInst.parse(doc, {})
+        )
+        measure(hotRunner, 3)
+        hotSamples.push(measure(hotRunner, COLD_HOT_ITERS).ms / COLD_HOT_ITERS)
+      }
+
+      coldHot.push({ size, ...impl, coldMs: median(coldSamples), hotMs: median(hotSamples) })
     }
   }
 
@@ -359,25 +463,23 @@ function measureRenderComparisons() {
   ]
 
   const results = []
-  for (const size of SIZES) {
+  for (let sizeIndex = 0; sizeIndex < SIZES.length; sizeIndex++) {
+    const size = SIZES[sizeIndex]
     const doc = makeParasByChars(size).join('')
     const { oneIters, stableSamples } = pickIters(size)
-    for (const impl of impls) {
-      if (shouldSkipRenderImplAtSize(impl, size))
-        continue
-
+    for (const impl of rotate(impls.filter(impl => !shouldSkipRenderImplAtSize(impl, size)), sizeIndex)) {
       const inst = impl.make()
       const runner = () => (
         impl.type === 'remark'
           ? inst.processSync(doc).toString()
           : impl.type === 'micromark'
             ? inst(doc)
-          : impl.type === 'md-exit'
-            ? inst.render(doc)
-            : inst.render(doc)
+            : impl.type === 'md-exit'
+              ? inst.render(doc)
+              : inst.render(doc)
       )
       runner(); runner(); runner()
-      const { ms } = measureStable(runner, oneIters, stableSamples)
+      const { ms } = measureStableWarm(runner, oneIters, stableSamples, 1)
       results.push({ size, scenario: impl.id, label: impl.label, renderMs: ms })
     }
   }

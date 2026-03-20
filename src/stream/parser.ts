@@ -1,6 +1,7 @@
 import type { Token } from '../common/token'
 import type { MarkdownIt } from '../index'
 import type { ParserCore } from '../parse/parser_core'
+import { setStrategyDiagnostics } from '../parse/strategy_diagnostics'
 import { countLines } from '../common/utils'
 import { recommendStreamChunkStrategy } from '../support/chunk_recommend'
 import { chunkedParse } from './chunked'
@@ -29,6 +30,7 @@ export interface StreamStats {
   total: number
   cacheHits: number
   appendHits: number
+  unboundedAppendHits?: number
   tailHits: number
   fullParses: number
   resets: number
@@ -41,6 +43,7 @@ function makeEmptyStats(): StreamStats {
     total: 0,
     cacheHits: 0,
     appendHits: 0,
+    unboundedAppendHits: 0,
     tailHits: 0,
     fullParses: 0,
     resets: 0,
@@ -57,13 +60,20 @@ export class StreamParser {
   // Only use stream optimization for documents larger than this threshold
   private readonly MIN_SIZE_FOR_OPTIMIZATION = 1000 // characters
   // Allow caching for most real-world docs; skip only for extremely large payloads
-  private readonly DEFAULT_SKIP_CACHE_CHARS = 600_000
-  private readonly DEFAULT_SKIP_CACHE_LINES = 10_000
+  private readonly DEFAULT_SKIP_CACHE_CHARS = 1_000_000
+  private readonly DEFAULT_SKIP_CACHE_LINES = 100_000
+  // Keep the default path plain for small/medium stream inputs, but start
+  // chunking slightly earlier so 1M append-heavy workloads do not spend their
+  // first large step on a full parse before switching to tail reparses.
+  private readonly IMPLICIT_STREAM_CHUNK_MIN_CHARS = 160_000
   // Container-merge pays off only when the tail list is already sizeable.
   private readonly MIN_LIST_LINES_FOR_MERGE = 80
   private readonly MIN_LIST_CHARS_FOR_MERGE = 800
   private readonly MIN_TABLE_LINES_FOR_MERGE = 48
   private readonly MIN_TABLE_CHARS_FOR_MERGE = 1200
+  private readonly MIN_UNBOUNDED_APPEND_TOTAL_CHARS = 500_000
+  private readonly MIN_UNBOUNDED_APPEND_CHARS = 64_000
+  private readonly MIN_UNBOUNDED_APPEND_LINES = 700
 
   // (reserved for future adaptive strategy metrics)
 
@@ -93,7 +103,10 @@ export class StreamParser {
       const workingEnv = envProvided ?? {}
 
       // Allow chunked for first parse when enabled and large enough
-      const chunkedEnabled = !!md.options?.streamChunkedFallback
+      const explicitChunkFallbackSetting = !!(md as any).__explicitStreamChunkFallbackSetting
+      const wantsChunking = !!md.options?.streamChunkedFallback
+      const allowImplicitChunk = !explicitChunkFallbackSetting
+      const chunkedEnabled = wantsChunking || allowImplicitChunk
       const chunkAdaptive = md.options?.streamChunkAdaptive !== false
       const targetChunks = md.options?.streamChunkTargetChunks ?? 8
       const chunkSizeCharsCfg = md.options?.streamChunkSizeChars
@@ -121,6 +134,7 @@ export class StreamParser {
         this.stats.total += 1
         this.stats.fullParses += 1
         this.stats.lastMode = 'full'
+        setStrategyDiagnostics(workingEnv, { area: 'stream', path: 'stream-full', reason: 'skip-cache-large-one-shot', unbounded: !!(workingEnv as any).__mdtsUnboundedInfo })
         return parsed.tokens
       }
       else if (chunkedEnabled) {
@@ -138,7 +152,10 @@ export class StreamParser {
           ?? (chunkAdaptive ? clamp(Math.ceil(src.length / 64_000), targetChunks, 32) : chunkMaxChunksCfg)
         // Avoid chunked fallback for character-by-character growth (no trailing newline)
         const hasTrailingNewline = src.length > 0 && src.charCodeAt(src.length - 1) === 0x0A
-        if (recommendation?.strategy !== 'plain'
+        const shouldAutoChunk = allowImplicitChunk
+          && src.length >= this.IMPLICIT_STREAM_CHUNK_MIN_CHARS
+          && recommendation?.strategy !== 'plain'
+        if ((wantsChunking || shouldAutoChunk)
           && (src.length >= (useChars * 2) || srcLineCount >= (useLines * 2))
           && hasTrailingNewline) {
           const tokens = chunkedParse(md, src, workingEnv, {
@@ -152,6 +169,12 @@ export class StreamParser {
           this.stats.total += 1
           this.stats.chunkedParses = (this.stats.chunkedParses || 0) + 1
           this.stats.lastMode = 'chunked'
+          setStrategyDiagnostics(workingEnv, {
+            area: 'stream',
+            path: 'stream-chunked',
+            chunked: true,
+            reason: wantsChunking ? 'explicit-initial-large-doc' : 'default-initial-large-doc',
+          })
           return tokens
         }
       }
@@ -165,6 +188,7 @@ export class StreamParser {
       this.stats.total += 1
       this.stats.fullParses += 1
       this.stats.lastMode = 'full'
+      setStrategyDiagnostics(workingEnv, { area: 'stream', path: 'stream-full', reason: 'initial-parse', unbounded: !!(workingEnv as any).__mdtsUnboundedInfo })
       return parsed.tokens
     }
 
@@ -172,6 +196,7 @@ export class StreamParser {
       this.stats.total += 1
       this.stats.cacheHits += 1
       this.stats.lastMode = 'cache'
+      setStrategyDiagnostics(cached.env, { area: 'stream', path: 'stream-cache', reason: 'same-source' })
       return cached.tokens
     }
 
@@ -191,6 +216,7 @@ export class StreamParser {
       this.stats.total += 1
       this.stats.fullParses += 1
       this.stats.lastMode = 'full'
+      setStrategyDiagnostics(fallbackEnv, { area: 'stream', path: 'stream-full', reason: 'small-non-append', unbounded: !!(fallbackEnv as any).__mdtsUnboundedInfo })
       return nextTokens
     }
 
@@ -364,6 +390,7 @@ export class StreamParser {
       }
 
       const canDirectParseAppend = this.canDirectlyParseAppend(cached)
+      const useUnboundedAppend = canDirectParseAppend && this.shouldUseUnboundedAppend(src, cached, appended)
 
       // Decide whether to attempt a context-aware parse based on strategy
       let shouldAttemptContext = false
@@ -432,11 +459,20 @@ export class StreamParser {
       // Fallback: if context-aware extraction did not yield appended tokens,
       // parse appended alone and shift it by cached line count.
       if (!appendedState) {
-        const simpleState = this.core.parse(appended, cached.env, md)
         const lineOffset = cachedLineCount
-        if (lineOffset > 0)
-          this.shiftTokenLines(simpleState.tokens, lineOffset)
-        appendedState = simpleState
+        if (useUnboundedAppend) {
+          appendedState = {
+            tokens: parseStringUnbounded(md, appended, cached.env, { mode: 'stream' }),
+          }
+          if (lineOffset > 0)
+            this.shiftTokenLines(appendedState.tokens, lineOffset)
+        }
+        else {
+          const simpleState = this.core.parse(appended, cached.env, md)
+          if (lineOffset > 0)
+            this.shiftTokenLines(simpleState.tokens, lineOffset)
+          appendedState = simpleState
+        }
       }
 
       // Conservative merge: if the last cached token and the first appended token
@@ -451,7 +487,7 @@ export class StreamParser {
             if (firstApp.children && firstApp.children.length > 0) {
               if (!lastCached.children)
                 lastCached.children = []
-              lastCached.children.push(...firstApp.children)
+              this.appendTokens(lastCached.children, firstApp.children)
             }
             // merge textual content
             lastCached.content = (lastCached.content || '') + (firstApp.content || '')
@@ -515,7 +551,7 @@ export class StreamParser {
         }
 
         if (a.length > 0) {
-          cached.tokens.push(...a)
+          this.appendTokens(cached.tokens, a)
         }
       }
 
@@ -544,7 +580,15 @@ export class StreamParser {
 
       this.stats.total += 1
       this.stats.appendHits += 1
+      if (useUnboundedAppend)
+        this.stats.unboundedAppendHits = (this.stats.unboundedAppendHits || 0) + 1
       this.stats.lastMode = 'append'
+      setStrategyDiagnostics(cached.env, {
+        area: 'stream',
+        path: useUnboundedAppend ? 'stream-unbounded-append' : 'stream-append',
+        reason: useUnboundedAppend ? 'large-delta' : 'safe-append',
+        unbounded: useUnboundedAppend,
+      })
       return cached.tokens
     }
 
@@ -555,11 +599,15 @@ export class StreamParser {
       this.stats.total += 1
       this.stats.tailHits += 1
       this.stats.lastMode = 'tail'
+      setStrategyDiagnostics(fallbackEnv, { area: 'stream', path: 'stream-tail', reason: 'tail-reparse' })
       return tailReparsed
     }
 
     // Optional: use chunked parse as a fallback for very large documents
-    const chunkedEnabled = !!md.options?.streamChunkedFallback
+    const explicitChunkFallbackSetting = !!(md as any).__explicitStreamChunkFallbackSetting
+    const wantsChunking = !!md.options?.streamChunkedFallback
+    const allowImplicitChunk = !explicitChunkFallbackSetting && !appended
+    const chunkedEnabled = wantsChunking || allowImplicitChunk
     const chunkAdaptive = md.options?.streamChunkAdaptive !== false
     const targetChunks = md.options?.streamChunkTargetChunks ?? 8
     const chunkSizeCharsCfg = md.options?.streamChunkSizeChars
@@ -584,7 +632,10 @@ export class StreamParser {
       const useMaxChunks = recommendation?.maxChunks
         ?? (chunkAdaptive ? clamp(Math.ceil(src.length / 64_000), targetChunks, 32) : chunkMaxChunksCfg)
       const hasTrailingNewline2 = src.length > 0 && src.charCodeAt(src.length - 1) === 0x0A
-      if (recommendation?.strategy !== 'plain'
+      const shouldAutoChunk = allowImplicitChunk
+        && src.length >= this.IMPLICIT_STREAM_CHUNK_MIN_CHARS
+        && recommendation?.strategy !== 'plain'
+      if ((wantsChunking || shouldAutoChunk)
         && (src.length >= (useChars * 2) || srcLineCount2 >= (useLines * 2))
         && hasTrailingNewline2) {
         const tokens = chunkedParse(md, src, fallbackEnv, {
@@ -598,6 +649,12 @@ export class StreamParser {
         this.stats.total += 1
         this.stats.chunkedParses = (this.stats.chunkedParses || 0) + 1
         this.stats.lastMode = 'chunked'
+        setStrategyDiagnostics(fallbackEnv, {
+          area: 'stream',
+          path: 'stream-chunked',
+          chunked: true,
+          reason: wantsChunking ? 'explicit-fallback-large-doc' : 'default-fallback-large-doc',
+        })
         return tokens
       }
     }
@@ -611,6 +668,7 @@ export class StreamParser {
     this.stats.total += 1
     this.stats.fullParses += 1
     this.stats.lastMode = 'full'
+    setStrategyDiagnostics(fallbackEnv, { area: 'stream', path: 'stream-full', reason: 'fallback-full', unbounded: !!(fallbackEnv as any).__mdtsUnboundedInfo })
     return nextTokens
   }
 
@@ -623,6 +681,7 @@ export class StreamParser {
   ): { tokens: Token[], lineCount: number } {
     const autoUnboundedDecision = getAutoUnboundedDecision(md, src.length, knownLineCount)
     if (autoUnboundedDecision === 'yes') {
+      setStrategyDiagnostics(env, { area: 'stream', path: 'stream-full', reason: 'auto-unbounded-char-threshold', unbounded: true })
       return {
         tokens: parseStringUnbounded(md, src, env),
         lineCount: knownLineCount ?? (needLineCount ? countLines(src) : 0),
@@ -632,14 +691,30 @@ export class StreamParser {
     let lineCount = knownLineCount
     if (autoUnboundedDecision === 'need-lines') {
       lineCount = countLines(src)
-      if (shouldAutoUseUnbounded(md, src.length, lineCount))
+      if (shouldAutoUseUnbounded(md, src.length, lineCount)) {
+        setStrategyDiagnostics(env, { area: 'stream', path: 'stream-full', reason: 'auto-unbounded-line-threshold', unbounded: true })
         return { tokens: parseStringUnbounded(md, src, env), lineCount }
+      }
     }
 
     if (lineCount === undefined)
       lineCount = needLineCount ? countLines(src) : 0
 
     return { tokens: this.core.parse(src, env, md).tokens, lineCount }
+  }
+
+  private shouldUseUnboundedAppend(src: string, _cached: StreamCache, appended: string): boolean {
+    if (!appended)
+      return false
+
+    const totalChars = src.length
+    if (totalChars < this.MIN_UNBOUNDED_APPEND_TOTAL_CHARS && appended.length < this.MIN_UNBOUNDED_APPEND_CHARS)
+      return false
+
+    if (appended.length >= this.MIN_UNBOUNDED_APPEND_CHARS)
+      return true
+
+    return countLines(appended) >= this.MIN_UNBOUNDED_APPEND_LINES
   }
 
   private getAppendedSegment(prev: string, next: string): string | null {
@@ -745,7 +820,7 @@ export class StreamParser {
       cached.src = src
       cached.env = env
       cached.tokens.length = lastSegment.tokenStart
-      cached.tokens.push(...tailState.tokens)
+      this.appendTokens(cached.tokens, tailState.tokens)
       cached.lineCount = countLines(src)
       if (localLastSegment) {
         cached.lastSegment = {
@@ -839,6 +914,11 @@ export class StreamParser {
   }
 
   // countLines moved to common utils for reuse
+
+  private appendTokens(target: Token[], source: Token[]): void {
+    for (let i = 0; i < source.length; i++)
+      target.push(source[i])
+  }
 
   private updateCacheLineCount(cache: StreamCache, lineCount?: number): void {
     cache.lineCount = lineCount ?? countLines(cache.src)

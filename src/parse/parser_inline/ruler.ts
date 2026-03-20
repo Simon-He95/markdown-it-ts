@@ -3,27 +3,36 @@
  * Similar to original markdown-it/lib/ruler.mjs but for inline rules
  */
 
+export type InlineRuleFn = (state: any, silent?: boolean) => boolean | void
+
 export interface InlineRule {
   name: string
-  fn: (state: any, silent?: boolean) => boolean | void
+  fn: InlineRuleFn
   alt?: string[]
   enabled: boolean
 }
 
+export interface InlineNamedRule {
+  name: string
+  fn: InlineRuleFn
+}
+
 export class InlineRuler {
   private rules: InlineRule[] = []
-  private cache: Map<string, Array<(state: any, silent?: boolean) => boolean | void>> | null = null
+  private cache: Map<string, InlineRuleFn[]> | null = null
+  private namedCache: Map<string, InlineNamedRule[]> | null = null
   public version = 0
 
   private invalidateCache(): void {
     this.cache = null
+    this.namedCache = null
     this.version++
   }
 
   /**
    * Push new rule to the end of chain
    */
-  public push(name: string, fn: (state: any, silent?: boolean) => boolean | void, options?: { alt?: string[] }) {
+  public push(name: string, fn: InlineRuleFn, options?: { alt?: string[] }) {
     // ensure uniqueness by name
     const idx = this.rules.findIndex(r => r.name === name)
     if (idx >= 0)
@@ -41,7 +50,7 @@ export class InlineRuler {
     return this.rules.find(rule => rule.name === name)
   }
 
-  public before(beforeName: string, name: string, fn: (state: any, silent?: boolean) => boolean | void, options?: { alt?: string[] }) {
+  public before(beforeName: string, name: string, fn: InlineRuleFn, options?: { alt?: string[] }) {
     const i = this.rules.findIndex(r => r.name === beforeName)
     if (i < 0)
       throw new Error(`Parser rule not found: ${beforeName}`)
@@ -52,7 +61,7 @@ export class InlineRuler {
     this.invalidateCache()
   }
 
-  public after(afterName: string, name: string, fn: (state: any, silent?: boolean) => boolean | void, options?: { alt?: string[] }) {
+  public after(afterName: string, name: string, fn: InlineRuleFn, options?: { alt?: string[] }) {
     const i = this.rules.findIndex(r => r.name === afterName)
     if (i < 0)
       throw new Error(`Parser rule not found: ${afterName}`)
@@ -120,11 +129,18 @@ export class InlineRuler {
   /**
    * Get rules for specified chain name (or empty string for default)
    */
-  public getRules(chainName: string): Array<(state: any, silent?: boolean) => boolean | void> {
+  public getRules(chainName: string): InlineRuleFn[] {
     const chain = chainName || ''
     if (!this.cache)
       this.compileCache()
     return this.cache!.get(chain) ?? []
+  }
+
+  public getNamedRules(chainName: string): InlineNamedRule[] {
+    const chain = chainName || ''
+    if (!this.namedCache)
+      this.compileCache()
+    return this.namedCache!.get(chain) ?? []
   }
 
   private compileCache(): void {
@@ -138,19 +154,24 @@ export class InlineRuler {
       }
     }
 
-    const cache = new Map<string, Array<(state: any, silent?: boolean) => boolean | void>>()
+    const cache = new Map<string, InlineRuleFn[]>()
+    const namedCache = new Map<string, InlineNamedRule[]>()
     for (const chain of chains) {
-      const bucket: Array<(state: any, silent?: boolean) => boolean | void> = []
+      const bucket: InlineRuleFn[] = []
+      const namedBucket: InlineNamedRule[] = []
       for (const rule of this.rules) {
         if (!rule.enabled)
           continue
         if (chain !== '' && !(rule.alt?.includes(chain)))
           continue
         bucket.push(rule.fn)
+        namedBucket.push({ name: rule.name, fn: rule.fn })
       }
       cache.set(chain, bucket)
+      namedCache.set(chain, namedBucket)
     }
     this.cache = cache
+    this.namedCache = namedCache
   }
 }
 

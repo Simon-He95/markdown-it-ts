@@ -17,6 +17,7 @@ import { strikethrough } from '../../rules/inline/strikethrough'
 import text from '../../rules/inline/text'
 import { InlineRuler } from './ruler'
 import { StateInline } from './state_inline'
+import { recordRuleInvocation } from '../rule_profile'
 
 /**
  * ParserInline - inline parser with Ruler-based rule management
@@ -102,9 +103,11 @@ export class ParserInline {
   public skipToken(state: StateInline): void {
     const pos = state.pos
     const rules = this.getRules()
+    const namedRules = this.ruler.getNamedRules('')
     const len = rules.length
     const cache = state.cache
     const cached = cache[pos]
+    const shouldProfile = !!state.env && (Object.prototype.hasOwnProperty.call(state.env, '__mdtsRuleProfile') || Object.prototype.hasOwnProperty.call(state.env, '__mdtsProfileRules'))
     if (cached !== undefined) {
       state.pos = cached
       return
@@ -118,7 +121,19 @@ export class ParserInline {
         // It's harmless to do here, because no tokens are created. But ideally,
         // we'd need a separate private state variable for this purpose.
         state.level++
-        ok = rules[i](state, true)
+        if (!shouldProfile) {
+          ok = rules[i](state, true)
+        }
+        else {
+          const startedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
+            ? performance.now()
+            : Date.now()
+          ok = namedRules[i].fn(state, true)
+          const endedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
+            ? performance.now()
+            : Date.now()
+          recordRuleInvocation(state.env, 'inline', namedRules[i].name, endedAt - startedAt, !!ok, true)
+        }
         state.level--
 
         if (ok) {
@@ -154,8 +169,10 @@ export class ParserInline {
    */
   public tokenize(state: StateInline): void {
     const rules = this.getRules()
+    const namedRules = this.ruler.getNamedRules('')
     const len = rules.length
     const end = state.posMax
+    const shouldProfile = !!state.env && (Object.prototype.hasOwnProperty.call(state.env, '__mdtsRuleProfile') || Object.prototype.hasOwnProperty.call(state.env, '__mdtsProfileRules'))
 
     while (state.pos < end) {
       const prevPos = state.pos
@@ -163,7 +180,19 @@ export class ParserInline {
 
       if (state.level < state.maxNesting) {
         for (let i = 0; i < len; i++) {
-          ok = rules[i](state, false)
+          if (!shouldProfile) {
+            ok = rules[i](state, false)
+          }
+          else {
+            const startedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
+              ? performance.now()
+              : Date.now()
+            ok = namedRules[i].fn(state, false)
+            const endedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
+              ? performance.now()
+              : Date.now()
+            recordRuleInvocation(state.env, 'inline', namedRules[i].name, endedAt - startedAt, !!ok, false)
+          }
           if (ok) {
             if (prevPos >= state.pos) {
               throw new Error('inline rule didn\'t increment state.pos')
@@ -206,10 +235,24 @@ export class ParserInline {
     this.tokenize(state)
 
     const rules2 = this.getRules2()
+    const namedRules2 = this.ruler2.getNamedRules('')
     const len = rules2.length
+    const shouldProfile = !!state.env && (Object.prototype.hasOwnProperty.call(state.env, '__mdtsRuleProfile') || Object.prototype.hasOwnProperty.call(state.env, '__mdtsProfileRules'))
 
     for (let i = 0; i < len; i++) {
-      rules2[i](state, false)
+      if (!shouldProfile) {
+        rules2[i](state, false)
+      }
+      else {
+        const startedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
+          ? performance.now()
+          : Date.now()
+        namedRules2[i].fn(state, false)
+        const endedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
+          ? performance.now()
+          : Date.now()
+        recordRuleInvocation(state.env, 'inline2', namedRules2[i].name, endedAt - startedAt, true, false)
+      }
     }
   }
 
