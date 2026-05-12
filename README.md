@@ -203,9 +203,13 @@ xdg-open apidoc/index.html  # Linux
 
 ## Continuous Integration
 
-This repository includes a GitHub Actions workflow that runs on push and pull requests to `main`. The CI job verifies the TypeScript build, linting, API docs generation and demo build to help catch regressions early.
+This repository has separate workflows for code quality and documentation/demo validation.
 
-Files to inspect: `.github/workflows/ci-docs.yml`
+- `.github/workflows/ci.yml` runs lint, typecheck, unit tests, build, package smoke tests, and runtime smoke tests for the packed package.
+- `.github/workflows/ci-docs.yml` builds API docs and the demo site, and conditionally deploys them when Netlify secrets are configured.
+- `.github/workflows/perf-regression.yml` compares benchmark snapshots on pull requests to catch parser/render performance regressions.
+
+Files to inspect: `.github/workflows/ci.yml`, `.github/workflows/ci-docs.yml`, `.github/workflows/perf-regression.yml`
 
 ## Deploying to Netlify
 

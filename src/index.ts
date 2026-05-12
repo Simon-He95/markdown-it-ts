@@ -109,7 +109,7 @@ export interface MarkdownIt {
   core: ParserCore
   block: ParserBlock
   inline: ParserInline
-  linkify: ReturnType<typeof LinkifyIt>
+  linkify: InstanceType<typeof LinkifyIt>
   renderer: Renderer
   options: MarkdownItOptions
   stream: {
@@ -283,7 +283,7 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       streamParser = new StreamParser(core)
     return streamParser
   }
-  let linkifyInstance: ReturnType<typeof LinkifyIt> | null = null
+  let linkifyInstance: InstanceType<typeof LinkifyIt> | null = null
   const getLinkify = () => {
     if (!linkifyInstance)
       linkifyInstance = new LinkifyIt()

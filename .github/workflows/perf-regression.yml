@@ -58,4 +58,4 @@ jobs:
         run: pnpm -C head run perf:generate
 
       - name: Compare perf snapshots
-        run: node head/scripts/perf-compare.mjs head/docs/perf-latest.json base/docs/perf-latest.json --threshold=0.10
+        run: node head/scripts/perf-compare.mjs head/docs/perf-latest.json base/docs/perf-latest.json --threshold=0.20

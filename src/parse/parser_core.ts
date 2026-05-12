@@ -55,7 +55,7 @@ interface ParserLike {
   normalizeLink: typeof normalizeLink
   normalizeLinkText: typeof normalizeLinkText
   validateLink: typeof validateLink
-  linkify: ReturnType<typeof LinkifyIt>
+  linkify: InstanceType<typeof LinkifyIt>
 }
 
 function cloneDefaultOptions() {
@@ -72,7 +72,7 @@ export class ParserCore {
   public block: ParserBlock
   public inline: ParserInline
   public ruler: CoreRuler
-  private linkifyInstance: ReturnType<typeof LinkifyIt> | null = null
+  private linkifyInstance: InstanceType<typeof LinkifyIt> | null = null
   private cachedCoreRulesVersion = -1
   private cachedCoreRules: Array<(state: State) => void> = []
   private cachedCoreNamedRulesVersion = -1
@@ -97,7 +97,7 @@ export class ParserCore {
       normalizeLink,
       normalizeLinkText,
       validateLink,
-      linkify: null as unknown as ReturnType<typeof LinkifyIt>,
+      linkify: null as unknown as InstanceType<typeof LinkifyIt>,
     }
   }
 
