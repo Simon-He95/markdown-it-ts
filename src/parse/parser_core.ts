@@ -8,7 +8,7 @@ import { inline } from '../rules/core/inline'
 import { linkify } from '../rules/core/linkify'
 import { normalize } from '../rules/core/normalize'
 import { replacements } from '../rules/core/replacements'
-import { CoreRuler } from '../rules/core/ruler'
+import { CoreRuler, type CoreNamedRule } from '../rules/core/ruler'
 import { smartquotes } from '../rules/core/smartquotes'
 import { text_join } from '../rules/core/text_join'
 import { normalizeLink, normalizeLinkText, validateLink } from './link_utils'
@@ -72,7 +72,10 @@ export class ParserCore {
   public inline: ParserInline
   public ruler: CoreRuler
   private linkifyInstance: ReturnType<typeof LinkifyIt> | null = null
-  private cachedCoreRules: Array<(state: State) => void> | null = null
+  private cachedCoreRulesVersion = -1
+  private cachedCoreRules: Array<(state: State) => void> = []
+  private cachedCoreNamedRulesVersion = -1
+  private cachedCoreNamedRules: CoreNamedRule[] = []
 
   constructor() {
     this.block = new ParserBlock()
@@ -122,17 +125,38 @@ export class ParserCore {
     return new State(src, parser, env)
   }
 
-  public process(state: State): void {
-    // Cache the core rule list to avoid re-materializing per parse when unchanged
-    const rules = this.cachedCoreRules ?? (this.cachedCoreRules = this.ruler.getRules('') as Array<(state: State) => void>)
-    const namedRules = this.ruler.getNamedRules('')
-    const shouldProfile = !!state.env && (Object.prototype.hasOwnProperty.call(state.env, '__mdtsRuleProfile') || Object.prototype.hasOwnProperty.call(state.env, '__mdtsProfileRules'))
-    for (let i = 0; i < rules.length; i++) {
-      if (!shouldProfile) {
-        rules[i](state)
-        continue
-      }
+  private getCoreRules(): Array<(state: State) => void> {
+    if (this.cachedCoreRulesVersion !== this.ruler.version) {
+      this.cachedCoreRules = this.ruler.getRules('') as Array<(state: State) => void>
+      this.cachedCoreRulesVersion = this.ruler.version
+    }
+    return this.cachedCoreRules
+  }
 
+  private getCoreNamedRules(): CoreNamedRule[] {
+    if (this.cachedCoreNamedRulesVersion !== this.ruler.version) {
+      this.cachedCoreNamedRules = this.ruler.getNamedRules('')
+      this.cachedCoreNamedRulesVersion = this.ruler.version
+    }
+    return this.cachedCoreNamedRules
+  }
+
+  public process(state: State): void {
+    const shouldProfile = !!state.env
+      && (
+        Object.prototype.hasOwnProperty.call(state.env, '__mdtsRuleProfile')
+        || Object.prototype.hasOwnProperty.call(state.env, '__mdtsProfileRules')
+      )
+
+    if (!shouldProfile) {
+      const rules = this.getCoreRules()
+      for (let i = 0; i < rules.length; i++)
+        rules[i](state)
+      return
+    }
+
+    const namedRules = this.getCoreNamedRules()
+    for (let i = 0; i < namedRules.length; i++) {
       const startedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
         ? performance.now()
         : Date.now()

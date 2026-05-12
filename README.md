@@ -356,72 +356,6 @@ import markdownIt, { recommendFullChunkStrategy, recommendStreamChunkStrategy } 
 
 const size = 50_000
 
-## Streaming performance recommendations (summary)
-
-Short summary of interactive/workflow guidance (see `docs/perf-latest.md` for full details):
-
-- Enable `stream` + caching for append-heavy editors — it gives the best append throughput in most sizes.
-- Prefer paragraph-level batching when feeding edits; line-by-line updates are more expensive and reduce the streaming speedup.
-- For non-append edits (in-place paragraph edits), expect full reparses; the baseline parser often outperforms incremental approaches for these cases.
-
-### Key performance summary (selected winners)
-
-Quick winners from the latest run (see `docs/perf-latest.md` for full tables):
-
-- Best one-shot parse (by document size):
-  - 5,000 chars: **S3** (stream ON, cache ON, chunk ON) — 0.0002ms
-  - 20,000 chars: **S2** (stream ON, cache ON, chunk OFF) — 0.0002ms
-  - 50,000 chars: **S3** (stream ON, cache ON, chunk ON) — 0.0004ms
-  - 100,000 chars: **S1** (stream ON, cache OFF, chunk ON) — 0.0006ms
-  - 200,000 chars: **S2** (stream ON, cache ON, chunk OFF) — 12.18ms
-
-- Best append (paragraph-level) throughput:
-  - 5,000 chars: **S3** — 0.3560ms
-  - 20,000 chars: **S3** — 1.2651ms
-  - 50,000 chars: **S3** — 3.3976ms
-  - 100,000 chars: **S2** — 6.8648ms
-  - 200,000 chars: **S2** — 25.56ms
-
-- Best append (line-level, finer-grained):
-  - 5,000 chars: **S3** — 0.8666ms
-  - 20,000 chars: **S2** — 5.4193ms
-  - 50,000 chars: **S2** — 5.6287ms
-  - 100,000 chars: **S2** — 9.7292ms
-  - 200,000 chars: **S3** — 42.30ms
-
-- Best replace (in-place paragraph edits): baseline `markdown-it` often wins for larger docs:
-  - 5,000 chars: **S3** — 0.2964ms
-  - 20,000 chars: **M1** (markdown-it) — 0.8474ms
-  - 50,000 chars: **M1** — 2.0403ms
-  - 100,000 chars: **M1** — 4.0348ms
-  - 200,000 chars: **M1** — 8.3294ms
-
-Notes: these numbers are from the most recent run and included as illustrative guidance. For exact, per-scenario numbers and environment details, consult `docs/perf-latest.json`.
-
-### Example: per-scenario timings at 20,000 chars
-
-The table below shows a compact, side-by-side comparison for a 20,000-char document (numbers taken from `docs/perf-latest.md` / `docs/perf-latest.json`). Columns are: one-shot parse time, paragraph-level append workload, line-level append workload, and replace-paragraph workload (all times in milliseconds). Lower is better.
-
-| Scenario | Config summary | One-shot | Append (paragraph) | Append (line) | Replace (paragraph) |
-|:--|:--|---:|---:|---:|---:|
-| S1 | stream ON, cache OFF, chunk ON | 0.0003ms | 3.9113ms | 10.91ms | 1.1784ms |
-| S2 | stream ON, cache ON, chunk OFF | **0.0002ms** | 1.3094ms | **5.4193ms** | 0.8797ms |
-| S3 | stream ON, cache ON, chunk ON | 0.0002ms | **1.2651ms** | 6.5309ms | 1.1191ms |
-| S4 | stream OFF, chunk ON | 1.2229ms | 3.9489ms | 10.68ms | 1.2995ms |
-| S5 | stream OFF, chunk OFF | 0.9306ms | 3.2370ms | 8.6026ms | 1.1024ms |
-| M1 | markdown-it (baseline) | 0.8803ms | 2.8267ms | 7.7509ms | **0.8474ms** |
-
-Notes: bolded values indicate the best (lowest) time in that column for this document size.
-
-Reproduce the measurements:
-
-```bash
-pnpm run build
-node scripts/perf-generate-report.mjs
-```
-
-Report outputs: `docs/perf-latest.md` and `docs/perf-latest.json`.
-
 const fullRec = recommendFullChunkStrategy(size)
 // { strategy: 'plain', fenceAware: true }
 
@@ -501,22 +435,26 @@ pnpm run test:original           # same as RUN_ORIGINAL=1 pnpm test
 pnpm run test:original:network   # also sets RUN_NETWORK=1
 ```
 
-## Parse performance vs markdown-it
+## Performance summary
 
-Latest one-shot parse results on this machine (Node.js v23): markdown-it-ts is roughly at parity with upstream markdown-it in the 5k–100k range.
+markdown-it-ts is optimized for fast parser throughput while preserving the markdown-it API and plugin model.
 
-Examples from the latest run (avg over 20 iterations):
+In the latest local benchmark snapshot, one-shot parsing is roughly at parity with or faster than upstream markdown-it on common large-document sizes:
+
 <!-- perf-auto:one-examples:start -->
 - 5,000 chars: 0.1654ms vs 0.2015ms → ~1.2× faster, ~18% less time
 - 20,000 chars: 0.6545ms vs 0.7885ms → ~1.2× faster, ~17% less time
 - 100,000 chars: 4.0118ms vs 5.3204ms → ~1.3× faster, ~25% less time
-- 500,000 chars: 24.42ms vs 28.78ms → ~1.2× faster, ~15% less time
-- 1,000,000 chars: 54.82ms vs 57.37ms → ~1× faster, ~4% less time
 <!-- perf-auto:one-examples:end -->
 
-- Notes
-- Numbers vary by Node version, CPU, and content shape; see `docs/perf-latest.md` for the full table and environment details.
-- Streaming/incremental mode is correctness-first by default. For editor-style input, using `StreamBuffer` to flush at block boundaries can yield meaningful wins on append-heavy workloads.
+For append-heavy editor or streaming workloads, enable the stream parser or use `StreamBuffer` / `UnboundedBuffer`. These paths are designed to avoid reparsing stable historical text when the input shape is safe for incremental parsing.
+
+Benchmark results are workload-, CPU-, and Node-version-dependent. Reproduce locally with:
+
+```bash
+pnpm run build
+pnpm run perf:generate
+```
 
 ### Parse performance vs remark
 

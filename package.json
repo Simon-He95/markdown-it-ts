@@ -77,7 +77,8 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "tsdown",
+    "build": "tsdown src/index.ts src/plugins/with-renderer.ts src/render/renderer.ts src/stream/buffer.ts src/stream/chunked.ts src/stream/debounced.ts src/support/chunk_recommend.ts src/common/token.ts src/common/utils.ts && pnpm run build:types-shims",
+    "build:types-shims": "node -e \"const fs=require('node:fs'),path=require('node:path');const root='dist';fs.writeFileSync(path.join(root,'shims.d.ts'),\\\"declare module 'mdurl';\\\\ndeclare module 'punycode';\\\\ndeclare module 'linkify-it';\\\\ndeclare module 'uc.micro';\\\\ndeclare module 'punycode.js' {\\\\n  export function toASCII(domain: string): string\\\\n  export function toUnicode(domain: string): string\\\\n  export function encode(input: string): string\\\\n  export function decode(input: string): string\\\\n}\\\\n\\\");function walk(dir){for(const entry of fs.readdirSync(dir,{withFileTypes:true})){const file=path.join(dir,entry.name);if(entry.isDirectory())walk(file);else if(entry.isFile()&&file.endsWith('.d.ts')&&entry.name!=='shims.d.ts'){const rel=path.relative(path.dirname(file),path.join(root,'shims.d.ts')).split(path.sep).join('/');const ref='/// <reference path=\\\"'+rel+'\\\" />\\\\n';const text=fs.readFileSync(file,'utf8');if(!text.startsWith(ref))fs.writeFileSync(file,ref+text)}}}walk(root)\"",
     "test": "vitest",
     "test:markstream-vue": "node scripts/test-markstream-vue-local.mjs",
     "watch": "tsdown -w",
@@ -112,6 +113,7 @@
     "perf:compare:stream-ref": "node scripts/perf-stream-incremental-ref.mjs",
     "perf:check": "node scripts/perf-check.mjs --threshold=0.10",
     "perf:check:latest": "node scripts/perf-check.mjs --threshold=0.10 --latest",
+    "perf:check:strict": "node scripts/perf-check.mjs --threshold=0.03 --latest",
     "perf:diff": "node scripts/perf-diff.mjs --threshold=0.10",
     "perf:all": "npm run perf:generate && npm run perf:update-readme && npm run perf:check",
     "perf:all:latest": "npm run perf:generate && npm run perf:update-readme && npm run perf:check:latest",

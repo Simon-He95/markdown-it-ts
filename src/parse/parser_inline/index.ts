@@ -103,11 +103,11 @@ export class ParserInline {
   public skipToken(state: StateInline): void {
     const pos = state.pos
     const rules = this.getRules()
-    const namedRules = this.ruler.getNamedRules('')
     const len = rules.length
     const cache = state.cache
     const cached = cache[pos]
     const shouldProfile = !!state.env && (Object.prototype.hasOwnProperty.call(state.env, '__mdtsRuleProfile') || Object.prototype.hasOwnProperty.call(state.env, '__mdtsProfileRules'))
+    const namedRules = shouldProfile ? this.ruler.getNamedRules('') : null
     if (cached !== undefined) {
       state.pos = cached
       return
@@ -128,11 +128,11 @@ export class ParserInline {
           const startedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
             ? performance.now()
             : Date.now()
-          ok = namedRules[i].fn(state, true)
+          ok = namedRules![i].fn(state, true)
           const endedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
             ? performance.now()
             : Date.now()
-          recordRuleInvocation(state.env, 'inline', namedRules[i].name, endedAt - startedAt, !!ok, true)
+          recordRuleInvocation(state.env, 'inline', namedRules![i].name, endedAt - startedAt, !!ok, true)
         }
         state.level--
 
@@ -169,10 +169,10 @@ export class ParserInline {
    */
   public tokenize(state: StateInline): void {
     const rules = this.getRules()
-    const namedRules = this.ruler.getNamedRules('')
     const len = rules.length
     const end = state.posMax
     const shouldProfile = !!state.env && (Object.prototype.hasOwnProperty.call(state.env, '__mdtsRuleProfile') || Object.prototype.hasOwnProperty.call(state.env, '__mdtsProfileRules'))
+    const namedRules = shouldProfile ? this.ruler.getNamedRules('') : null
 
     while (state.pos < end) {
       const prevPos = state.pos
@@ -187,11 +187,11 @@ export class ParserInline {
             const startedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
               ? performance.now()
               : Date.now()
-            ok = namedRules[i].fn(state, false)
+            ok = namedRules![i].fn(state, false)
             const endedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
               ? performance.now()
               : Date.now()
-            recordRuleInvocation(state.env, 'inline', namedRules[i].name, endedAt - startedAt, !!ok, false)
+            recordRuleInvocation(state.env, 'inline', namedRules![i].name, endedAt - startedAt, !!ok, false)
           }
           if (ok) {
             if (prevPos >= state.pos) {
@@ -235,9 +235,9 @@ export class ParserInline {
     this.tokenize(state)
 
     const rules2 = this.getRules2()
-    const namedRules2 = this.ruler2.getNamedRules('')
     const len = rules2.length
     const shouldProfile = !!state.env && (Object.prototype.hasOwnProperty.call(state.env, '__mdtsRuleProfile') || Object.prototype.hasOwnProperty.call(state.env, '__mdtsProfileRules'))
+    const namedRules2 = shouldProfile ? this.ruler2.getNamedRules('') : null
 
     for (let i = 0; i < len; i++) {
       if (!shouldProfile) {
@@ -247,11 +247,11 @@ export class ParserInline {
         const startedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
           ? performance.now()
           : Date.now()
-        namedRules2[i].fn(state, false)
+        namedRules2![i].fn(state, false)
         const endedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
           ? performance.now()
           : Date.now()
-        recordRuleInvocation(state.env, 'inline2', namedRules2[i].name, endedAt - startedAt, true, false)
+        recordRuleInvocation(state.env, 'inline2', namedRules2![i].name, endedAt - startedAt, true, false)
       }
     }
   }

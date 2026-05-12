@@ -2,32 +2,115 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
-    branches: [master]
+    branches: [main]
 
 jobs:
   test:
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [18, 20, 22]
+
     steps:
       - uses: actions/checkout@v4
-      - name: Use Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-          cache: pnpm
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
           run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
       - name: Lint
         run: pnpm run lint
+
       - name: Typecheck
         run: pnpm run typecheck
-      - name: Run tests
-        run: pnpm test
+
+      - name: Test
+        run: pnpm test -- --run
         env:
           CI: true
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Pack package
+        if: matrix.node == 20
+        run: |
+          mkdir -p /tmp/markdown-it-ts-pack
+          pnpm pack --pack-destination /tmp/markdown-it-ts-pack
+
+      - name: Smoke test packed package
+        if: matrix.node == 20
+        run: |
+          PKG="$(ls /tmp/markdown-it-ts-pack/markdown-it-ts-*.tgz)"
+          mkdir -p /tmp/markdown-it-ts-smoke
+          cd /tmp/markdown-it-ts-smoke
+          printf '{"type":"module"}\n' > package.json
+          pnpm add "$PKG" typescript@^5.9.3
+
+          cat > smoke.mjs <<'EOF'
+          import MarkdownIt, { chunkedParse, StreamBuffer } from 'markdown-it-ts'
+          import Renderer from 'markdown-it-ts/render/renderer'
+          import { Token } from 'markdown-it-ts/common/token'
+
+          const md = MarkdownIt()
+          const html = md.render('# ok')
+
+          if (html !== '<h1>ok</h1>\n')
+            throw new Error(`unexpected render output: ${html}`)
+
+          if (typeof chunkedParse !== 'function')
+            throw new Error('chunkedParse export is not a function')
+
+          if (typeof StreamBuffer !== 'function')
+            throw new Error('StreamBuffer export is not a function')
+
+          if (typeof Renderer !== 'function')
+            throw new Error('Renderer default export is not a function')
+
+          if (typeof Token !== 'function')
+            throw new Error('Token export is not a function')
+          EOF
+
+          node smoke.mjs
+
+          cat > smoke.ts <<'EOF'
+          import MarkdownIt, { type MarkdownItPlugin, StreamBuffer } from 'markdown-it-ts'
+          import Renderer from 'markdown-it-ts/render/renderer'
+          import { Token } from 'markdown-it-ts/common/token'
+
+          const plugin: MarkdownItPlugin = (md) => {
+            md.core.ruler.after('inline', 'typed_smoke_rule', () => {})
+          }
+
+          const md = MarkdownIt().use(plugin)
+          const html: string = md.render('# typed')
+          const renderer = new Renderer()
+          const token = new Token('text', '', 0)
+
+          void html
+          void renderer
+          void token
+          void StreamBuffer
+          EOF
+
+          pnpm exec tsc smoke.ts \
+            --module NodeNext \
+            --moduleResolution NodeNext \
+            --target ES2022 \
+            --strict \
+            --noEmit

@@ -61,7 +61,6 @@ export class ParserBlock {
    */
   tokenize(state: StateBlock, startLine: number, endLine: number): void {
     const rules = this.getRules()
-    const namedRules = this.ruler.getNamedRules('')
     const len = rules.length
     const maxNesting = state.md.options.maxNesting
     const bMarks = state.bMarks
@@ -71,6 +70,7 @@ export class ParserBlock {
     let line = startLine
     let hasEmptyLines = false
     const shouldProfile = !!state.env && (Object.prototype.hasOwnProperty.call(state.env, '__mdtsRuleProfile') || Object.prototype.hasOwnProperty.call(state.env, '__mdtsProfileRules'))
+    const namedRules = shouldProfile ? this.ruler.getNamedRules('') : null
 
     while (line < endLine) {
       while (line < endLine && bMarks[line] + tShift[line] >= eMarks[line]) {
@@ -109,11 +109,11 @@ export class ParserBlock {
           const startedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
             ? performance.now()
             : Date.now()
-          ok = namedRules[i].fn(state, line, endLine, false)
+          ok = namedRules![i].fn(state, line, endLine, false)
           const endedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
             ? performance.now()
             : Date.now()
-          recordRuleInvocation(state.env, 'block', namedRules[i].name, endedAt - startedAt, ok, false)
+          recordRuleInvocation(state.env, 'block', namedRules![i].name, endedAt - startedAt, ok, false)
         }
         if (ok) {
           if (prevLine >= state.line) {
