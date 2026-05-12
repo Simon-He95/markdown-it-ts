@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
+import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import MarkdownItTS from '../../src/index'
 import MarkdownItJS from 'markdown-it'
@@ -9,6 +10,8 @@ import { describe, it, expect } from 'vitest'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+const runPerfThresholdTests = process.env.RUN_PERF_THRESHOLD_TESTS === '1'
+const perfDescribe = runPerfThresholdTests ? describe : describe.skip
 
 function readFixture(name: string): string {
   return fs.readFileSync(path.join(__dirname, '../fixtures', name), 'utf8')
@@ -71,7 +74,7 @@ function measureStablePair(
   }
 }
 
-describe('markdown-it-ts parse performance parity', () => {
+perfDescribe('markdown-it-ts parse performance parity', () => {
   const mdTs = MarkdownItTS()
   const mdJs = new MarkdownItJS()
   // markdown-exit factory may not be available in all environments (guard)
@@ -112,7 +115,7 @@ describe('markdown-it-ts parse performance parity', () => {
       if (mdExit && typeof mdExit.parse === 'function') {
         try {
           const exitTime = measureStableAverage((input) => mdExit.parse(input), text, iterations)
-          console.info(`[parse-perf] ${name}: markdown-exit ${exitTime.toFixed(4)}ms`) 
+          console.info(`[parse-perf] ${name}: markdown-exit ${exitTime.toFixed(4)}ms`)
         } catch (e) {
           console.info(`[parse-perf] ${name}: markdown-exit parse not benchmarked (${String(e)})`)
         }

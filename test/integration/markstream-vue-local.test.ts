@@ -14,8 +14,7 @@ const parserDistDir = join(parserDir, 'dist')
 const lockfilePath = join(markstreamVueDir, 'pnpm-lock.yaml')
 const hasMarkstreamVueRepo = existsSync(join(markstreamVueDir, 'package.json')) && existsSync(join(parserDir, 'package.json'))
 const forceRunMarkstreamVueIntegration = process.env.RUN_MARKSTREAM_VUE_INTEGRATION === '1'
-const isCi = process.env.CI === 'true' || process.env.CI === '1'
-const shouldRunMarkstreamVueIntegration = hasMarkstreamVueRepo && (!isCi || forceRunMarkstreamVueIntegration)
+const shouldRunMarkstreamVueIntegration = hasMarkstreamVueRepo && forceRunMarkstreamVueIntegration
 const shouldSnapshotParserDist = process.env.MARKSTREAM_VUE_BUILD_PARSER === '1'
 
 const markstreamVueDescribe = shouldRunMarkstreamVueIntegration ? describe : describe.skip

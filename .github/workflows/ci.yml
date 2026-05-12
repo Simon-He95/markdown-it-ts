@@ -21,7 +21,6 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9
           run_install: false
 
       - name: Setup Node.js
@@ -48,13 +47,13 @@ jobs:
         run: pnpm run build
 
       - name: Pack package
-        if: matrix.node == 20
+        if: ${{ matrix.node == 20 }}
         run: |
           mkdir -p /tmp/markdown-it-ts-pack
           pnpm pack --pack-destination /tmp/markdown-it-ts-pack
 
       - name: Smoke test packed package
-        if: matrix.node == 20
+        if: ${{ matrix.node == 20 }}
         run: |
           PKG="$(ls /tmp/markdown-it-ts-pack/markdown-it-ts-*.tgz)"
           mkdir -p /tmp/markdown-it-ts-smoke
@@ -63,7 +62,17 @@ jobs:
           pnpm add "$PKG" typescript@^5.9.3
 
           cat > smoke.mjs <<'EOF'
-          import MarkdownIt, { chunkedParse, StreamBuffer } from 'markdown-it-ts'
+          import MarkdownIt, {
+            EditableBuffer,
+            PieceTable,
+            StreamBuffer,
+            UnboundedBuffer,
+            chunkedParse,
+            parseAsyncIterable,
+            parseAsyncIterableToSink,
+            parseIterable,
+            parseIterableToSink,
+          } from 'markdown-it-ts'
           import Renderer from 'markdown-it-ts/render/renderer'
           import { Token } from 'markdown-it-ts/common/token'
 
@@ -79,6 +88,27 @@ jobs:
           if (typeof StreamBuffer !== 'function')
             throw new Error('StreamBuffer export is not a function')
 
+          if (typeof UnboundedBuffer !== 'function')
+            throw new Error('UnboundedBuffer export is not a function')
+
+          if (typeof EditableBuffer !== 'function')
+            throw new Error('EditableBuffer export is not a function')
+
+          if (typeof PieceTable !== 'function')
+            throw new Error('PieceTable export is not a function')
+
+          if (typeof parseIterable !== 'function')
+            throw new Error('parseIterable export is not a function')
+
+          if (typeof parseAsyncIterable !== 'function')
+            throw new Error('parseAsyncIterable export is not a function')
+
+          if (typeof parseIterableToSink !== 'function')
+            throw new Error('parseIterableToSink export is not a function')
+
+          if (typeof parseAsyncIterableToSink !== 'function')
+            throw new Error('parseAsyncIterableToSink export is not a function')
+
           if (typeof Renderer !== 'function')
             throw new Error('Renderer default export is not a function')
 
@@ -89,7 +119,17 @@ jobs:
           node smoke.mjs
 
           cat > smoke.ts <<'EOF'
-          import MarkdownIt, { type MarkdownItPlugin, StreamBuffer } from 'markdown-it-ts'
+          import MarkdownIt, {
+            type MarkdownItPlugin,
+            EditableBuffer,
+            PieceTable,
+            StreamBuffer,
+            UnboundedBuffer,
+            parseAsyncIterable,
+            parseAsyncIterableToSink,
+            parseIterable,
+            parseIterableToSink,
+          } from 'markdown-it-ts'
           import Renderer from 'markdown-it-ts/render/renderer'
           import { Token } from 'markdown-it-ts/common/token'
 
@@ -106,6 +146,13 @@ jobs:
           void renderer
           void token
           void StreamBuffer
+          void UnboundedBuffer
+          void EditableBuffer
+          void PieceTable
+          void parseIterable
+          void parseAsyncIterable
+          void parseIterableToSink
+          void parseAsyncIterableToSink
           EOF
 
           pnpm exec tsc smoke.ts \

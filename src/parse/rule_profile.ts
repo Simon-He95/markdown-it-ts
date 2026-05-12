@@ -24,7 +24,7 @@ export interface RuleProfileSession {
   records: Record<string, RuleProfileRecord>
 }
 
-type ProfileCarrier = {
+interface ProfileCarrier {
   __mdtsProfileRules?: boolean | Partial<Pick<RuleProfileSession, 'fixture' | 'mode'>>
   __mdtsRuleProfile?: RuleProfileSession
 }

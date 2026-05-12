@@ -15,9 +15,9 @@ import linkify from '../../rules/inline/linkify'
 import newline from '../../rules/inline/newline'
 import { strikethrough } from '../../rules/inline/strikethrough'
 import text from '../../rules/inline/text'
+import { recordRuleInvocation } from '../rule_profile'
 import { InlineRuler } from './ruler'
 import { StateInline } from './state_inline'
-import { recordRuleInvocation } from '../rule_profile'
 
 /**
  * ParserInline - inline parser with Ruler-based rule management
