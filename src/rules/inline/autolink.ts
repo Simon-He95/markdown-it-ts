@@ -2,7 +2,11 @@
  * Process autolinks '<protocol:...>'
  */
 
+// Keep these expressions close to markdown-it semantics. Do not rewrite them
+// for lint-only simplifications because that can change parser compatibility.
+// eslint-disable-next-line regexp/no-unused-capturing-group, regexp/prefer-w, regexp/use-ignore-case
 const EMAIL_RE = /^([a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*)$/
+// eslint-disable-next-line no-control-regex, regexp/no-unused-capturing-group, regexp/use-ignore-case
 const AUTOLINK_RE = /^([a-zA-Z][a-zA-Z0-9+.-]{1,31}):([^<>\x00-\x20]*)$/
 
 export function autolink(state: any, silent?: boolean): boolean {

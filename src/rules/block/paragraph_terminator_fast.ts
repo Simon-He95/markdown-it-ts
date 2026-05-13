@@ -1,4 +1,6 @@
-function hasPipeOnLine(src: string, start: number, max: number): boolean {
+import type { ParseSource } from '../../parse/source'
+
+function hasPipeOnLine(src: ParseSource, start: number, max: number): boolean {
   for (let pos = start; pos < max; pos++) {
     if (src.charCodeAt(pos) === 0x7C)
       return true
@@ -14,7 +16,7 @@ export function canUseParagraphTerminatorFastPath(state: any): boolean {
   return ruler.version === ruler.__mdtsDefaultVersion
 }
 
-export function couldTerminateParagraph(src: string, start: number, max: number): boolean {
+export function couldTerminateParagraph(src: ParseSource, start: number, max: number): boolean {
   if (start >= max)
     return false
 

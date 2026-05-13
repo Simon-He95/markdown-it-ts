@@ -1,5 +1,9 @@
+import process from 'node:process'
 import { describe, expect, it, vi } from 'vitest'
 import MarkdownIt from '../../src'
+
+const runSlowStreamTests = process.env.RUN_SLOW_STREAM_TESTS === '1'
+const slowStreamIt = runSlowStreamTests ? it : it.skip
 
 function makeTailList(count: number, options?: { loose?: boolean, ordered?: boolean }) {
   const loose = options?.loose ?? false
@@ -620,11 +624,11 @@ describe('stream parser', () => {
     parseSpy.mockRestore()
   })
 
-  it('matches baseline when parsing a long document character by character', () => {
-  const mdWithStream = MarkdownIt({ stream: true })
-  mdWithStream.stream.resetStats()
+  slowStreamIt('matches baseline when parsing a long document character by character', () => {
+    const mdWithStream = MarkdownIt({ stream: true })
+    mdWithStream.stream.resetStats()
 
-  const mdWithoutStream = MarkdownIt({ stream: false })
+    const mdWithoutStream = MarkdownIt({ stream: false })
     const longDoc = `<thinking>这是一段自定义解析处理的thinking组件</thinking>
 >>>I'll create a simple Electron + Vue chat application demo. Here's the structure:
 

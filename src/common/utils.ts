@@ -2,7 +2,12 @@
 
 import { decodeHTML } from 'entities'
 import * as mdurl from 'mdurl'
-import * as ucmicro from 'uc.micro'
+import * as ucmicroModule from 'uc.micro'
+
+const ucmicro = ucmicroModule as {
+  P: RegExp
+  S: RegExp
+}
 
 function _class(obj: unknown): string {
   return Object.prototype.toString.call(obj)

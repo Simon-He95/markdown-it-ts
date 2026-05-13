@@ -61,7 +61,6 @@ export class ParserBlock {
    */
   tokenize(state: StateBlock, startLine: number, endLine: number): void {
     const rules = this.getRules()
-    const namedRules = this.ruler.getNamedRules('')
     const len = rules.length
     const maxNesting = state.md.options.maxNesting
     const bMarks = state.bMarks
@@ -71,6 +70,72 @@ export class ParserBlock {
     let line = startLine
     let hasEmptyLines = false
     const shouldProfile = !!state.env && (Object.prototype.hasOwnProperty.call(state.env, '__mdtsRuleProfile') || Object.prototype.hasOwnProperty.call(state.env, '__mdtsProfileRules'))
+
+    if (!shouldProfile) {
+      while (line < endLine) {
+        while (line < endLine && bMarks[line] + tShift[line] >= eMarks[line]) {
+          line++
+        }
+        state.line = line
+        if (line >= endLine)
+          break
+
+        // Termination condition for nested calls.
+        // Nested calls currently used for blockquotes & lists
+        if (sCount[line] < state.blkIndent)
+          break
+
+        // If nesting level exceeded - skip tail to the end. That's not ordinary
+        // situation and we should not care about content.
+        if (state.level >= maxNesting) {
+          state.line = endLine
+          break
+        }
+
+        // Try all possible rules.
+        // On success, rule should:
+        //
+        // - update `state.line`
+        // - update `state.tokens`
+        // - return true
+        const prevLine = state.line
+        let ok = false
+
+        for (let i = 0; i < len; i++) {
+          ok = rules[i](state, line, endLine, false)
+          if (ok) {
+            if (prevLine >= state.line) {
+              throw new Error('block rule didn\'t increment state.line')
+            }
+            break
+          }
+        }
+
+        // this can only happen if user disables paragraph rule
+        if (!ok)
+          throw new Error('none of the block rules matched')
+
+        // set state.tight if we had an empty line before current tag
+        // i.e. latest empty line should not count
+        state.tight = !hasEmptyLines
+
+        // paragraph might "eat" one newline after it in nested lists
+        if (bMarks[state.line - 1] + tShift[state.line - 1] >= eMarks[state.line - 1]) {
+          hasEmptyLines = true
+        }
+
+        line = state.line
+
+        if (line < endLine && bMarks[line] + tShift[line] >= eMarks[line]) {
+          hasEmptyLines = true
+          line++
+          state.line = line
+        }
+      }
+      return
+    }
+
+    const namedRules = this.ruler.getNamedRules('')
 
     while (line < endLine) {
       while (line < endLine && bMarks[line] + tShift[line] >= eMarks[line]) {
@@ -102,19 +167,14 @@ export class ParserBlock {
       let ok = false
 
       for (let i = 0; i < len; i++) {
-        if (!shouldProfile) {
-          ok = rules[i](state, line, endLine, false)
-        }
-        else {
-          const startedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
-            ? performance.now()
-            : Date.now()
-          ok = namedRules[i].fn(state, line, endLine, false)
-          const endedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
-            ? performance.now()
-            : Date.now()
-          recordRuleInvocation(state.env, 'block', namedRules[i].name, endedAt - startedAt, ok, false)
-        }
+        const startedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
+          ? performance.now()
+          : Date.now()
+        ok = namedRules[i].fn(state, line, endLine, false)
+        const endedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
+          ? performance.now()
+          : Date.now()
+        recordRuleInvocation(state.env, 'block', namedRules[i].name, endedAt - startedAt, ok, false)
         if (ok) {
           if (prevLine >= state.line) {
             throw new Error('block rule didn\'t increment state.line')

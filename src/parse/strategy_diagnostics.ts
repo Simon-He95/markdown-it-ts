@@ -5,7 +5,6 @@ export interface StrategyDiagnostics {
   chunked?: boolean
   unbounded?: boolean
 }
-
 export function setStrategyDiagnostics(
   env: Record<string, unknown> | undefined,
   info: StrategyDiagnostics,
@@ -18,4 +17,3 @@ export function setStrategyDiagnostics(
   }
   catch {}
 }
-

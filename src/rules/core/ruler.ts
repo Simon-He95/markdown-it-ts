@@ -14,10 +14,12 @@ export class CoreRuler {
   private rules: CoreRuleRec[] = []
   private cache: CoreRule[] | null = null
   private namedCache: CoreNamedRule[] | null = null
+  public version = 0
 
   private invalidateCache(): void {
     this.cache = null
     this.namedCache = null
+    this.version++
   }
 
   push(name: string, fn: CoreRule) {

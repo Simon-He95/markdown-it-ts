@@ -8,8 +8,8 @@ import LinkifyIt from 'linkify-it'
 import * as utils from './common/utils'
 import * as helpers from './helpers'
 import { normalizeLink, normalizeLinkText, validateLink } from './parse/link_utils'
-import { setStrategyDiagnostics } from './parse/strategy_diagnostics'
 import { ParserCore } from './parse/parser_core'
+import { setStrategyDiagnostics } from './parse/strategy_diagnostics'
 import commonmarkPreset from './presets/commonmark'
 import defaultPreset from './presets/default'
 import zeroPreset from './presets/zero'
@@ -109,7 +109,7 @@ export interface MarkdownIt {
   core: ParserCore
   block: ParserBlock
   inline: ParserInline
-  linkify: ReturnType<typeof LinkifyIt>
+  linkify: InstanceType<typeof LinkifyIt>
   renderer: Renderer
   options: MarkdownItOptions
   stream: {
@@ -283,7 +283,7 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       streamParser = new StreamParser(core)
     return streamParser
   }
-  let linkifyInstance: ReturnType<typeof LinkifyIt> | null = null
+  let linkifyInstance: InstanceType<typeof LinkifyIt> | null = null
   const getLinkify = () => {
     if (!linkifyInstance)
       linkifyInstance = new LinkifyIt()
@@ -475,8 +475,10 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
 
         if (wantsChunking || shouldAutoChunk) {
           const useChunked = wantsChunking
-            ? ((chars >= (this.options.fullChunkThresholdChars ?? 20_000))
-                || (lines >= (this.options.fullChunkThresholdLines ?? 400)))
+            ? (
+                chars >= (this.options.fullChunkThresholdChars ?? 20_000)
+                || lines >= (this.options.fullChunkThresholdLines ?? 400)
+              )
             : shouldAutoChunk
 
           if (useChunked) {

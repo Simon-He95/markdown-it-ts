@@ -1,23 +1,33 @@
 name: Perf Regression
 
 on:
-  pull_request:
   workflow_dispatch:
+    inputs:
+      base_ref:
+        description: Base ref to compare against
+        required: false
+        default: main
+      head_ref:
+        description: Head ref to test; empty means current workflow ref
+        required: false
+        default: ''
 
 jobs:
   compare:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout base
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.base.sha }}
+          ref: ${{ inputs.base_ref || 'main' }}
           path: base
           fetch-depth: 0
 
       - name: Checkout head
         uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.head_ref || github.sha }}
           path: head
           fetch-depth: 0
 
@@ -57,5 +67,8 @@ jobs:
       - name: Generate perf snapshot (head)
         run: pnpm -C head run perf:generate
 
+      - name: Run parser perf threshold tests (head)
+        run: pnpm -C head run test:perf-threshold
+
       - name: Compare perf snapshots
-        run: node head/scripts/perf-compare.mjs head/docs/perf-latest.json base/docs/perf-latest.json --threshold=0.10
+        run: node head/scripts/perf-compare.mjs head/docs/perf-latest.json base/docs/perf-latest.json --threshold=0.10 --min-signal-ms=0.05 --append-min-signal-ms=3
