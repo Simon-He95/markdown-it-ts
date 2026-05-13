@@ -14,10 +14,20 @@ Quick links: [Docs index](./docs/README.md) · [Stream optimization](./docs/stre
 > import MarkdownIt from 'markdown-it-ts'
 > ```
 >
-> In CommonJS projects, use dynamic import:
+> In CommonJS projects, use dynamic import inside an async function:
 >
 > ```js
-> const { default: MarkdownIt } = await import('markdown-it-ts')
+> async function main() {
+>   const { default: MarkdownIt } = await import('markdown-it-ts')
+>
+>   const md = MarkdownIt()
+>   console.log(md.render('# ok'))
+> }
+>
+> main().catch((error) => {
+>   console.error(error)
+>   process.exitCode = 1
+> })
 > ```
 
 A TypeScript migration of [markdown-it](https://github.com/markdown-it/markdown-it) with modular architecture for tree-shaking and separate parse/render imports.
@@ -143,6 +153,8 @@ For arbitrary in-place edits, use `EditableBuffer`. It stores the source in a pi
 Markdown is not always chunk-local. Some constructs depend on document-level state, including reference definitions, footnote definitions, abbreviation definitions, and plugin-defined global state.
 
 `chunkedParse()` and complete-string unbounded parsing use a correctness-first fallback by default for known global-state constructs.
+
+The detector is intentionally conservative. It may fall back for definitions that appear inside code fences or raw text, because fallback is correctness-first.
 
 You can explicitly disable this fallback:
 

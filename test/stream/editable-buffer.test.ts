@@ -38,6 +38,21 @@ describe('editable buffer', () => {
       .toEqual(baseline.render(buffer.toString()))
   })
 
+  it('full parse does not materialize the whole piece table via toString()', () => {
+    const md = MarkdownIt()
+    const buffer = new EditableBuffer(md, '# title\n\nbody\n')
+    const source = (buffer as any).source
+    const originalToString = source.toString.bind(source)
+
+    source.toString = () => {
+      throw new Error('PieceTable.toString() should not be called during fullParse')
+    }
+
+    expect(() => buffer.parse()).not.toThrow()
+
+    source.toString = originalToString
+  })
+
   it('reparses only a localized suffix for edits near the end of large documents', () => {
     const md = MarkdownIt()
     const doc = buildDoc(80)

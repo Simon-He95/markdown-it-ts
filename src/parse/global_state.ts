@@ -27,6 +27,34 @@ export function detectGlobalMarkdownState(src: string): GlobalMarkdownStateReaso
   return null
 }
 
+export function detectGlobalMarkdownStateFromChunks(
+  chunks: Iterable<string>,
+): GlobalMarkdownStateReason | null {
+  let carry = ''
+
+  for (const chunk of chunks) {
+    if (!chunk)
+      continue
+
+    const text = carry + chunk
+    const lastNewline = text.lastIndexOf('\n')
+
+    if (lastNewline < 0) {
+      carry = text
+      continue
+    }
+
+    const completeLines = text.slice(0, lastNewline + 1)
+    const reason = detectGlobalMarkdownState(completeLines)
+    if (reason)
+      return reason
+
+    carry = text.slice(lastNewline + 1)
+  }
+
+  return detectGlobalMarkdownState(carry)
+}
+
 export function hasGlobalMarkdownState(src: string): boolean {
   return detectGlobalMarkdownState(src) !== null
 }

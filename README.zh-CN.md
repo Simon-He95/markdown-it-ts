@@ -14,10 +14,20 @@
 > import MarkdownIt from 'markdown-it-ts'
 > ```
 >
-> 如果你的项目仍然是 CommonJS，请使用动态导入：
+> 如果你的项目仍然是 CommonJS，请在 async 函数里使用动态导入：
 >
 > ```js
-> const { default: MarkdownIt } = await import('markdown-it-ts')
+> async function main() {
+>   const { default: MarkdownIt } = await import('markdown-it-ts')
+>
+>   const md = MarkdownIt()
+>   console.log(md.render('# ok'))
+> }
+>
+> main().catch((error) => {
+>   console.error(error)
+>   process.exitCode = 1
+> })
 > ```
 
 一个在 [markdown-it](https://github.com/markdown-it/markdown-it) 基础上重构的 TypeScript 版本，采用更模块化的架构，支持 tree-shaking，并将 parse/render 职责解耦。
@@ -84,6 +94,8 @@ md.parseIterableToSink(fileChunks, (tokens, info) => {
 Markdown 并不总是 chunk-local 的语言。某些语法依赖整篇文档状态，例如 reference definitions、footnote definitions、abbreviation definitions，以及插件自定义的全局状态。
 
 `chunkedParse()` 和完整字符串的 unbounded parsing 默认采用 correctness-first 策略：遇到已知全局状态语法时会 fallback 到 full parse。
+
+检测器是保守的：即使 definition-like 文本出现在代码块或普通文本里，也可能触发 fallback。这个策略优先保证正确性，而不是极限性能。
 
 你可以显式关闭 fallback：
 
