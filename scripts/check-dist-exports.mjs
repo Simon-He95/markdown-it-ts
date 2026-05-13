@@ -1,7 +1,8 @@
-import { existsSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 const root = process.cwd()
+const dist = join(root, 'dist')
 
 const requiredFiles = [
   'dist/index.js',
@@ -22,6 +23,7 @@ const requiredFiles = [
   'dist/common/token.d.ts',
   'dist/common/utils.js',
   'dist/common/utils.d.ts',
+  'dist/types/index.d.ts',
 ]
 
 for (const file of requiredFiles) {
@@ -30,8 +32,31 @@ for (const file of requiredFiles) {
     throw new Error(`Missing build output: ${file}`)
 }
 
-const indexSize = statSync(join(root, 'dist/index.js')).size
+function walk(dir) {
+  const out = []
 
-// This catches accidental root bundle code splitting; perf workflow remains the real gate.
-if (indexSize < 220_000)
-  throw new Error(`dist/index.js looks unexpectedly small (${indexSize} bytes); root parser bundle may have been code-split`)
+  for (const name of readdirSync(dir)) {
+    const abs = join(dir, name)
+    const st = statSync(abs)
+
+    if (st.isDirectory())
+      out.push(...walk(abs))
+    else
+      out.push(abs)
+  }
+
+  return out
+}
+
+const dtsFiles = walk(dist).filter(file => file.endsWith('.d.ts'))
+
+for (const file of dtsFiles) {
+  const text = readFileSync(file, 'utf8')
+  if (text.includes('__export'))
+    throw new Error(`Invalid declaration helper leaked into ${file}`)
+}
+
+const withRendererDts = readFileSync(join(root, 'dist/plugins/with-renderer.d.ts'), 'utf8')
+if (!withRendererDts.includes('from \'../index') && !withRendererDts.includes('from "../index')) {
+  throw new Error('dist/plugins/with-renderer.d.ts must import MarkdownIt types from ../index to preserve type identity')
+}

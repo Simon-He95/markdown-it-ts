@@ -161,6 +161,7 @@ jobs:
 
           cat > smoke.ts <<'EOF'
           import MarkdownIt, {
+            type MarkdownIt as MarkdownItInstance,
             type MarkdownItPlugin,
             EditableBuffer,
             PieceTable,
@@ -194,7 +195,8 @@ jobs:
           const html: string = md.render('# typed')
           const renderer = new Renderer()
           const token = new Token('text', '', 0)
-          const patched = withRenderer(md)
+          const typedMd: MarkdownItInstance = md
+          const patched: MarkdownItInstance = withRenderer(typedMd)
 
           void html
           void renderer

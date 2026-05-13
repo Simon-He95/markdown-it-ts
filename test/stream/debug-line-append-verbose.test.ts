@@ -1,7 +1,12 @@
+import process from 'node:process'
 import { describe, it } from 'vitest'
 import MarkdownIt, { StreamBuffer } from '../../src'
 
-describe('debug: stream line append verbose', () => {
+const debugDescribe = process.env.RUN_DEBUG_STREAM_TESTS === '1'
+  ? describe
+  : describe.skip
+
+debugDescribe('debug: stream line append verbose', () => {
   it('prints tokens and html after each flush for inspection', () => {
     const md = MarkdownIt({ stream: true })
     md.stream.resetStats()

@@ -77,4 +77,28 @@ describe('core ruler cache invalidation', () => {
     expect(env.__mdtsRuleProfile).toBeDefined()
     expect(env.__mdtsRuleProfile.records['core:block'].calls).toBeGreaterThan(0)
   })
+
+  it('profiling mode does not change rendered output', () => {
+    const md = MarkdownIt()
+    const src = [
+      '# Title',
+      '',
+      'Paragraph with **strong**, [link](https://example.com), and `code`.',
+      '',
+      '- item 1',
+      '- item 2',
+      '',
+      '| a | b |',
+      '|---|---|',
+      '| 1 | 2 |',
+    ].join('\n')
+    const normalEnv: Record<string, unknown> = {}
+    const profileEnv: any = { __mdtsProfileRules: true }
+
+    const normal = md.render(src, normalEnv)
+    const profiled = md.render(src, profileEnv)
+
+    expect(profiled).toBe(normal)
+    expect(profileEnv.__mdtsRuleProfile).toBeDefined()
+  })
 })
