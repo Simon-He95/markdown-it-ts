@@ -59,6 +59,25 @@ describe('chunkedParse correctness', () => {
     })
   })
 
+  it('falls back to full parse for escaped reference definition labels', () => {
+    const src = [
+      '[later][\\]]',
+      '',
+      'plain text',
+      '',
+      '[\\]]: https://example.com',
+      '',
+    ].join('\n')
+
+    const result = renderChunked(src)
+
+    expect(result.html).toBe(result.full)
+    expect((result.env as any).__mdtsChunkInfo).toMatchObject({
+      fallback: true,
+      fallbackReason: 'reference-definition',
+    })
+  })
+
   it('allows explicit opt-out from global-state fallback', () => {
     const src = [
       '[later][x]',

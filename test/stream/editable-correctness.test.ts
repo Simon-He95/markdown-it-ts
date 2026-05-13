@@ -16,7 +16,7 @@ describe('EditableBuffer correctness fallback', () => {
     expect(buffer.stats().lastMode).toBe('full')
     expect((env as any).__mdtsEditableInfo).toMatchObject({
       fallback: true,
-      fallbackReason: 'global-markdown-state-edit',
+      fallbackReason: 'reference-definition',
     })
   })
 
@@ -47,7 +47,34 @@ describe('EditableBuffer correctness fallback', () => {
     expect(buffer.stats().lastMode).toBe('full')
     expect((env as any).__mdtsEditableInfo).toMatchObject({
       fallback: true,
-      fallbackReason: 'global-markdown-state-edit',
+      fallbackReason: 'reference-definition',
+    })
+  })
+
+  it('falls back to full parse when editing a reference usage after an existing reference definition', () => {
+    const md = markdownit()
+    const src = [
+      '[ref]: https://example.com',
+      '',
+      'plain',
+      '',
+    ].join('\n')
+
+    const buffer = new EditableBuffer(md, src)
+    const env: Record<string, unknown> = {}
+
+    buffer.parse(env)
+
+    const start = buffer.toString().indexOf('plain')
+    buffer.replace(start, start + 'plain'.length, '[x][ref]', env)
+
+    const html = md.renderer.render(buffer.peek(), md.options, env)
+
+    expect(html).toBe(md.render(buffer.toString()))
+    expect(buffer.stats().lastMode).toBe('full')
+    expect((env as any).__mdtsEditableInfo).toMatchObject({
+      fallback: true,
+      fallbackReason: 'reference-definition',
     })
   })
 })

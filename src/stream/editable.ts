@@ -1,5 +1,7 @@
 import type { Token } from '../common/token'
 import type { MarkdownIt } from '../index'
+import type { GlobalMarkdownStateReason } from '../parse/global_state'
+import { detectGlobalMarkdownState } from '../parse/global_state'
 import { PieceTable } from './piece_table'
 
 interface SegmentAnchor {
@@ -56,22 +58,6 @@ function cloneStats(source: PieceTable, current: EditableBufferStats): EditableB
   }
 }
 
-function editMayAffectGlobalState(text: string): boolean {
-  if (!text)
-    return false
-
-  if (/(?:^|\n)[ \t]{0,3}\[\^[^\]\n]+\]:/m.test(text))
-    return true
-
-  if (/(?:^|\n)[ \t]{0,3}\*\[[^\]\n]+\]:/m.test(text))
-    return true
-
-  if (/(?:^|\n)[ \t]{0,3}\[(?!\^)[^\]\n]+\]:[ \t]*\S/m.test(text))
-    return true
-
-  return false
-}
-
 function sliceAffectedLines(source: PieceTable, start: number, end: number): string {
   const length = source.length
   const clampedStart = Math.max(0, Math.min(start, length))
@@ -92,10 +78,12 @@ export class EditableBuffer {
   private source: PieceTable
   private tokens: Token[] = []
   private statsState: EditableBufferStats
+  private globalStateReason: GlobalMarkdownStateReason | null
 
   constructor(md: MarkdownIt, initial = '') {
     this.md = md
     this.source = new PieceTable(initial)
+    this.globalStateReason = detectGlobalMarkdownState(initial)
     this.statsState = {
       edits: 0,
       fullParses: 0,
@@ -134,6 +122,7 @@ export class EditableBuffer {
     const next = new PieceTable(text)
     this.source = next
     this.tokens = []
+    this.globalStateReason = detectGlobalMarkdownState(text)
     this.statsState = {
       edits: 0,
       fullParses: 0,
@@ -173,9 +162,13 @@ export class EditableBuffer {
       ? this.source.slice(clampedStart, clampedEnd)
       : ''
     const editLine = this.source.lineOfOffset(clampedStart)
-    const mustFullParseBeforeEdit = editMayAffectGlobalState(beforeAffectedLines)
-      || editMayAffectGlobalState(removedText)
-      || editMayAffectGlobalState(text)
+    const beforeAffectedReason = detectGlobalMarkdownState(beforeAffectedLines)
+    const removedReason = detectGlobalMarkdownState(removedText)
+    const insertedReason = detectGlobalMarkdownState(text)
+    const mustFullParseBeforeEdit = this.globalStateReason !== null
+      || beforeAffectedReason !== null
+      || removedReason !== null
+      || insertedReason !== null
     const anchor = !mustFullParseBeforeEdit && this.tokens.length > 0
       ? this.findAnchorForEditLine(editLine)
       : null
@@ -184,13 +177,19 @@ export class EditableBuffer {
     this.statsState.edits += 1
 
     const afterAffectedLines = sliceAffectedLines(this.source, clampedStart, clampedStart + text.length)
-    const mustFullParse = mustFullParseBeforeEdit || editMayAffectGlobalState(afterAffectedLines)
+    const introducedReason = detectGlobalMarkdownState(afterAffectedLines) || insertedReason
+    const fallbackReason = this.globalStateReason
+      || beforeAffectedReason
+      || removedReason
+      || insertedReason
+      || introducedReason
+    const mustFullParse = mustFullParseBeforeEdit || introducedReason !== null
 
     if (mustFullParse) {
       try {
         ;(env as any).__mdtsEditableInfo = {
           fallback: true,
-          fallbackReason: 'global-markdown-state-edit',
+          fallbackReason: fallbackReason || 'global-markdown-state-edit',
         }
       }
       catch {}
@@ -206,6 +205,7 @@ export class EditableBuffer {
 
   private fullParse(env: Record<string, unknown>): Token[] {
     this.tokens = this.md.core.parseSource(this.source.view(), env, this.md).tokens
+    this.globalStateReason = detectGlobalMarkdownState(this.source.toString())
     this.statsState.fullParses += 1
     this.statsState.lastMode = 'full'
     this.statsState.lastAnchorLine = 0

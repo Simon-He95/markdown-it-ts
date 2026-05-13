@@ -347,6 +347,16 @@ jobs:
             recommendFullChunkStrategy,
             recommendStreamChunkStrategy,
           } from 'markdown-it-ts/support/chunk_recommend'
+          import {
+            ParserCore,
+            Token as CoreToken,
+          } from 'markdown-it-ts/core'
+          import {
+            EditableBuffer as ExperimentalEditableBuffer,
+            PieceTable as ExperimentalPieceTable,
+            UnboundedBuffer as ExperimentalUnboundedBuffer,
+            chunkedParse as experimentalChunkedParse,
+          } from 'markdown-it-ts/experimental'
           import { Token } from 'markdown-it-ts/common/token'
           import { countLines, escapeHtml } from 'markdown-it-ts/common/utils'
 
@@ -388,6 +398,24 @@ jobs:
 
           if (typeof recommendStreamChunkStrategy !== 'function')
             throw new Error('recommendStreamChunkStrategy subpath export is not a function')
+
+          if (typeof ParserCore !== 'function')
+            throw new Error('core ParserCore export is not a function')
+
+          if (typeof CoreToken !== 'function')
+            throw new Error('core Token export is not a function')
+
+          if (typeof experimentalChunkedParse !== 'function')
+            throw new Error('experimental chunkedParse export is not a function')
+
+          if (typeof ExperimentalEditableBuffer !== 'function')
+            throw new Error('experimental EditableBuffer export is not a function')
+
+          if (typeof ExperimentalPieceTable !== 'function')
+            throw new Error('experimental PieceTable export is not a function')
+
+          if (typeof ExperimentalUnboundedBuffer !== 'function')
+            throw new Error('experimental UnboundedBuffer export is not a function')
 
           if (typeof Token !== 'function')
             throw new Error('Token export is not a function')

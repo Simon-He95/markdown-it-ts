@@ -1,6 +1,7 @@
 import type { Token } from '../common/token'
 import type { MarkdownIt } from '../index'
 import { countLines } from '../common/utils'
+import { detectGlobalMarkdownState } from '../parse/global_state'
 import { splitIntoChunkRanges } from './chunked'
 
 export interface UnboundedBufferOptions {
@@ -91,19 +92,6 @@ function estimateLines(src: string): number {
   if (src.length === 0)
     return 0
   return countLines(src) + (src.charCodeAt(src.length - 1) === 0x0A ? 0 : 1)
-}
-
-function detectGlobalMarkdownState(src: string): string | null {
-  if (/(?:^|\n)[ \t]{0,3}\[\^[^\]\n]+\]:/m.test(src))
-    return 'footnote-definition'
-
-  if (/(?:^|\n)[ \t]{0,3}\*\[[^\]\n]+\]:/m.test(src))
-    return 'abbreviation-definition'
-
-  if (/(?:^|\n)[ \t]{0,3}\[(?!\^)[^\]\n]+\]:[ \t]*\S/m.test(src))
-    return 'reference-definition'
-
-  return null
 }
 
 function isBlankLine(src: string, start: number, end: number): boolean {

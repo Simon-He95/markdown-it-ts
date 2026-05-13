@@ -1,5 +1,6 @@
 import type { Token } from '../common/token'
 import type { MarkdownIt } from '../index'
+import { detectGlobalMarkdownState } from '../parse/global_state'
 
 export interface ChunkedOptions {
   maxChunkChars?: number // hard limit per chunk by characters
@@ -234,19 +235,6 @@ function appendTokens(out: Token[], tokens: Token[]): void {
   for (let i = 0; i < tokens.length; i++) {
     out.push(tokens[i])
   }
-}
-
-function detectGlobalMarkdownState(src: string): string | null {
-  if (/(?:^|\n)[ \t]{0,3}\[\^[^\]\n]+\]:/m.test(src))
-    return 'footnote-definition'
-
-  if (/(?:^|\n)[ \t]{0,3}\*\[[^\]\n]+\]:/m.test(src))
-    return 'abbreviation-definition'
-
-  if (/(?:^|\n)[ \t]{0,3}\[(?!\^)[^\]\n]+\]:[ \t]*\S/m.test(src))
-    return 'reference-definition'
-
-  return null
 }
 
 function rebalanceChunkRanges(chunks: ChunkRange[], maxChunks: number): ChunkRange[] {
