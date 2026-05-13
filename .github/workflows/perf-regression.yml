@@ -3,10 +3,12 @@ name: Perf Regression
 on:
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   compare:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout base
         uses: actions/checkout@v4

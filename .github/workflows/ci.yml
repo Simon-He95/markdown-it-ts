@@ -75,8 +75,20 @@ jobs:
             parseIterable,
             parseIterableToSink,
           } from 'markdown-it-ts'
+          import { withRenderer } from 'markdown-it-ts/plugins/with-renderer'
           import Renderer from 'markdown-it-ts/render/renderer'
+          import { StreamBuffer as StreamBufferSubpath } from 'markdown-it-ts/stream/buffer'
+          import { chunkedParse as chunkedParseSubpath } from 'markdown-it-ts/stream/chunked'
+          import {
+            DebouncedStreamParser,
+            ThrottledStreamParser,
+          } from 'markdown-it-ts/stream/debounced'
+          import {
+            recommendFullChunkStrategy,
+            recommendStreamChunkStrategy,
+          } from 'markdown-it-ts/support/chunk_recommend'
           import { Token } from 'markdown-it-ts/common/token'
+          import { countLines, escapeHtml } from 'markdown-it-ts/common/utils'
 
           const md = MarkdownIt()
           const html = md.render('# ok')
@@ -114,8 +126,35 @@ jobs:
           if (typeof Renderer !== 'function')
             throw new Error('Renderer default export is not a function')
 
+          if (typeof withRenderer !== 'function')
+            throw new Error('withRenderer subpath export is not a function')
+
+          if (typeof StreamBufferSubpath !== 'function')
+            throw new Error('stream/buffer subpath export is not a function')
+
+          if (typeof chunkedParseSubpath !== 'function')
+            throw new Error('stream/chunked subpath export is not a function')
+
+          if (typeof DebouncedStreamParser !== 'function')
+            throw new Error('DebouncedStreamParser subpath export is not a function')
+
+          if (typeof ThrottledStreamParser !== 'function')
+            throw new Error('ThrottledStreamParser subpath export is not a function')
+
+          if (typeof recommendFullChunkStrategy !== 'function')
+            throw new Error('recommendFullChunkStrategy subpath export is not a function')
+
+          if (typeof recommendStreamChunkStrategy !== 'function')
+            throw new Error('recommendStreamChunkStrategy subpath export is not a function')
+
           if (typeof Token !== 'function')
             throw new Error('Token export is not a function')
+
+          if (escapeHtml('<>&"') !== '&lt;&gt;&amp;&quot;')
+            throw new Error('common/utils escapeHtml subpath export returned unexpected output')
+
+          if (countLines('a\nb\nc') !== 2)
+            throw new Error('common/utils countLines subpath export returned unexpected output')
           EOF
 
           node smoke.mjs
@@ -132,8 +171,20 @@ jobs:
             parseIterable,
             parseIterableToSink,
           } from 'markdown-it-ts'
+          import { withRenderer } from 'markdown-it-ts/plugins/with-renderer'
           import Renderer from 'markdown-it-ts/render/renderer'
+          import { StreamBuffer as StreamBufferSubpath } from 'markdown-it-ts/stream/buffer'
+          import { chunkedParse as chunkedParseSubpath } from 'markdown-it-ts/stream/chunked'
+          import {
+            DebouncedStreamParser,
+            ThrottledStreamParser,
+          } from 'markdown-it-ts/stream/debounced'
+          import {
+            recommendFullChunkStrategy,
+            recommendStreamChunkStrategy,
+          } from 'markdown-it-ts/support/chunk_recommend'
           import { Token } from 'markdown-it-ts/common/token'
+          import { countLines, escapeHtml } from 'markdown-it-ts/common/utils'
 
           const plugin: MarkdownItPlugin = (md) => {
             md.core.ruler.after('inline', 'typed_smoke_rule', () => {})
@@ -143,10 +194,12 @@ jobs:
           const html: string = md.render('# typed')
           const renderer = new Renderer()
           const token = new Token('text', '', 0)
+          const patched = withRenderer(md)
 
           void html
           void renderer
           void token
+          void patched
           void StreamBuffer
           void UnboundedBuffer
           void EditableBuffer
@@ -155,6 +208,14 @@ jobs:
           void parseAsyncIterable
           void parseIterableToSink
           void parseAsyncIterableToSink
+          void StreamBufferSubpath
+          void chunkedParseSubpath
+          void DebouncedStreamParser
+          void ThrottledStreamParser
+          void recommendFullChunkStrategy
+          void recommendStreamChunkStrategy
+          void countLines
+          void escapeHtml
           EOF
 
           pnpm exec tsc smoke.ts \
@@ -208,8 +269,20 @@ jobs:
             chunkedParse,
             parseIterable,
           } from 'markdown-it-ts'
+          import { withRenderer } from 'markdown-it-ts/plugins/with-renderer'
           import Renderer from 'markdown-it-ts/render/renderer'
+          import { StreamBuffer as StreamBufferSubpath } from 'markdown-it-ts/stream/buffer'
+          import { chunkedParse as chunkedParseSubpath } from 'markdown-it-ts/stream/chunked'
+          import {
+            DebouncedStreamParser,
+            ThrottledStreamParser,
+          } from 'markdown-it-ts/stream/debounced'
+          import {
+            recommendFullChunkStrategy,
+            recommendStreamChunkStrategy,
+          } from 'markdown-it-ts/support/chunk_recommend'
           import { Token } from 'markdown-it-ts/common/token'
+          import { countLines, escapeHtml } from 'markdown-it-ts/common/utils'
 
           const md = MarkdownIt()
           const html = md.render('# ok')
@@ -229,8 +302,35 @@ jobs:
           if (typeof Renderer !== 'function')
             throw new Error('Renderer default export is not a function')
 
+          if (typeof withRenderer !== 'function')
+            throw new Error('withRenderer subpath export is not a function')
+
+          if (typeof StreamBufferSubpath !== 'function')
+            throw new Error('stream/buffer subpath export is not a function')
+
+          if (typeof chunkedParseSubpath !== 'function')
+            throw new Error('stream/chunked subpath export is not a function')
+
+          if (typeof DebouncedStreamParser !== 'function')
+            throw new Error('DebouncedStreamParser subpath export is not a function')
+
+          if (typeof ThrottledStreamParser !== 'function')
+            throw new Error('ThrottledStreamParser subpath export is not a function')
+
+          if (typeof recommendFullChunkStrategy !== 'function')
+            throw new Error('recommendFullChunkStrategy subpath export is not a function')
+
+          if (typeof recommendStreamChunkStrategy !== 'function')
+            throw new Error('recommendStreamChunkStrategy subpath export is not a function')
+
           if (typeof Token !== 'function')
             throw new Error('Token export is not a function')
+
+          if (escapeHtml('<') !== '&lt;')
+            throw new Error('common/utils escapeHtml subpath export returned unexpected output')
+
+          if (countLines('a\nb') !== 1)
+            throw new Error('common/utils countLines subpath export returned unexpected output')
           EOF
 
           node smoke.mjs

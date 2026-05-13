@@ -107,7 +107,6 @@ export class ParserInline {
     const cache = state.cache
     const cached = cache[pos]
     const shouldProfile = !!state.env && (Object.prototype.hasOwnProperty.call(state.env, '__mdtsRuleProfile') || Object.prototype.hasOwnProperty.call(state.env, '__mdtsProfileRules'))
-    const namedRules = shouldProfile ? this.ruler.getNamedRules('') : null
     if (cached !== undefined) {
       state.pos = cached
       return
@@ -116,31 +115,46 @@ export class ParserInline {
     let ok: boolean | void = false
 
     if (state.level < state.maxNesting) {
-      for (let i = 0; i < len; i++) {
-        // Increment state.level and decrement it later to limit recursion.
-        // It's harmless to do here, because no tokens are created. But ideally,
-        // we'd need a separate private state variable for this purpose.
-        state.level++
-        if (!shouldProfile) {
+      if (!shouldProfile) {
+        for (let i = 0; i < len; i++) {
+          // Increment state.level and decrement it later to limit recursion.
+          // It's harmless to do here, because no tokens are created. But ideally,
+          // we'd need a separate private state variable for this purpose.
+          state.level++
           ok = rules[i](state, true)
+          state.level--
+
+          if (ok) {
+            if (pos >= state.pos) {
+              throw new Error('inline rule didn\'t increment state.pos')
+            }
+            break
+          }
         }
-        else {
+      }
+      else {
+        const namedRules = this.ruler.getNamedRules('')
+        for (let i = 0; i < len; i++) {
+          // Increment state.level and decrement it later to limit recursion.
+          // It's harmless to do here, because no tokens are created. But ideally,
+          // we'd need a separate private state variable for this purpose.
+          state.level++
           const startedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
             ? performance.now()
             : Date.now()
-          ok = namedRules![i].fn(state, true)
+          ok = namedRules[i].fn(state, true)
           const endedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
             ? performance.now()
             : Date.now()
-          recordRuleInvocation(state.env, 'inline', namedRules![i].name, endedAt - startedAt, !!ok, true)
-        }
-        state.level--
+          recordRuleInvocation(state.env, 'inline', namedRules[i].name, endedAt - startedAt, !!ok, true)
+          state.level--
 
-        if (ok) {
-          if (pos >= state.pos) {
-            throw new Error('inline rule didn\'t increment state.pos')
+          if (ok) {
+            if (pos >= state.pos) {
+              throw new Error('inline rule didn\'t increment state.pos')
+            }
+            break
           }
-          break
         }
       }
     }
@@ -172,7 +186,40 @@ export class ParserInline {
     const len = rules.length
     const end = state.posMax
     const shouldProfile = !!state.env && (Object.prototype.hasOwnProperty.call(state.env, '__mdtsRuleProfile') || Object.prototype.hasOwnProperty.call(state.env, '__mdtsProfileRules'))
-    const namedRules = shouldProfile ? this.ruler.getNamedRules('') : null
+
+    if (!shouldProfile) {
+      while (state.pos < end) {
+        const prevPos = state.pos
+        let ok: boolean | void = false
+
+        if (state.level < state.maxNesting) {
+          for (let i = 0; i < len; i++) {
+            ok = rules[i](state, false)
+            if (ok) {
+              if (prevPos >= state.pos) {
+                throw new Error('inline rule didn\'t increment state.pos')
+              }
+              break
+            }
+          }
+        }
+
+        if (ok) {
+          if (state.pos >= end)
+            break
+          continue
+        }
+
+        state.pending += state.src.charAt(state.pos++)
+      }
+
+      if (state.pending) {
+        state.pushPending()
+      }
+      return
+    }
+
+    const namedRules = this.ruler.getNamedRules('')
 
     while (state.pos < end) {
       const prevPos = state.pos
@@ -180,19 +227,14 @@ export class ParserInline {
 
       if (state.level < state.maxNesting) {
         for (let i = 0; i < len; i++) {
-          if (!shouldProfile) {
-            ok = rules[i](state, false)
-          }
-          else {
-            const startedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
-              ? performance.now()
-              : Date.now()
-            ok = namedRules![i].fn(state, false)
-            const endedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
-              ? performance.now()
-              : Date.now()
-            recordRuleInvocation(state.env, 'inline', namedRules![i].name, endedAt - startedAt, !!ok, false)
-          }
+          const startedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
+            ? performance.now()
+            : Date.now()
+          ok = namedRules[i].fn(state, false)
+          const endedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
+            ? performance.now()
+            : Date.now()
+          recordRuleInvocation(state.env, 'inline', namedRules[i].name, endedAt - startedAt, !!ok, false)
           if (ok) {
             if (prevPos >= state.pos) {
               throw new Error('inline rule didn\'t increment state.pos')
@@ -237,22 +279,24 @@ export class ParserInline {
     const rules2 = this.getRules2()
     const len = rules2.length
     const shouldProfile = !!state.env && (Object.prototype.hasOwnProperty.call(state.env, '__mdtsRuleProfile') || Object.prototype.hasOwnProperty.call(state.env, '__mdtsProfileRules'))
-    const namedRules2 = shouldProfile ? this.ruler2.getNamedRules('') : null
 
-    for (let i = 0; i < len; i++) {
-      if (!shouldProfile) {
+    if (!shouldProfile) {
+      for (let i = 0; i < len; i++) {
         rules2[i](state, false)
       }
-      else {
-        const startedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
-          ? performance.now()
-          : Date.now()
-        namedRules2![i].fn(state, false)
-        const endedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
-          ? performance.now()
-          : Date.now()
-        recordRuleInvocation(state.env, 'inline2', namedRules2![i].name, endedAt - startedAt, true, false)
-      }
+      return
+    }
+
+    const namedRules2 = this.ruler2.getNamedRules('')
+    for (let i = 0; i < len; i++) {
+      const startedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
+        ? performance.now()
+        : Date.now()
+      namedRules2[i].fn(state, false)
+      const endedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
+        ? performance.now()
+        : Date.now()
+      recordRuleInvocation(state.env, 'inline2', namedRules2[i].name, endedAt - startedAt, true, false)
     }
   }
 
