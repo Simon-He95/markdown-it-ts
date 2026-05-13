@@ -37,12 +37,18 @@ function main() {
   const minSignalMs = minSignalArg ? parseFloat(minSignalArg.split('=')[1]) : 0.05
   const appendMinSignalArg = args.find(a => a.startsWith('--append-min-signal-ms='))
   const appendMinSignalMs = appendMinSignalArg ? parseFloat(appendMinSignalArg.split('=')[1]) : 3
+  const allowBenchmarkVersionMismatch = args.includes('--allow-benchmark-version-mismatch')
 
   const currentVersion = resolveBenchmarkVersion(cur)
   const baseVersion = resolveBenchmarkVersion(base)
   if (currentVersion !== baseVersion) {
-    console.log(`Skipping perf comparison: current benchmarkVersion=${currentVersion} but baseline benchmarkVersion=${baseVersion}.`)
-    process.exit(0)
+    const message = `Perf comparison refused: current benchmarkVersion=${currentVersion} but baseline benchmarkVersion=${baseVersion}.`
+    if (allowBenchmarkVersionMismatch) {
+      console.log(`${message} Skipping because --allow-benchmark-version-mismatch was provided.`)
+      process.exit(0)
+    }
+    console.error(`${message} Update the baseline and rerun, or pass --allow-benchmark-version-mismatch only for intentional benchmark schema migrations.`)
+    process.exit(1)
   }
 
   const curMap = new Map(cur.results.map(r => [keyOf(r), r]))

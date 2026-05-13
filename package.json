@@ -80,7 +80,6 @@
     "build": "tsdown src/index.ts --no-dts && tsdown src/plugins/with-renderer.ts src/render/renderer.ts src/stream/buffer.ts src/stream/chunked.ts src/stream/debounced.ts src/support/chunk_recommend.ts src/common/token.ts src/common/utils.ts --no-clean --no-dts && tsc -p tsconfig.build.json && node scripts/prepare-dts.mjs && node scripts/check-dist-exports.mjs",
     "test": "vitest",
     "test:perf-threshold": "RUN_PERF_THRESHOLD_TESTS=1 vitest test/parse/parse-performance.test.ts --run",
-    "test:stream:debug": "RUN_DEBUG_STREAM_TESTS=1 vitest test/stream/debug-line-append-verbose.test.ts --run",
     "test:stream:slow": "RUN_SLOW_STREAM_TESTS=1 vitest test/stream/stream-parser.test.ts --run --testTimeout 30000",
     "test:integration:markstream-vue": "RUN_MARKSTREAM_VUE_INTEGRATION=1 vitest test/integration/markstream-vue-local.test.ts --run",
     "test:markstream-vue": "node scripts/test-markstream-vue-local.mjs",
