@@ -219,6 +219,42 @@ describe('stream parser', () => {
     expect(md.stream.stats().lastMode).toBe('full')
   })
 
+  it('restores user-provided env.references after stream full fallback clears global state', () => {
+    const md = MarkdownIt({ stream: true })
+    const env: Record<string, any> = {
+      references: {
+        EXT: {
+          href: 'https://external.example',
+          title: '',
+        },
+      },
+    }
+    const withDefinition = [
+      '[external][ext]',
+      '',
+      '[local]: https://local.example',
+      '',
+    ].join('\n')
+
+    const firstTokens = md.stream.parse(withDefinition, env)
+    const firstHtml = md.renderer.render(firstTokens, md.options, env)
+
+    expect(firstHtml).toContain('href="https://external.example"')
+
+    const withoutDefinition = [
+      '[external][ext]',
+      '',
+      '[local][local]',
+      '',
+    ].join('\n')
+    const tokens = md.stream.parse(withoutDefinition, env)
+    const html = md.renderer.render(tokens, md.options, env)
+
+    expect(html).toContain('href="https://external.example"')
+    expect(html).not.toContain('https://local.example')
+    expect(md.stream.stats().lastMode).toBe('full')
+  })
+
   it('falls back when extending content on the same line', () => {
     const md = MarkdownIt({ stream: true })
     md.stream.resetStats()

@@ -38,7 +38,7 @@ export function chunkedParse(md: MarkdownIt, src: string, env: Record<string, un
   const currentGlobalStateReason = detectGlobalMarkdownState(src)
   const previousGlobalStateReason = getKnownGlobalMarkdownState(env)
 
-  if (previousGlobalStateReason || currentGlobalStateReason)
+  if (previousGlobalStateReason)
     resetKnownGlobalMarkdownState(env)
 
   if (options.fallbackOnGlobalState !== false && currentGlobalStateReason) {
@@ -53,8 +53,8 @@ export function chunkedParse(md: MarkdownIt, src: string, env: Record<string, un
     }
     catch {}
 
-    const tokens = md.core.parse(src, env, md).tokens
     markKnownGlobalMarkdownState(env, currentGlobalStateReason)
+    const tokens = md.core.parse(src, env, md).tokens
     return tokens
   }
 
@@ -79,6 +79,9 @@ export function chunkedParse(md: MarkdownIt, src: string, env: Record<string, un
   }
   catch {}
 
+  if (currentGlobalStateReason)
+    markKnownGlobalMarkdownState(env, currentGlobalStateReason)
+
   for (let i = 0; i < ranges.length; i++) {
     const range = ranges[i]
     const ch = src.slice(range.start, range.end)
@@ -90,9 +93,6 @@ export function chunkedParse(md: MarkdownIt, src: string, env: Record<string, un
     appendTokens(out, tokens)
     lineOffset += range.lineCount
   }
-
-  if (currentGlobalStateReason)
-    markKnownGlobalMarkdownState(env, currentGlobalStateReason)
 
   return out
 }

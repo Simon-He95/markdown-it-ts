@@ -154,6 +154,8 @@ Markdown is not always chunk-local. Some constructs depend on document-level sta
 
 `chunkedParse()` and complete-string unbounded parsing use a correctness-first fallback by default for known global-state constructs.
 
+Iterable/sink parsing is streaming-oriented. It cannot always know future document-level definitions before committing earlier chunks, so documents with reference, footnote, or abbreviation definitions should use full-string parsing or avoid early flushing when exact full-parse parity is required.
+
 The detector is intentionally conservative. It may fall back for definitions that appear inside code fences or raw text, because fallback is correctness-first.
 
 You can explicitly disable this fallback:

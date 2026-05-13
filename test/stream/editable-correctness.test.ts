@@ -121,6 +121,44 @@ describe('EditableBuffer correctness fallback', () => {
     expect(html).not.toContain('https://old.example')
   })
 
+  it('restores user-provided env.references after clearing mdts-owned global state', () => {
+    const md = markdownit()
+    const env: Record<string, any> = {
+      references: {
+        EXT: {
+          href: 'https://external.example',
+          title: '',
+        },
+      },
+    }
+    const withDefinition = [
+      '[external][ext]',
+      '',
+      '[local]: https://local.example',
+      '',
+    ].join('\n')
+    const buffer = new EditableBuffer(md, withDefinition)
+
+    buffer.parse(env)
+    const firstHtml = md.renderer.render(buffer.peek(), md.options, env)
+
+    expect(firstHtml).toContain('href="https://external.example"')
+
+    const withoutDefinition = [
+      '[external][ext]',
+      '',
+      '[local][local]',
+      '',
+    ].join('\n')
+    buffer.reset(withoutDefinition)
+    buffer.parse(env)
+
+    const html = md.renderer.render(buffer.peek(), md.options, env)
+
+    expect(html).toContain('href="https://external.example"')
+    expect(html).not.toContain('https://local.example')
+  })
+
   it('clears stale reference definitions after reset when reusing env', () => {
     const md = markdownit()
     const env: Record<string, unknown> = {}

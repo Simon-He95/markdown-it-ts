@@ -2,7 +2,7 @@ export type GlobalMarkdownStateReason = 'reference-definition' | 'footnote-defin
 
 const FOOTNOTE_DEF_RE = /(?:^|\n)[ \t]{0,3}\[\^[^\]\n]+\]:/m
 const ABBR_DEF_RE = /(?:^|\n)[ \t]{0,3}\*\[[^\]\n]+\]:/m
-const REFERENCE_DEF_RE = /(?:^|\n)[ \t]{0,3}\[(?!\^)(?:\\.|[^\]\n])+\][ \t]*:/m
+const REFERENCE_DEF_RE = /(?:^|\n)[ \t]{0,3}\[(?!\^)(?:\\[\s\S]|[^\]\\[])+\][ \t]*:/m
 const GLOBAL_STATE_ENV_KEYS = [
   'references',
   'footnotes',
@@ -11,11 +11,92 @@ const GLOBAL_STATE_ENV_KEYS = [
   'abbrs',
 ] as const
 const GLOBAL_STATE_ENV_MARKER = '__mdtsGlobalStateReason'
+const hasOwn = Object.prototype.hasOwnProperty
+
+type GlobalStateEnvKey = typeof GLOBAL_STATE_ENV_KEYS[number]
+
+interface EnvValueSnapshot {
+  existed: boolean
+  value?: unknown
+}
+
+interface GlobalStateMarker {
+  reason: GlobalMarkdownStateReason
+  snapshot: Partial<Record<GlobalStateEnvKey, EnvValueSnapshot>>
+}
 
 function isGlobalMarkdownStateReason(value: unknown): value is GlobalMarkdownStateReason {
   return value === 'reference-definition'
     || value === 'footnote-definition'
     || value === 'abbreviation-definition'
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== 'object')
+    return false
+
+  const proto = Object.getPrototypeOf(value)
+  return proto === Object.prototype || proto === null
+}
+
+function cloneSnapshotValue(value: unknown): unknown {
+  if (Array.isArray(value))
+    return value.map(item => cloneSnapshotValue(item))
+
+  if (isPlainObject(value)) {
+    const out: Record<string, unknown> = {}
+    for (const key of Object.keys(value))
+      out[key] = cloneSnapshotValue(value[key])
+    return out
+  }
+
+  return value
+}
+
+function restoreSnapshotValue(target: unknown, snapshot: unknown): unknown {
+  if (Array.isArray(target) && Array.isArray(snapshot)) {
+    target.length = snapshot.length
+    for (let i = 0; i < snapshot.length; i++)
+      target[i] = cloneSnapshotValue(snapshot[i])
+    return target
+  }
+
+  if (isPlainObject(target) && isPlainObject(snapshot)) {
+    for (const key of Object.keys(target)) {
+      if (!hasOwn.call(snapshot, key))
+        delete target[key]
+    }
+
+    for (const key of Object.keys(snapshot))
+      target[key] = cloneSnapshotValue(snapshot[key])
+
+    return target
+  }
+
+  return cloneSnapshotValue(snapshot)
+}
+
+function getMarker(env: Record<string, unknown>): GlobalStateMarker | null {
+  const value = (env as any)[GLOBAL_STATE_ENV_MARKER]
+
+  if (isGlobalMarkdownStateReason(value)) {
+    return {
+      reason: value,
+      snapshot: {},
+    }
+  }
+
+  if (
+    value
+    && typeof value === 'object'
+    && isGlobalMarkdownStateReason((value as any).reason)
+    && (value as any).snapshot
+    && typeof (value as any).snapshot === 'object'
+  ) {
+    return value as GlobalStateMarker
+  }
+
+  return null
 }
 
 export function detectGlobalMarkdownState(src: string): GlobalMarkdownStateReason | null {
@@ -67,8 +148,7 @@ export function hasGlobalMarkdownState(src: string): boolean {
 }
 
 export function getKnownGlobalMarkdownState(env: Record<string, unknown>): GlobalMarkdownStateReason | null {
-  const value = (env as any)[GLOBAL_STATE_ENV_MARKER]
-  return isGlobalMarkdownStateReason(value) ? value : null
+  return getMarker(env)?.reason ?? null
 }
 
 export function markKnownGlobalMarkdownState(
@@ -76,17 +156,49 @@ export function markKnownGlobalMarkdownState(
   reason: GlobalMarkdownStateReason,
 ): void {
   try {
-    ;(env as any)[GLOBAL_STATE_ENV_MARKER] = reason
+    resetKnownGlobalMarkdownState(env)
+
+    const snapshot: GlobalStateMarker['snapshot'] = {}
+
+    for (const key of GLOBAL_STATE_ENV_KEYS) {
+      snapshot[key] = hasOwn.call(env, key)
+        ? {
+            existed: true,
+            value: cloneSnapshotValue((env as any)[key]),
+          }
+        : {
+            existed: false,
+          }
+    }
+
+    ;(env as any)[GLOBAL_STATE_ENV_MARKER] = {
+      reason,
+      snapshot,
+    } satisfies GlobalStateMarker
   }
   catch {}
 }
 
 export function resetKnownGlobalMarkdownState(env: Record<string, unknown>): void {
+  const marker = getMarker(env)
+  if (!marker)
+    return
+
   for (const key of GLOBAL_STATE_ENV_KEYS) {
-    if (Object.prototype.hasOwnProperty.call(env, key))
+    const entry = marker.snapshot[key]
+
+    if (!entry) {
       delete (env as any)[key]
+      continue
+    }
+
+    if (entry.existed) {
+      ;(env as any)[key] = restoreSnapshotValue((env as any)[key], entry.value)
+    }
+    else {
+      delete (env as any)[key]
+    }
   }
 
-  if (Object.prototype.hasOwnProperty.call(env, GLOBAL_STATE_ENV_MARKER))
-    delete (env as any)[GLOBAL_STATE_ENV_MARKER]
+  delete (env as any)[GLOBAL_STATE_ENV_MARKER]
 }

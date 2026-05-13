@@ -102,6 +102,71 @@ describe('chunkedParse correctness', () => {
     })
   })
 
+  it('preserves user-provided env.references when global-state fallback runs', () => {
+    const md = markdownit()
+    const env: Record<string, any> = {
+      references: {
+        EXT: {
+          href: 'https://external.example',
+          title: '',
+        },
+      },
+    }
+    const src = [
+      '[external][ext]',
+      '',
+      '[local]: https://local.example',
+      '',
+    ].join('\n')
+
+    const tokens = chunkedParse(md, src, env, {
+      maxChunkChars: 10,
+      maxChunkLines: 1,
+    })
+    const html = md.renderer.render(tokens, md.options, env)
+
+    expect(html).toContain('href="https://external.example"')
+    expect(env.references.EXT.href).toBe('https://external.example')
+  })
+
+  it('restores user-provided env.references after clearing mdts-owned global state', () => {
+    const md = markdownit()
+    const env: Record<string, any> = {
+      references: {
+        EXT: {
+          href: 'https://external.example',
+          title: '',
+        },
+      },
+    }
+    const withDefinition = [
+      '[external][ext]',
+      '',
+      '[local]: https://local.example',
+      '',
+    ].join('\n')
+
+    chunkedParse(md, withDefinition, env, {
+      maxChunkChars: 10,
+      maxChunkLines: 1,
+    })
+
+    const withoutDefinition = [
+      '[external][ext]',
+      '',
+      '[local][local]',
+      '',
+    ].join('\n')
+    const tokens = chunkedParse(md, withoutDefinition, env, {
+      maxChunkChars: 10,
+      maxChunkLines: 1,
+    })
+    const html = md.renderer.render(tokens, md.options, env)
+
+    expect(html).toContain('href="https://external.example"')
+    expect(html).not.toContain('https://local.example')
+  })
+
   it('refreshes reference definitions when reusing the same env object', () => {
     const md = markdownit()
     const env: Record<string, unknown> = {}

@@ -527,7 +527,7 @@ export function parseStringUnbounded(
   const currentGlobalStateReason = detectGlobalMarkdownState(src)
   const previousGlobalStateReason = getKnownGlobalMarkdownState(env)
 
-  if (previousGlobalStateReason || currentGlobalStateReason)
+  if (previousGlobalStateReason)
     resetKnownGlobalMarkdownState(env)
 
   if (opts.fallbackOnGlobalState !== false && currentGlobalStateReason) {
@@ -546,8 +546,8 @@ export function parseStringUnbounded(
     }
     catch {}
 
-    const tokens = md.core.parse(src, env, md).tokens
     markKnownGlobalMarkdownState(env, currentGlobalStateReason)
+    const tokens = md.core.parse(src, env, md).tokens
     return tokens
   }
 
@@ -561,11 +561,11 @@ export function parseStringUnbounded(
     },
   })
 
-  buffer.feed(src)
-  buffer.flushForce(env)
-
   if (currentGlobalStateReason)
     markKnownGlobalMarkdownState(env, currentGlobalStateReason)
+
+  buffer.feed(src)
+  buffer.flushForce(env)
 
   return tokens
 }

@@ -3,7 +3,7 @@ import type { MarkdownIt } from '../index'
 import type { GlobalMarkdownStateReason } from '../parse/global_state'
 import type { ParserCore } from '../parse/parser_core'
 import { countLines } from '../common/utils'
-import { detectGlobalMarkdownState, resetKnownGlobalMarkdownState } from '../parse/global_state'
+import { detectGlobalMarkdownState, getKnownGlobalMarkdownState, markKnownGlobalMarkdownState, resetKnownGlobalMarkdownState } from '../parse/global_state'
 import { setStrategyDiagnostics } from '../parse/strategy_diagnostics'
 import { recommendStreamChunkStrategy } from '../support/chunk_recommend'
 import { chunkedParse } from './chunked'
@@ -739,7 +739,8 @@ export class StreamParser {
     knownLineCount?: number,
     needLineCount = true,
   ): { tokens: Token[], lineCount: number } {
-    if (detectGlobalMarkdownState(src))
+    const currentGlobalStateReason = detectGlobalMarkdownState(src)
+    if (getKnownGlobalMarkdownState(env))
       resetKnownGlobalMarkdownState(env)
 
     const autoUnboundedDecision = getAutoUnboundedDecision(md, src.length, knownLineCount)
@@ -762,6 +763,9 @@ export class StreamParser {
 
     if (lineCount === undefined)
       lineCount = needLineCount ? countLines(src) : 0
+
+    if (currentGlobalStateReason)
+      markKnownGlobalMarkdownState(env, currentGlobalStateReason)
 
     return { tokens: this.core.parse(src, env, md).tokens, lineCount }
   }
