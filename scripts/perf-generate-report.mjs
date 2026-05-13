@@ -2,6 +2,7 @@
 // Build first: npm run build
 // Run: node scripts/perf-generate-report.mjs
 
+import os from 'node:os'
 import { performance } from 'node:perf_hooks'
 import { writeFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
@@ -15,6 +16,30 @@ import remarkRehype from 'remark-rehype'
 import rehypeStringify from 'rehype-stringify'
 
 const PERF_BENCHMARK_VERSION = 5
+
+function getGitCommit() {
+  try {
+    return execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim()
+  }
+  catch {
+    return 'unknown'
+  }
+}
+
+function getPerfMetadata() {
+  const cpus = os.cpus() || []
+  return {
+    benchmarkVersion: PERF_BENCHMARK_VERSION,
+    generatedAt: new Date().toISOString(),
+    node: process.version,
+    platform: `${process.platform} ${process.arch}`,
+    cpu: cpus[0]?.model || 'unknown',
+    cpuCount: cpus.length,
+    commit: getGitCommit(),
+    sizes: SIZES,
+    appendSteps: APP_STEPS,
+  }
+}
 
 function para(n) {
   return `## Section ${n}\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod.\n\n- a\n- b\n- c\n\n\`\`\`js\nconsole.log(${n})\n\`\`\`\n\n`
@@ -487,9 +512,21 @@ function measureRenderComparisons() {
   return results
 }
 
-function toMarkdown(results, coldHot) {
+function toMarkdown(results, coldHot, renderComparisons, metadata) {
   const lines = []
   lines.push('# Performance Report (latest run)')
+  lines.push('')
+  lines.push('## Environment')
+  lines.push('')
+  lines.push(`- Generated at: ${metadata.generatedAt}`)
+  lines.push(`- Node.js: ${metadata.node}`)
+  lines.push(`- Platform: ${metadata.platform}`)
+  lines.push(`- CPU: ${metadata.cpu}`)
+  lines.push(`- CPU count: ${metadata.cpuCount}`)
+  lines.push(`- Commit: ${metadata.commit}`)
+  lines.push(`- Benchmark version: ${metadata.benchmarkVersion}`)
+  lines.push(`- Fixture sizes: ${metadata.sizes.join(', ')} chars`)
+  lines.push(`- Append steps: ${metadata.appendSteps}`)
   lines.push('')
   lines.push('Default API note: normal `md.parse(src)` / `md.render(src)` calls already auto-activate the internal large-input path for very large finite strings. Explicit chunk-stream APIs such as `parseIterable` / `UnboundedBuffer` are advanced tools for sources that already arrive as chunks.')
   lines.push('')
@@ -699,24 +736,22 @@ function groupBy(arr, key) {
   return m
 }
 
+const metadata = getPerfMetadata()
 const results = runMatrix()
 const coldHot = measureColdHot()
 const renderComparisons = measureRenderComparisons()
-const md = toMarkdown(results, coldHot, renderComparisons)
+const md = toMarkdown(results, coldHot, renderComparisons, metadata)
 writeFileSync(new URL('../docs/perf-latest.md', import.meta.url), md)
 
 // Also write a machine-readable JSON for regression checks
-let gitSha = null
-try {
-  gitSha = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim() || null
-}
-catch {}
+const gitSha = metadata.commit === 'unknown' ? null : metadata.commit.slice(0, 7)
 
 const payload = {
   benchmarkVersion: PERF_BENCHMARK_VERSION,
-  generatedAt: new Date().toISOString(),
-  node: process.version,
+  generatedAt: metadata.generatedAt,
+  node: metadata.node,
   gitSha,
+  metadata,
   results,
   coldHot,
   renderComparisons,

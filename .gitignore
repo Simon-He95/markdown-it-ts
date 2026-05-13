@@ -6,3 +6,7 @@ apidoc/
 dist/
 *.log
 .eslintcache
+
+# Local scratch files
+/tmp-*
+/*.tmp

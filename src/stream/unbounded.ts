@@ -11,6 +11,7 @@ export interface UnboundedBufferOptions {
   autoTune?: boolean
   retainTokens?: boolean
   onChunkTokens?: UnboundedTokenConsumer
+  fallbackOnGlobalState?: boolean
 }
 
 const DEFAULT_AUTO_UNBOUNDED_THRESHOLD_CHARS = 4_000_000
@@ -86,6 +87,19 @@ function estimateLines(src: string): number {
   if (src.length === 0)
     return 0
   return countLines(src) + (src.charCodeAt(src.length - 1) === 0x0A ? 0 : 1)
+}
+
+function detectGlobalMarkdownState(src: string): string | null {
+  if (/(?:^|\n)[ \t]{0,3}\[\^[^\]\n]+\]:/m.test(src))
+    return 'footnote-definition'
+
+  if (/(?:^|\n)[ \t]{0,3}\*\[[^\]\n]+\]:/m.test(src))
+    return 'abbreviation-definition'
+
+  if (/(?:^|\n)[ \t]{0,3}\[(?!\^)[^\]\n]+\]:[ \t]*\S/m.test(src))
+    return 'reference-definition'
+
+  return null
 }
 
 function isBlankLine(src: string, start: number, end: number): boolean {
@@ -518,6 +532,28 @@ export function parseStringUnbounded(
   env: Record<string, unknown> = {},
   opts: Omit<UnboundedBufferOptions, 'retainTokens' | 'onChunkTokens'> = {},
 ): Token[] {
+  if (opts.fallbackOnGlobalState !== false) {
+    const fallbackReason = detectGlobalMarkdownState(src)
+    if (fallbackReason) {
+      try {
+        ;(env as any).__mdtsUnboundedInfo = {
+          mode: 'full',
+          fallback: true,
+          fallbackReason,
+          committedChars: src.length,
+          committedLines: countLines(src),
+          pendingChars: 0,
+          pendingLines: 0,
+          fedChunks: 1,
+          parsedChunks: 1,
+        }
+      }
+      catch {}
+
+      return md.core.parse(src, env, md).tokens
+    }
+  }
+
   const tokens: Token[] = []
   const buffer = new UnboundedBuffer(md, {
     mode: 'full',

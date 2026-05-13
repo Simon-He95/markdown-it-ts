@@ -7,6 +7,10 @@ const dist = join(root, 'dist')
 const requiredFiles = [
   'dist/index.js',
   'dist/index.d.ts',
+  'dist/core.js',
+  'dist/core.d.ts',
+  'dist/experimental.js',
+  'dist/experimental.d.ts',
   'dist/plugins/with-renderer.js',
   'dist/plugins/with-renderer.d.ts',
   'dist/render/renderer.js',

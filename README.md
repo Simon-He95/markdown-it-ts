@@ -6,6 +6,20 @@ English | [简体中文](./README.zh-CN.md)
 
 Quick links: [Docs index](./docs/README.md) · [Stream optimization](./docs/stream-optimization.md) · [Performance report](./docs/perf-report.md) · [Compatibility report](./docs/COMPATIBILITY_REPORT.md)
 
+> **Runtime note**
+>
+> `markdown-it-ts` is ESM-only and requires Node.js >= 18.
+>
+> ```js
+> import MarkdownIt from 'markdown-it-ts'
+> ```
+>
+> In CommonJS projects, use dynamic import:
+>
+> ```js
+> const { default: MarkdownIt } = await import('markdown-it-ts')
+> ```
+
 A TypeScript migration of [markdown-it](https://github.com/markdown-it/markdown-it) with modular architecture for tree-shaking and separate parse/render imports.
 
 ## 🚀 Migration Status: 100% Complete
@@ -123,6 +137,22 @@ md.parseIterableToSink(fileChunks, (tokens, info) => {
 ```
 
 For arbitrary in-place edits, use `EditableBuffer`. It stores the source in a piece table and reparses only from an anchor before the affected block instead of flattening and reparsing the whole document every time. Internally, both the full parse and the localized reparse paths now hand a `PieceTableSourceView` straight to `md.core.parseSource(...)`, so the selected range no longer needs to be materialized as one giant intermediate string first.
+
+### Correctness notes for chunked and streaming parsing
+
+Markdown is not always chunk-local. Some constructs depend on document-level state, including reference definitions, footnote definitions, abbreviation definitions, and plugin-defined global state.
+
+`chunkedParse()` and complete-string unbounded parsing use a correctness-first fallback by default for known global-state constructs.
+
+You can explicitly disable this fallback:
+
+```ts
+chunkedParse(md, source, env, {
+  fallbackOnGlobalState: false,
+})
+```
+
+Disabling the fallback is a performance-oriented mode and may produce output that differs from a full parse for documents with global state.
 
 Need async renderer rules (for example, asynchronous syntax highlighting)? Use `renderAsync` which awaits async rule results:
 

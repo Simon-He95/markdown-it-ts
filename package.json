@@ -34,6 +34,14 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./core": {
+      "types": "./dist/core.d.ts",
+      "import": "./dist/core.js"
+    },
+    "./experimental": {
+      "types": "./dist/experimental.d.ts",
+      "import": "./dist/experimental.js"
+    },
     "./plugins/with-renderer": {
       "types": "./dist/plugins/with-renderer.d.ts",
       "import": "./dist/plugins/with-renderer.js"
@@ -77,8 +85,9 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "tsdown src/index.ts --no-dts && tsdown src/plugins/with-renderer.ts src/render/renderer.ts src/stream/buffer.ts src/stream/chunked.ts src/stream/debounced.ts src/support/chunk_recommend.ts src/common/token.ts src/common/utils.ts --no-clean --no-dts && tsc -p tsconfig.build.json && node scripts/prepare-dts.mjs && node scripts/check-dist-exports.mjs",
+    "build": "tsdown src/index.ts src/core.ts src/experimental.ts --no-dts && tsdown src/plugins/with-renderer.ts src/render/renderer.ts src/stream/buffer.ts src/stream/chunked.ts src/stream/debounced.ts src/support/chunk_recommend.ts src/common/token.ts src/common/utils.ts --no-clean --no-dts && tsc -p tsconfig.build.json && node scripts/prepare-dts.mjs && node scripts/check-dist-exports.mjs",
     "test": "vitest",
+    "test:plugins": "vitest test/plugin-matrix.test.ts --run",
     "test:perf-threshold": "RUN_PERF_THRESHOLD_TESTS=1 vitest test/parse/parse-performance.test.ts --run",
     "test:stream:slow": "RUN_SLOW_STREAM_TESTS=1 vitest test/stream/stream-parser.test.ts --run --testTimeout 30000",
     "test:integration:markstream-vue": "RUN_MARKSTREAM_VUE_INTEGRATION=1 vitest test/integration/markstream-vue-local.test.ts --run",

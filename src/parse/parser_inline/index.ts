@@ -70,6 +70,8 @@ export class ParserInline {
   private cachedRules: Array<(state: StateInline, silent?: boolean) => boolean | void> = []
   private cachedRules2Version = -1
   private cachedRules2: Array<(state: StateInline, silent?: boolean) => void> = []
+  private readonly defaultRulerVersion: number
+  private readonly defaultRuler2Version: number
 
   constructor() {
     this.ruler = new InlineRuler()
@@ -95,6 +97,9 @@ export class ParserInline {
     this.ruler2.push('strikethrough', strikethrough.postProcess)
     this.ruler2.push('emphasis', emphasis.postProcess)
     this.ruler2.push('fragments_join', fragments_join)
+
+    this.defaultRulerVersion = this.ruler.version
+    this.defaultRuler2Version = this.ruler2.version
   }
 
   /**
@@ -264,8 +269,18 @@ export class ParserInline {
    * Process input string and push inline tokens into `outTokens`.
    * Matches the signature from original markdown-it/lib/parser_inline.mjs
    */
+  public isDefaultRuleset(): boolean {
+    return this.ruler.version === this.defaultRulerVersion
+      && this.ruler2.version === this.defaultRuler2Version
+  }
+
   public parseSource(src: ParseSource, md: any, env: any, outTokens: Token[]): void {
-    if (typeof src === 'string' && src.length > 0 && isPlainInlineText(src)) {
+    if (
+      typeof src === 'string'
+      && src.length > 0
+      && this.isDefaultRuleset()
+      && isPlainInlineText(src)
+    ) {
       const token = new TokenClass('text', '', 0)
       token.content = src
       outTokens.push(token)

@@ -56,6 +56,22 @@ function cloneStats(source: PieceTable, current: EditableBufferStats): EditableB
   }
 }
 
+function editMayAffectGlobalState(text: string): boolean {
+  if (!text)
+    return false
+
+  if (/(?:^|\n)[ \t]{0,3}\[\^[^\]\n]+\]:/m.test(text))
+    return true
+
+  if (/(?:^|\n)[ \t]{0,3}\*\[[^\]\n]+\]:/m.test(text))
+    return true
+
+  if (/(?:^|\n)[ \t]{0,3}\[(?!\^)[^\]\n]+\]:[ \t]*\S/m.test(text))
+    return true
+
+  return false
+}
+
 export class EditableBuffer {
   private readonly md: MarkdownIt
   private source: PieceTable
@@ -137,13 +153,29 @@ export class EditableBuffer {
     const beforeLength = this.source.length
     const clampedStart = Math.max(0, Math.min(start, beforeLength))
     const clampedEnd = Math.max(clampedStart, Math.min(end, beforeLength))
+    const removedText = clampedStart < clampedEnd
+      ? this.source.slice(clampedStart, clampedEnd)
+      : ''
+    const mustFullParse = editMayAffectGlobalState(text) || editMayAffectGlobalState(removedText)
     const editLine = this.source.lineOfOffset(clampedStart)
-    const anchor = this.tokens.length > 0
+    const anchor = !mustFullParse && this.tokens.length > 0
       ? this.findAnchorForEditLine(editLine)
       : null
 
     this.source.replace(clampedStart, clampedEnd, text)
     this.statsState.edits += 1
+
+    if (mustFullParse) {
+      try {
+        ;(env as any).__mdtsEditableInfo = {
+          fallback: true,
+          fallbackReason: 'global-markdown-state-edit',
+        }
+      }
+      catch {}
+
+      return this.fullParse(env)
+    }
 
     if (!anchor || (anchor.tokenStart <= 0 && anchor.lineStart <= 0))
       return this.fullParse(env)

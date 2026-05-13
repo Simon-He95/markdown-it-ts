@@ -8,6 +8,8 @@ import { isPlainInlineText } from '../../parse/parser_inline'
  */
 export function inline(state: State): void {
   const tokens = state.tokens
+  const inlineParser = state.md?.inline
+  const canUsePlainTextFastPath = !!inlineParser?.isDefaultRuleset?.()
 
   // Parse inlines
   for (let i = 0, l = tokens.length; i < l; i++) {
@@ -16,7 +18,7 @@ export function inline(state: State): void {
       if (!tok.children) {
         tok.children = []
       }
-      if (tok.content.length > 0 && isPlainInlineText(tok.content)) {
+      if (canUsePlainTextFastPath && tok.content.length > 0 && isPlainInlineText(tok.content)) {
         const text = new Token('text', '', 0)
         text.content = tok.content
         tok.children.push(text)

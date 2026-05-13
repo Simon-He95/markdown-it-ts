@@ -27,6 +27,22 @@
 - 长文本纯 append 场景会自动切到内部 unbounded-backed append，只消费新增 delta。
 - 中间编辑、不安全边界、reference-definition 风险、merge 失败时立即回退到现有 `tail/chunked/full` 路径。
 
+## chunked / streaming 正确性说明
+
+Markdown 并不总是 chunk-local 的语言。某些语法依赖整篇文档状态，例如 reference definitions、footnote definitions、abbreviation definitions，以及插件自定义的全局状态。
+
+`chunkedParse()` 和完整字符串的 unbounded parsing 默认采用 correctness-first 策略：遇到已知全局状态语法时会 fallback 到 full parse。
+
+你可以显式关闭 fallback：
+
+```ts
+chunkedParse(md, source, env, {
+  fallbackOnGlobalState: false,
+})
+```
+
+关闭 fallback 属于性能优先模式；对于包含全局状态的文档，输出可能和 full parse 不一致。
+
 `md.stream.stats()` 里现在会保留：
 
 - `cacheHits`
