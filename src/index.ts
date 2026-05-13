@@ -364,31 +364,45 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
     enable(list: string | string[], ignoreInvalid?: boolean) {
       const names = Array.isArray(list) ? list : [list]
       const managers = [this.core?.ruler, this.block?.ruler, this.inline?.ruler, this.inline?.ruler2]
-      let changed = 0
+      const found = new Set<string>()
+
       for (const m of managers) {
         if (!m)
           continue
+
         const enabled = m.enable(names, true)
-        changed += enabled.length
+        for (let i = 0; i < enabled.length; i++)
+          found.add(enabled[i])
       }
-      if (!ignoreInvalid && changed < names.length) {
-        throw new Error('Rules manager: invalid rule name in list')
+
+      if (!ignoreInvalid) {
+        const missed = names.filter(name => !found.has(name))
+        if (missed.length)
+          throw new Error(`Rules manager: invalid rule name ${missed.join(', ')}`)
       }
+
       return this
     },
     disable(list: string | string[], ignoreInvalid?: boolean) {
       const names = Array.isArray(list) ? list : [list]
       const managers = [this.core?.ruler, this.block?.ruler, this.inline?.ruler, this.inline?.ruler2]
-      let changed = 0
+      const found = new Set<string>()
+
       for (const m of managers) {
         if (!m)
           continue
+
         const disabled = m.disable(names, true)
-        changed += disabled.length
+        for (let i = 0; i < disabled.length; i++)
+          found.add(disabled[i])
       }
-      if (!ignoreInvalid && changed < names.length) {
-        throw new Error('Rules manager: invalid rule name in list')
+
+      if (!ignoreInvalid) {
+        const missed = names.filter(name => !found.has(name))
+        if (missed.length)
+          throw new Error(`Rules manager: invalid rule name ${missed.join(', ')}`)
       }
+
       return this
     },
     use(this: MarkdownIt, plugin: MarkdownItPlugin, ...params: unknown[]) {

@@ -64,7 +64,9 @@ export class CoreRuler {
 
   enable(names: string | string[], ignoreInvalid?: boolean): string[] {
     const list = Array.isArray(names) ? names : [names]
-    const changed: string[] = []
+    const found: string[] = []
+    let changed = false
+
     for (const n of list) {
       const idx = this.rules.findIndex(r => r.name === n)
       if (idx < 0) {
@@ -72,19 +74,26 @@ export class CoreRuler {
           throw new Error(`Rules manager: invalid rule name ${n}`)
         continue
       }
+
+      found.push(n)
+
       if (!this.rules[idx].enabled) {
         this.rules[idx].enabled = true
-        changed.push(n)
+        changed = true
       }
     }
-    if (changed.length)
+
+    if (changed)
       this.invalidateCache()
-    return changed
+
+    return found
   }
 
   disable(names: string | string[], ignoreInvalid?: boolean): string[] {
     const list = Array.isArray(names) ? names : [names]
-    const changed: string[] = []
+    const found: string[] = []
+    let changed = false
+
     for (const n of list) {
       const idx = this.rules.findIndex(r => r.name === n)
       if (idx < 0) {
@@ -92,14 +101,19 @@ export class CoreRuler {
           throw new Error(`Rules manager: invalid rule name ${n}`)
         continue
       }
+
+      found.push(n)
+
       if (this.rules[idx].enabled) {
         this.rules[idx].enabled = false
-        changed.push(n)
+        changed = true
       }
     }
-    if (changed.length)
+
+    if (changed)
       this.invalidateCache()
-    return changed
+
+    return found
   }
 
   enableOnly(names: string[]) {

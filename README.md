@@ -166,14 +166,16 @@ console.log(html)
 
 ### Customization
 
-You can customize the parser and renderer by enabling or disabling specific rules:
+You can customize parser options and enable or disable specific rules:
 
 ```typescript
 import markdownIt from 'markdown-it-ts'
 
-const md = markdownIt()
-  .enable(['linkify', 'typographer'])
-  .disable('html')
+const md = markdownIt({
+  linkify: true,
+  typographer: true,
+  html: false,
+}).disable('image')
 
 const result = md.render('Some markdown content')
 console.log(result)

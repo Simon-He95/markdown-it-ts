@@ -112,7 +112,8 @@ export class BlockRuler {
 
   enable(names: string | string[], ignoreInvalid?: boolean): string[] {
     const nameList = Array.isArray(names) ? names : [names]
-    const result: string[] = []
+    const found: string[] = []
+    let changed = false
 
     nameList.forEach((name) => {
       const idx = this._rules.findIndex(r => r.name === name)
@@ -121,20 +122,25 @@ export class BlockRuler {
           return
         throw new Error(`Rules manager: invalid rule name ${name}`)
       }
+
+      found.push(name)
+
       if (!this._rules[idx].enabled) {
         this._rules[idx].enabled = true
-        result.push(name)
+        changed = true
       }
     })
 
-    if (result.length)
+    if (changed)
       this.invalidateCache()
-    return result
+
+    return found
   }
 
   disable(names: string | string[], ignoreInvalid?: boolean): string[] {
     const nameList = Array.isArray(names) ? names : [names]
-    const result: string[] = []
+    const found: string[] = []
+    let changed = false
 
     nameList.forEach((name) => {
       const idx = this._rules.findIndex(r => r.name === name)
@@ -143,15 +149,19 @@ export class BlockRuler {
           return
         throw new Error(`Rules manager: invalid rule name ${name}`)
       }
+
+      found.push(name)
+
       if (this._rules[idx].enabled) {
         this._rules[idx].enabled = false
-        result.push(name)
+        changed = true
       }
     })
 
-    if (result.length)
+    if (changed)
       this.invalidateCache()
-    return result
+
+    return found
   }
 
   enableOnly(names: string[]): void {
