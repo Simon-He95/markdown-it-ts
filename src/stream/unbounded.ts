@@ -1,5 +1,6 @@
 import type { Token } from '../common/token'
 import type { MarkdownIt } from '../index'
+import type { GlobalMarkdownStateReason } from '../parse/global_state'
 import { countLines } from '../common/utils'
 import { detectGlobalMarkdownState, getKnownGlobalMarkdownState, markKnownGlobalMarkdownState, resetKnownGlobalMarkdownState } from '../parse/global_state'
 import { splitIntoChunkRanges } from './chunked'
@@ -223,6 +224,8 @@ export class UnboundedBuffer {
   private committedLines = 0
   private fedChunks = 0
   private parsedChunks = 0
+  private globalStateEnv: Record<string, unknown> | null = null
+  private markedGlobalStateReason: GlobalMarkdownStateReason | null = null
 
   constructor(md: MarkdownIt, opts: UnboundedBufferOptions = {}) {
     this.md = md
@@ -298,6 +301,7 @@ export class UnboundedBuffer {
 
   flushForce(env: Record<string, unknown> = {}): Token[] {
     if (!this.pending) {
+      this.prepareGlobalStateEnv(env, '')
       const window = this.resolveWindow()
       this.updateEnvDiagnostics(env, window, 0)
       return this.tokens
@@ -327,6 +331,8 @@ export class UnboundedBuffer {
     this.committedLines = 0
     this.fedChunks = 0
     this.parsedChunks = 0
+    this.globalStateEnv = null
+    this.markedGlobalStateReason = null
   }
 
   peek(): Token[] {
@@ -356,9 +362,31 @@ export class UnboundedBuffer {
     return resolveWindow(this.md, totalChars, totalLines, this.options)
   }
 
+  private prepareGlobalStateEnv(env: Record<string, unknown>, srcAboutToParse: string): void {
+    if (this.globalStateEnv !== env) {
+      if (getKnownGlobalMarkdownState(env))
+        resetKnownGlobalMarkdownState(env)
+
+      this.globalStateEnv = env
+      this.markedGlobalStateReason = null
+    }
+
+    if (this.markedGlobalStateReason)
+      return
+
+    const reason = detectGlobalMarkdownState(srcAboutToParse)
+    if (!reason)
+      return
+
+    markKnownGlobalMarkdownState(env, reason)
+    this.markedGlobalStateReason = reason
+  }
+
   private commitRanges(ranges: Array<{ start: number, end: number, lineCount: number }>, env: Record<string, unknown>): number {
     if (!ranges.length)
       return 0
+
+    this.prepareGlobalStateEnv(env, this.pending)
 
     let consumed = 0
     for (let i = 0; i < ranges.length; i++) {

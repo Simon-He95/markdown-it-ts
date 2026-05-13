@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import markdownit from '../../src/index'
+import markdownit, { UnboundedBuffer } from '../../src/index'
 import { parseStringUnbounded } from '../../src/stream/unbounded'
 
 describe('parseStringUnbounded correctness', () => {
@@ -173,6 +173,25 @@ describe('parseStringUnbounded correctness', () => {
     const html = md.renderer.render(tokens, md.options, env)
 
     expect(html).toBe(md.render(newSrc))
+    expect(html).not.toContain('https://old.example')
+  })
+
+  it('clears mdts-owned references when UnboundedBuffer is used directly', () => {
+    const md = markdownit()
+    const env: Record<string, unknown> = {}
+
+    const buffer = new UnboundedBuffer(md, {
+      maxChunkChars: 10,
+      maxChunkLines: 1,
+    })
+
+    buffer.feed('[x][ref]\n\n')
+    buffer.feed('[ref]: https://old.example\n')
+    buffer.flushForce(env)
+
+    const html = md.render('[x][ref]\n', env)
+
+    expect(html).toBe(md.render('[x][ref]\n'))
     expect(html).not.toContain('https://old.example')
   })
 })
