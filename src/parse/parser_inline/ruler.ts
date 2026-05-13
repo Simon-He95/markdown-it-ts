@@ -12,6 +12,13 @@ export interface InlineRule {
   enabled: boolean
 }
 
+export type InlineRuleSnapshot = Readonly<{
+  name: string
+  fn: InlineRuleFn
+  alt?: readonly string[]
+  enabled: boolean
+}>
+
 export interface InlineNamedRule {
   name: string
   fn: InlineRuleFn
@@ -46,13 +53,24 @@ export class InlineRuler {
     this.invalidateCache()
   }
 
-  public at(name: string): InlineRule | undefined
+  public at(name: string): InlineRuleSnapshot | undefined
   public at(name: string, fn: InlineRuleFn, options?: { alt?: string[] }): void
-  public at(name: string, fn?: InlineRuleFn, options?: { alt?: string[] }): InlineRule | undefined | void {
+  public at(name: string, fn?: InlineRuleFn, options?: { alt?: string[] }): InlineRuleSnapshot | undefined | void {
     const index = this.rules.findIndex(rule => rule.name === name)
 
-    if (fn === undefined)
-      return index >= 0 ? this.rules[index] : undefined
+    if (fn === undefined) {
+      if (index < 0)
+        return undefined
+
+      const rule = this.rules[index]
+
+      return Object.freeze({
+        name: rule.name,
+        fn: rule.fn,
+        alt: rule.alt ? Object.freeze(rule.alt.slice()) : undefined,
+        enabled: rule.enabled,
+      })
+    }
 
     if (index < 0)
       throw new Error(`Parser rule not found: ${name}`)

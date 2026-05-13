@@ -79,6 +79,7 @@ export class EditableBuffer {
   private tokens: Token[] = []
   private statsState: EditableBufferStats
   private globalStateReason: GlobalMarkdownStateReason | null
+  private staleGlobalStateReason: GlobalMarkdownStateReason | null = null
 
   constructor(md: MarkdownIt, initial = '') {
     this.md = md
@@ -120,6 +121,7 @@ export class EditableBuffer {
 
   reset(text = ''): void {
     const next = new PieceTable(text)
+    this.staleGlobalStateReason = this.staleGlobalStateReason || this.globalStateReason
     this.source = next
     this.tokens = []
     this.globalStateReason = detectGlobalMarkdownState(text)
@@ -208,11 +210,12 @@ export class EditableBuffer {
   }
 
   private fullParse(env: Record<string, unknown>): Token[] {
-    const previousReason = this.globalStateReason
+    const previousReason = this.staleGlobalStateReason || this.globalStateReason
     const nextReason = this.detectSourceGlobalState()
     if (previousReason || nextReason)
       resetKnownGlobalMarkdownState(env)
 
+    this.staleGlobalStateReason = null
     this.tokens = this.md.core.parseSource(this.source.view(), env, this.md).tokens
     this.globalStateReason = nextReason
     this.statsState.fullParses += 1

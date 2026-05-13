@@ -120,4 +120,23 @@ describe('EditableBuffer correctness fallback', () => {
     expect(html).toContain('href="https://new.example"')
     expect(html).not.toContain('https://old.example')
   })
+
+  it('clears stale reference definitions after reset when reusing env', () => {
+    const md = markdownit()
+    const env: Record<string, unknown> = {}
+    const buffer = new EditableBuffer(
+      md,
+      '[x][ref]\n\n[ref]: https://old.example\n',
+    )
+
+    buffer.parse(env)
+
+    buffer.reset('[x][ref]\n')
+    buffer.parse(env)
+
+    const html = md.renderer.render(buffer.peek(), md.options, env)
+
+    expect(html).toBe(md.render('[x][ref]\n'))
+    expect(html).not.toContain('https://old.example')
+  })
 })

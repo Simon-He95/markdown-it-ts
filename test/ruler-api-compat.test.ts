@@ -68,4 +68,18 @@ describe('ruler API compatibility', () => {
     expect(rule?.name).toBe('text')
     expect(typeof rule?.fn).toBe('function')
   })
+
+  it('inline.ruler.at(name) getter does not expose mutable internal rule', () => {
+    const md = markdownit()
+    const rule = md.inline.ruler.at('text') as any
+
+    expect(rule?.name).toBe('text')
+
+    try {
+      rule.fn = () => true
+    }
+    catch {}
+
+    expect(md.render('abc')).toBe('<p>abc</p>\n')
+  })
 })
