@@ -53,47 +53,73 @@ function main() {
   let checkedMetrics = 0
   let skippedMetrics = 0
 
+  function accountMetric(check, reg) {
+    if (check) {
+      checkedMetrics++
+      if (reg)
+        regressions++
+    }
+    else {
+      skippedMetrics++
+    }
+  }
+
   for (const [k, c] of curMap.entries()) {
     const b = baseMap.get(k)
     if (!b || !isInternalScenario(c.scenario)) continue
     const oneDelta = pct(c.oneShotMs, b.oneShotMs)
     const appDelta = pct(c.appendWorkloadMs, b.appendWorkloadMs)
+    const lineDelta = pct(c.appendLineMs, b.appendLineMs)
+    const replaceDelta = pct(c.replaceParagraphMs, b.replaceParagraphMs)
+
     const checkOne = shouldCheckMetric(c.oneShotMs, b.oneShotMs, minSignalMs)
     const checkApp = shouldCheckMetric(c.appendWorkloadMs, b.appendWorkloadMs, appendMinSignalMs)
+    const checkLine = shouldCheckMetric(c.appendLineMs, b.appendLineMs, appendMinSignalMs)
+    const checkReplace = shouldCheckMetric(c.replaceParagraphMs, b.replaceParagraphMs, minSignalMs)
+
     const regOne = checkOne && oneDelta > threshold
     const regApp = checkApp && appDelta > threshold
+    const regLine = checkLine && lineDelta > threshold
+    const regReplace = checkReplace && replaceDelta > threshold
 
-    if (checkOne) {
-      checkedMetrics++
-      if (regOne)
-        regressions++
-    }
-    else {
-      skippedMetrics++
-    }
+    accountMetric(checkOne, regOne)
+    accountMetric(checkApp, regApp)
+    accountMetric(checkLine, regLine)
+    accountMetric(checkReplace, regReplace)
 
-    if (checkApp) {
-      checkedMetrics++
-      if (regApp)
-        regressions++
-    }
-    else {
-      skippedMetrics++
-    }
-
-    rows.push({ key: k, size: c.size, scenario: c.scenario, oneDelta, appDelta, regOne, regApp, checkOne, checkApp, cur: c, base: b })
+    rows.push({
+      key: k,
+      size: c.size,
+      scenario: c.scenario,
+      oneDelta,
+      appDelta,
+      lineDelta,
+      replaceDelta,
+      regOne,
+      regApp,
+      regLine,
+      regReplace,
+      checkOne,
+      checkApp,
+      checkLine,
+      checkReplace,
+      cur: c,
+      base: b,
+    })
   }
 
   rows.sort((a,b)=> a.size - b.size || a.scenario.localeCompare(b.scenario))
 
   console.log('Perf comparison vs baseline')
   console.log('Threshold for regression: +' + fmtPct(threshold))
-  console.log('| Size | Scenario | One Δ | Append Δ |')
-  console.log('|---:|:--|--:|--:|')
+  console.log('| Size | Scenario | One Δ | Append(par) Δ | Append(line) Δ | Replace Δ |')
+  console.log('|---:|:--|--:|--:|--:|--:|')
   for (const r of rows) {
     const one = r.checkOne ? (r.oneDelta >= 0 ? '+' : '') + fmtPct(r.oneDelta) : 'skip'
     const app = r.checkApp ? (r.appDelta >= 0 ? '+' : '') + fmtPct(r.appDelta) : 'skip'
-    console.log(`| ${r.size} | ${r.scenario} | ${one}${r.regOne ? ' (!) ' : ' '}| ${app}${r.regApp ? ' (!) ' : ' '}|`)
+    const line = r.checkLine ? (r.lineDelta >= 0 ? '+' : '') + fmtPct(r.lineDelta) : 'skip'
+    const replace = r.checkReplace ? (r.replaceDelta >= 0 ? '+' : '') + fmtPct(r.replaceDelta) : 'skip'
+    console.log(`| ${r.size} | ${r.scenario} | ${one}${r.regOne ? ' (!) ' : ' '}| ${app}${r.regApp ? ' (!) ' : ' '}| ${line}${r.regLine ? ' (!) ' : ' '}| ${replace}${r.regReplace ? ' (!) ' : ' '}|`)
   }
 
   const renderRows = []
@@ -109,14 +135,7 @@ function main() {
     const checkRender = shouldCheckMetric(c.renderMs, b.renderMs, minSignalMs)
     const regRender = checkRender && renderDelta > threshold
 
-    if (checkRender) {
-      checkedMetrics++
-      if (regRender)
-        regressions++
-    }
-    else {
-      skippedMetrics++
-    }
+    accountMetric(checkRender, regRender)
 
     renderRows.push({ size: c.size, scenario: c.scenario, renderDelta, checkRender, regRender })
   }
