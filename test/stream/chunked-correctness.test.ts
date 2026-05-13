@@ -128,6 +128,31 @@ describe('chunkedParse correctness', () => {
     expect(html).not.toContain('https://old.example')
   })
 
+  it('clears stale reference definitions when current source has no definitions', () => {
+    const md = markdownit()
+    const env: Record<string, unknown> = {}
+    const oldSrc = [
+      '[x][ref]',
+      '',
+      '[ref]: https://old.example',
+      '',
+    ].join('\n')
+    const newSrc = '[x][ref]\n'
+
+    chunkedParse(md, oldSrc, env, {
+      maxChunkChars: 20,
+      maxChunkLines: 2,
+    })
+    const tokens = chunkedParse(md, newSrc, env, {
+      maxChunkChars: 20,
+      maxChunkLines: 2,
+    })
+    const html = md.renderer.render(tokens, md.options, env)
+
+    expect(html).toBe(md.render(newSrc))
+    expect(html).not.toContain('https://old.example')
+  })
+
   it('falls back to full parse for footnote definitions', () => {
     const md = markdownit().use(footnote as any)
     const env: Record<string, unknown> = {}

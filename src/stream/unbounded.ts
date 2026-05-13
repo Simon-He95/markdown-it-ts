@@ -1,7 +1,7 @@
 import type { Token } from '../common/token'
 import type { MarkdownIt } from '../index'
 import { countLines } from '../common/utils'
-import { detectGlobalMarkdownState, resetKnownGlobalMarkdownState } from '../parse/global_state'
+import { detectGlobalMarkdownState, getKnownGlobalMarkdownState, markKnownGlobalMarkdownState, resetKnownGlobalMarkdownState } from '../parse/global_state'
 import { splitIntoChunkRanges } from './chunked'
 
 export interface UnboundedBufferOptions {
@@ -524,27 +524,31 @@ export function parseStringUnbounded(
   env: Record<string, unknown> = {},
   opts: ParseStringUnboundedOptions = {},
 ): Token[] {
-  if (opts.fallbackOnGlobalState !== false) {
-    const fallbackReason = detectGlobalMarkdownState(src)
-    if (fallbackReason) {
-      try {
-        ;(env as any).__mdtsUnboundedInfo = {
-          mode: 'full',
-          fallback: true,
-          fallbackReason,
-          committedChars: src.length,
-          committedLines: countLines(src),
-          pendingChars: 0,
-          pendingLines: 0,
-          fedChunks: 1,
-          parsedChunks: 1,
-        }
-      }
-      catch {}
+  const currentGlobalStateReason = detectGlobalMarkdownState(src)
+  const previousGlobalStateReason = getKnownGlobalMarkdownState(env)
 
-      resetKnownGlobalMarkdownState(env)
-      return md.core.parse(src, env, md).tokens
+  if (previousGlobalStateReason || currentGlobalStateReason)
+    resetKnownGlobalMarkdownState(env)
+
+  if (opts.fallbackOnGlobalState !== false && currentGlobalStateReason) {
+    try {
+      ;(env as any).__mdtsUnboundedInfo = {
+        mode: 'full',
+        fallback: true,
+        fallbackReason: currentGlobalStateReason,
+        committedChars: src.length,
+        committedLines: countLines(src),
+        pendingChars: 0,
+        pendingLines: 0,
+        fedChunks: 1,
+        parsedChunks: 1,
+      }
     }
+    catch {}
+
+    const tokens = md.core.parse(src, env, md).tokens
+    markKnownGlobalMarkdownState(env, currentGlobalStateReason)
+    return tokens
   }
 
   const tokens: Token[] = []
@@ -559,6 +563,9 @@ export function parseStringUnbounded(
 
   buffer.feed(src)
   buffer.flushForce(env)
+
+  if (currentGlobalStateReason)
+    markKnownGlobalMarkdownState(env, currentGlobalStateReason)
 
   return tokens
 }

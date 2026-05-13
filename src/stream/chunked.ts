@@ -1,6 +1,6 @@
 import type { Token } from '../common/token'
 import type { MarkdownIt } from '../index'
-import { detectGlobalMarkdownState, resetKnownGlobalMarkdownState } from '../parse/global_state'
+import { detectGlobalMarkdownState, getKnownGlobalMarkdownState, markKnownGlobalMarkdownState, resetKnownGlobalMarkdownState } from '../parse/global_state'
 
 export interface ChunkedOptions {
   maxChunkChars?: number // hard limit per chunk by characters
@@ -35,24 +35,27 @@ const DEFAULTS: Required<Omit<ChunkedOptions, 'maxChunks'>> & { maxChunks?: numb
  */
 export function chunkedParse(md: MarkdownIt, src: string, env: Record<string, unknown> = {}, opts?: ChunkedOptions): Token[] {
   const options = { ...DEFAULTS, ...(opts || {}) }
+  const currentGlobalStateReason = detectGlobalMarkdownState(src)
+  const previousGlobalStateReason = getKnownGlobalMarkdownState(env)
 
-  if (options.fallbackOnGlobalState !== false) {
-    const fallbackReason = detectGlobalMarkdownState(src)
-    if (fallbackReason) {
-      try {
-        ;(env as any).__mdtsChunkInfo = {
-          count: 1,
-          fallback: true,
-          fallbackReason,
-          maxChunkChars: options.maxChunkChars,
-          maxChunkLines: options.maxChunkLines,
-        }
+  if (previousGlobalStateReason || currentGlobalStateReason)
+    resetKnownGlobalMarkdownState(env)
+
+  if (options.fallbackOnGlobalState !== false && currentGlobalStateReason) {
+    try {
+      ;(env as any).__mdtsChunkInfo = {
+        count: 1,
+        fallback: true,
+        fallbackReason: currentGlobalStateReason,
+        maxChunkChars: options.maxChunkChars,
+        maxChunkLines: options.maxChunkLines,
       }
-      catch {}
-
-      resetKnownGlobalMarkdownState(env)
-      return md.core.parse(src, env, md).tokens
     }
+    catch {}
+
+    const tokens = md.core.parse(src, env, md).tokens
+    markKnownGlobalMarkdownState(env, currentGlobalStateReason)
+    return tokens
   }
 
   let ranges = splitIntoChunkRanges(src, options)
@@ -87,6 +90,9 @@ export function chunkedParse(md: MarkdownIt, src: string, env: Record<string, un
     appendTokens(out, tokens)
     lineOffset += range.lineCount
   }
+
+  if (currentGlobalStateReason)
+    markKnownGlobalMarkdownState(env, currentGlobalStateReason)
 
   return out
 }

@@ -10,6 +10,13 @@ const GLOBAL_STATE_ENV_KEYS = [
   'abbr',
   'abbrs',
 ] as const
+const GLOBAL_STATE_ENV_MARKER = '__mdtsGlobalStateReason'
+
+function isGlobalMarkdownStateReason(value: unknown): value is GlobalMarkdownStateReason {
+  return value === 'reference-definition'
+    || value === 'footnote-definition'
+    || value === 'abbreviation-definition'
+}
 
 export function detectGlobalMarkdownState(src: string): GlobalMarkdownStateReason | null {
   if (!src)
@@ -59,9 +66,27 @@ export function hasGlobalMarkdownState(src: string): boolean {
   return detectGlobalMarkdownState(src) !== null
 }
 
+export function getKnownGlobalMarkdownState(env: Record<string, unknown>): GlobalMarkdownStateReason | null {
+  const value = (env as any)[GLOBAL_STATE_ENV_MARKER]
+  return isGlobalMarkdownStateReason(value) ? value : null
+}
+
+export function markKnownGlobalMarkdownState(
+  env: Record<string, unknown>,
+  reason: GlobalMarkdownStateReason,
+): void {
+  try {
+    ;(env as any)[GLOBAL_STATE_ENV_MARKER] = reason
+  }
+  catch {}
+}
+
 export function resetKnownGlobalMarkdownState(env: Record<string, unknown>): void {
   for (const key of GLOBAL_STATE_ENV_KEYS) {
     if (Object.prototype.hasOwnProperty.call(env, key))
       delete (env as any)[key]
   }
+
+  if (Object.prototype.hasOwnProperty.call(env, GLOBAL_STATE_ENV_MARKER))
+    delete (env as any)[GLOBAL_STATE_ENV_MARKER]
 }
