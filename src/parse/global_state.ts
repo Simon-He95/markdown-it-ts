@@ -100,6 +100,15 @@ function getMarker(env: Record<string, unknown>): GlobalStateMarker | null {
   return null
 }
 
+function setMarker(env: Record<string, unknown>, marker: GlobalStateMarker): void {
+  Object.defineProperty(env, GLOBAL_STATE_ENV_MARKER, {
+    value: marker,
+    enumerable: false,
+    configurable: true,
+    writable: true,
+  })
+}
+
 export function detectGlobalMarkdownState(src: string): GlobalMarkdownStateReason | null {
   if (!src)
     return null
@@ -166,10 +175,10 @@ export function markKnownGlobalMarkdownState(
           }
     }
 
-    ;(env as any)[GLOBAL_STATE_ENV_MARKER] = {
+    setMarker(env, {
       reason,
       snapshot,
-    } satisfies GlobalStateMarker
+    })
   }
   catch {}
 }

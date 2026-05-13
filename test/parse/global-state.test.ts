@@ -32,4 +32,13 @@ describe('global markdown state detection', () => {
     else
       expect(detectGlobalMarkdownState(src)).toBeNull()
   })
+
+  it('does not expose mdts global-state marker through Object.keys(env)', () => {
+    const md = markdownit()
+    const env: Record<string, unknown> = {}
+
+    md.render('[x][ref]\n\n[ref]: https://example.com\n', env)
+
+    expect(Object.keys(env)).not.toContain('__mdtsGlobalStateReason')
+  })
 })

@@ -198,8 +198,13 @@ export class StreamParser {
       return cached.tokens
     }
 
-    const cachedGlobalStateReason = cached.globalStateReason ?? detectGlobalMarkdownState(cached.src)
-    const nextGlobalStateReason = cachedGlobalStateReason || detectGlobalMarkdownState(src)
+    let cachedGlobalStateReason = cached.globalStateReason
+    if (cachedGlobalStateReason === undefined) {
+      cachedGlobalStateReason = detectGlobalMarkdownState(cached.src)
+      cached.globalStateReason = cachedGlobalStateReason
+    }
+    const currentGlobalStateReason = detectGlobalMarkdownState(src)
+    const nextGlobalStateReason = cachedGlobalStateReason || currentGlobalStateReason
     if (nextGlobalStateReason) {
       const fallbackEnv = envProvided ?? cached.env
       resetKnownGlobalMarkdownState(fallbackEnv)
@@ -213,7 +218,7 @@ export class StreamParser {
         env: fallbackEnv,
         lineCount,
         lastSegment: undefined,
-        globalStateReason: detectGlobalMarkdownState(src),
+        globalStateReason: currentGlobalStateReason,
       }
       this.updateCacheLineCount(this.cache, lineCount)
       this.stats.total += 1
