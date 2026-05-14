@@ -178,6 +178,25 @@ describe('default strategy selection', () => {
     expect(getParseDiagnostics(env)?.chunk).toBeUndefined()
   })
 
+  it('keeps stream auto-unbounded disabled after plugin use', () => {
+    const md = MarkdownIt({
+      stream: true,
+      autoUnboundedThresholdChars: 200_000,
+    }).use((instance) => {
+      instance.core.ruler.after('inline', 'touch_env', (state) => {
+        state.env.touched = true
+      })
+    })
+    const env: Record<string, unknown> = {}
+
+    md.stream.parse(buildDoc(350_000), env)
+
+    expect(env.touched).toBe(true)
+    expect(getParseDiagnostics(env)?.strategy?.path).toBe('stream-full')
+    expect(getParseDiagnostics(env)?.strategy?.unbounded).not.toBe(true)
+    expect(getParseDiagnostics(env)?.unbounded).toBeUndefined()
+  })
+
   it('still allows stream chunking after plugin use when explicitly enabled', () => {
     const md = MarkdownIt({
       stream: true,

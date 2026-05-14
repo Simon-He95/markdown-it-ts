@@ -791,7 +791,12 @@ export class StreamParser {
     if (getKnownGlobalMarkdownState(env))
       resetKnownGlobalMarkdownState(env)
 
-    const autoUnboundedDecision = getAutoUnboundedDecision(md, src.length, knownLineCount)
+    const canUseAutoUnbounded = typeof (md as any).__canUseImplicitLargeInputStrategy === 'function'
+      ? (md as any).__canUseImplicitLargeInputStrategy()
+      : true
+    const autoUnboundedDecision = canUseAutoUnbounded
+      ? getAutoUnboundedDecision(md, src.length, knownLineCount)
+      : 'no'
     if (autoUnboundedDecision === 'yes') {
       const tokens = parseStringUnbounded(md, src, env)
       setStrategyDiagnostics(env, { area: 'stream', path: 'stream-full', reason: 'auto-unbounded-char-threshold', unbounded: true })
