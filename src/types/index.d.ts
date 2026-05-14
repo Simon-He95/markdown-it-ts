@@ -10,7 +10,6 @@ export type {
   MarkdownIt,
 } from '../index'
 
-export type { StreamStats } from '../stream/parser'
 export type { Token } from '../common/token'
 export type MarkdownItPreset = 'default' | 'commonmark' | 'zero'
 

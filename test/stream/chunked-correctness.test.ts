@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import markdownit, { chunkedParse } from '../../src/index'
+import markdownit from '../../src/index'
+import { chunkedParse } from '../../src/experimental'
 import abbr from 'markdown-it-abbr'
 import footnote from 'markdown-it-footnote'
 

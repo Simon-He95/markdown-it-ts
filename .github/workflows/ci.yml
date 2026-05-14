@@ -43,6 +43,10 @@ jobs:
       - name: Typecheck
         run: pnpm run typecheck
 
+      - name: Type smoke
+        if: matrix.node == 20
+        run: pnpm run test:types
+
       - name: Test
         run: pnpm test -- --run
         env:
@@ -83,19 +87,14 @@ jobs:
           mkdir -p /tmp/markdown-it-ts-smoke
           cd /tmp/markdown-it-ts-smoke
           printf '{"type":"module"}\n' > package.json
-          pnpm add "$PKG" typescript@^5.9.3
+          pnpm add "$PKG"
 
           cat > smoke.mjs <<'EOF'
           import MarkdownIt, {
-            EditableBuffer,
-            PieceTable,
-            StreamBuffer,
-            UnboundedBuffer,
-            chunkedParse,
-            parseAsyncIterable,
-            parseAsyncIterableToSink,
-            parseIterable,
-            parseIterableToSink,
+            Token as RootToken,
+            parse as rootParse,
+            parseInline as rootParseInline,
+            withRenderer as rootWithRenderer,
           } from 'markdown-it-ts'
           import { withRenderer } from 'markdown-it-ts/plugins/with-renderer'
           import Renderer from 'markdown-it-ts/render/renderer'
@@ -116,7 +115,12 @@ jobs:
           import {
             EditableBuffer as ExperimentalEditableBuffer,
             PieceTable as ExperimentalPieceTable,
+            StreamBuffer as ExperimentalStreamBuffer,
             UnboundedBuffer as ExperimentalUnboundedBuffer,
+            parseAsyncIterable as experimentalParseAsyncIterable,
+            parseAsyncIterableToSink as experimentalParseAsyncIterableToSink,
+            parseIterable as experimentalParseIterable,
+            parseIterableToSink as experimentalParseIterableToSink,
             chunkedParse as experimentalChunkedParse,
           } from 'markdown-it-ts/experimental'
           import { Token } from 'markdown-it-ts/common/token'
@@ -124,39 +128,44 @@ jobs:
 
           const md = MarkdownIt()
           const html = md.render('# ok')
+          const rootExports = await import('markdown-it-ts')
 
           if (html !== '<h1>ok</h1>\n')
             throw new Error(`unexpected render output: ${html}`)
 
-          if (typeof chunkedParse !== 'function')
-            throw new Error('chunkedParse export is not a function')
-
-          if (typeof StreamBuffer !== 'function')
-            throw new Error('StreamBuffer export is not a function')
-
-          if (typeof UnboundedBuffer !== 'function')
-            throw new Error('UnboundedBuffer export is not a function')
-
-          if (typeof EditableBuffer !== 'function')
-            throw new Error('EditableBuffer export is not a function')
-
-          if (typeof PieceTable !== 'function')
-            throw new Error('PieceTable export is not a function')
-
-          if (typeof parseIterable !== 'function')
-            throw new Error('parseIterable export is not a function')
-
-          if (typeof parseAsyncIterable !== 'function')
-            throw new Error('parseAsyncIterable export is not a function')
-
-          if (typeof parseIterableToSink !== 'function')
-            throw new Error('parseIterableToSink export is not a function')
-
-          if (typeof parseAsyncIterableToSink !== 'function')
-            throw new Error('parseAsyncIterableToSink export is not a function')
+          for (const name of [
+            'chunkedParse',
+            'StreamBuffer',
+            'UnboundedBuffer',
+            'EditableBuffer',
+            'PieceTable',
+            'parseIterable',
+            'parseAsyncIterable',
+            'parseIterableToSink',
+            'parseAsyncIterableToSink',
+            'recommendFullChunkStrategy',
+            'recommendStreamChunkStrategy',
+            'DebouncedStreamParser',
+            'ThrottledStreamParser',
+          ]) {
+            if (name in rootExports)
+              throw new Error(`${name} should be imported from markdown-it-ts/experimental or a subpath`)
+          }
 
           if (typeof Renderer !== 'function')
             throw new Error('Renderer default export is not a function')
+
+          if (typeof RootToken !== 'function')
+            throw new Error('root Token export is not a function')
+
+          if (typeof rootParse !== 'function')
+            throw new Error('root parse export is not a function')
+
+          if (typeof rootParseInline !== 'function')
+            throw new Error('root parseInline export is not a function')
+
+          if (typeof rootWithRenderer !== 'function')
+            throw new Error('root withRenderer export is not a function')
 
           if (typeof withRenderer !== 'function')
             throw new Error('withRenderer subpath export is not a function')
@@ -188,6 +197,9 @@ jobs:
           if (typeof experimentalChunkedParse !== 'function')
             throw new Error('experimental chunkedParse export is not a function')
 
+          if (typeof ExperimentalStreamBuffer !== 'function')
+            throw new Error('experimental StreamBuffer export is not a function')
+
           if (typeof ExperimentalEditableBuffer !== 'function')
             throw new Error('experimental EditableBuffer export is not a function')
 
@@ -196,6 +208,18 @@ jobs:
 
           if (typeof ExperimentalUnboundedBuffer !== 'function')
             throw new Error('experimental UnboundedBuffer export is not a function')
+
+          if (typeof experimentalParseIterable !== 'function')
+            throw new Error('experimental parseIterable export is not a function')
+
+          if (typeof experimentalParseAsyncIterable !== 'function')
+            throw new Error('experimental parseAsyncIterable export is not a function')
+
+          if (typeof experimentalParseIterableToSink !== 'function')
+            throw new Error('experimental parseIterableToSink export is not a function')
+
+          if (typeof experimentalParseAsyncIterableToSink !== 'function')
+            throw new Error('experimental parseAsyncIterableToSink export is not a function')
 
           if (typeof Token !== 'function')
             throw new Error('Token export is not a function')
@@ -208,92 +232,13 @@ jobs:
           EOF
 
           node smoke.mjs
+          node "$GITHUB_WORKSPACE/scripts/package-type-smoke.mjs" "$PKG"
 
-          cat > smoke.ts <<'EOF'
-          import MarkdownIt, {
-            type MarkdownIt as MarkdownItInstance,
-            type MarkdownItPlugin,
-            EditableBuffer,
-            PieceTable,
-            StreamBuffer,
-            UnboundedBuffer,
-            parseAsyncIterable,
-            parseAsyncIterableToSink,
-            parseIterable,
-            parseIterableToSink,
-          } from 'markdown-it-ts'
-          import { withRenderer } from 'markdown-it-ts/plugins/with-renderer'
-          import Renderer from 'markdown-it-ts/render/renderer'
-          import { StreamBuffer as StreamBufferSubpath } from 'markdown-it-ts/stream/buffer'
-          import { chunkedParse as chunkedParseSubpath } from 'markdown-it-ts/stream/chunked'
-          import {
-            DebouncedStreamParser,
-            ThrottledStreamParser,
-          } from 'markdown-it-ts/stream/debounced'
-          import {
-            recommendFullChunkStrategy,
-            recommendStreamChunkStrategy,
-          } from 'markdown-it-ts/support/chunk_recommend'
-          import {
-            ParserCore,
-            Token as CoreToken,
-          } from 'markdown-it-ts/core'
-          import {
-            EditableBuffer as ExperimentalEditableBuffer,
-            PieceTable as ExperimentalPieceTable,
-            UnboundedBuffer as ExperimentalUnboundedBuffer,
-            chunkedParse as experimentalChunkedParse,
-          } from 'markdown-it-ts/experimental'
-          import { Token } from 'markdown-it-ts/common/token'
-          import { countLines, escapeHtml } from 'markdown-it-ts/common/utils'
-
-          const plugin: MarkdownItPlugin = (md) => {
-            md.core.ruler.after('inline', 'typed_smoke_rule', () => {})
-          }
-
-          const md = MarkdownIt().use(plugin)
-          const html: string = md.render('# typed')
-          const renderer = new Renderer()
-          const token = new Token('text', '', 0)
-          const core = new ParserCore()
-          const coreToken = new CoreToken('text', '', 0)
-          const typedMd: MarkdownItInstance = md
-          const patched: MarkdownItInstance = withRenderer(typedMd)
-
-          void html
-          void renderer
-          void token
-          void patched
-          void StreamBuffer
-          void UnboundedBuffer
-          void EditableBuffer
-          void PieceTable
-          void parseIterable
-          void parseAsyncIterable
-          void parseIterableToSink
-          void parseAsyncIterableToSink
-          void StreamBufferSubpath
-          void chunkedParseSubpath
-          void DebouncedStreamParser
-          void ThrottledStreamParser
-          void recommendFullChunkStrategy
-          void recommendStreamChunkStrategy
-          void core
-          void coreToken
-          void ExperimentalEditableBuffer
-          void ExperimentalPieceTable
-          void ExperimentalUnboundedBuffer
-          void experimentalChunkedParse
-          void countLines
-          void escapeHtml
-          EOF
-
-          pnpm exec tsc smoke.ts \
-            --module NodeNext \
-            --moduleResolution NodeNext \
-            --target ES2022 \
-            --strict \
-            --noEmit
+      - name: Bundler smoke packed package
+        if: matrix.node == 20
+        run: |
+          PKG="$(ls /tmp/markdown-it-ts-pack/markdown-it-ts-*.tgz)"
+          MDTS_PACKAGE_SPEC="$PKG" node scripts/bundler-smoke.mjs
 
       - name: Upload packed package
         if: matrix.node == 20
@@ -335,9 +280,10 @@ jobs:
 
           cat > smoke.mjs <<'EOF'
           import MarkdownIt, {
-            StreamBuffer,
-            chunkedParse,
-            parseIterable,
+            Token as RootToken,
+            parse as rootParse,
+            parseInline as rootParseInline,
+            withRenderer as rootWithRenderer,
           } from 'markdown-it-ts'
           import { withRenderer } from 'markdown-it-ts/plugins/with-renderer'
           import Renderer from 'markdown-it-ts/render/renderer'
@@ -358,7 +304,9 @@ jobs:
           import {
             EditableBuffer as ExperimentalEditableBuffer,
             PieceTable as ExperimentalPieceTable,
+            StreamBuffer as ExperimentalStreamBuffer,
             UnboundedBuffer as ExperimentalUnboundedBuffer,
+            parseIterable as experimentalParseIterable,
             chunkedParse as experimentalChunkedParse,
           } from 'markdown-it-ts/experimental'
           import { Token } from 'markdown-it-ts/common/token'
@@ -366,21 +314,44 @@ jobs:
 
           const md = MarkdownIt()
           const html = md.render('# ok')
+          const rootExports = await import('markdown-it-ts')
 
           if (html !== '<h1>ok</h1>\n')
             throw new Error(`unexpected render output: ${html}`)
 
-          if (typeof chunkedParse !== 'function')
-            throw new Error('chunkedParse export is not a function')
-
-          if (typeof parseIterable !== 'function')
-            throw new Error('parseIterable export is not a function')
-
-          if (typeof StreamBuffer !== 'function')
-            throw new Error('StreamBuffer export is not a function')
+          for (const name of [
+            'chunkedParse',
+            'StreamBuffer',
+            'UnboundedBuffer',
+            'EditableBuffer',
+            'PieceTable',
+            'parseIterable',
+            'parseAsyncIterable',
+            'parseIterableToSink',
+            'parseAsyncIterableToSink',
+            'recommendFullChunkStrategy',
+            'recommendStreamChunkStrategy',
+            'DebouncedStreamParser',
+            'ThrottledStreamParser',
+          ]) {
+            if (name in rootExports)
+              throw new Error(`${name} should be imported from markdown-it-ts/experimental or a subpath`)
+          }
 
           if (typeof Renderer !== 'function')
             throw new Error('Renderer default export is not a function')
+
+          if (typeof RootToken !== 'function')
+            throw new Error('root Token export is not a function')
+
+          if (typeof rootParse !== 'function')
+            throw new Error('root parse export is not a function')
+
+          if (typeof rootParseInline !== 'function')
+            throw new Error('root parseInline export is not a function')
+
+          if (typeof rootWithRenderer !== 'function')
+            throw new Error('root withRenderer export is not a function')
 
           if (typeof withRenderer !== 'function')
             throw new Error('withRenderer subpath export is not a function')
@@ -412,6 +383,9 @@ jobs:
           if (typeof experimentalChunkedParse !== 'function')
             throw new Error('experimental chunkedParse export is not a function')
 
+          if (typeof ExperimentalStreamBuffer !== 'function')
+            throw new Error('experimental StreamBuffer export is not a function')
+
           if (typeof ExperimentalEditableBuffer !== 'function')
             throw new Error('experimental EditableBuffer export is not a function')
 
@@ -420,6 +394,9 @@ jobs:
 
           if (typeof ExperimentalUnboundedBuffer !== 'function')
             throw new Error('experimental UnboundedBuffer export is not a function')
+
+          if (typeof experimentalParseIterable !== 'function')
+            throw new Error('experimental parseIterable export is not a function')
 
           if (typeof Token !== 'function')
             throw new Error('Token export is not a function')

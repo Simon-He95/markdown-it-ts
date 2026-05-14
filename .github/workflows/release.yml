@@ -30,7 +30,18 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Publish package
-        run: npm publish --provenance --access public
+      - name: Check tag matches package version
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          test "v$VERSION" = "${GITHUB_REF_NAME}" || {
+            echo "Tag ${GITHUB_REF_NAME} does not match package version v$VERSION"
+            exit 1
+          }
+
+      - name: Prepublish checks
+        run: pnpm run prepublishOnly
+
+      - name: Publish tested tarball
+        run: npm publish /tmp/mdts-pack/markdown-it-ts-*.tgz --provenance --access public --ignore-scripts
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

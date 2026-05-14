@@ -215,6 +215,13 @@ function resolveWindow(md: MarkdownIt, totalChars: number, totalLines: number, o
   return { maxChunkChars: 64_000, maxChunkLines: 700, holdBelowChars: 64_000, holdBelowLines: 700, fenceAware }
 }
 
+/**
+ * Append-only parser for sources that already arrive as chunks.
+ *
+ * @experimental Streaming output can be committed before future document-level
+ * definitions are known. Use full-string parsing when exact full-parse parity
+ * matters for references, footnotes, abbreviations, or plugin global state.
+ */
 export class UnboundedBuffer {
   private readonly md: MarkdownIt
   private readonly options: UnboundedBufferOptions
@@ -465,6 +472,12 @@ export class UnboundedBuffer {
   }
 }
 
+/**
+ * Parse an iterable chunk source without first joining all chunks.
+ *
+ * @experimental This is for explicit chunk-stream inputs. It may flush earlier
+ * chunks before later document-level definitions are observed.
+ */
 export function parseIterable(
   md: MarkdownIt,
   chunks: Iterable<string>,
@@ -479,6 +492,12 @@ export function parseIterable(
   return buffer.flushForce(env)
 }
 
+/**
+ * Parse an async iterable chunk source without first joining all chunks.
+ *
+ * @experimental This is for explicit chunk-stream inputs. It may flush earlier
+ * chunks before later document-level definitions are observed.
+ */
 export async function parseAsyncIterable(
   md: MarkdownIt,
   chunks: AsyncIterable<string>,
@@ -493,6 +512,12 @@ export async function parseAsyncIterable(
   return buffer.flushForce(env)
 }
 
+/**
+ * Parse iterable chunks and deliver token chunks to a sink.
+ *
+ * @experimental Sink output is streaming-oriented and can differ from a final
+ * full parse when future document-level definitions affect earlier text.
+ */
 export function parseIterableToSink(
   md: MarkdownIt,
   chunks: Iterable<string>,
@@ -514,6 +539,12 @@ export function parseIterableToSink(
   return buffer.stats()
 }
 
+/**
+ * Parse async iterable chunks and deliver token chunks to a sink.
+ *
+ * @experimental Sink output is streaming-oriented and can differ from a final
+ * full parse when future document-level definitions affect earlier text.
+ */
 export async function parseAsyncIterableToSink(
   md: MarkdownIt,
   chunks: AsyncIterable<string>,
@@ -573,6 +604,13 @@ export function getAutoUnboundedDecision(
   return 'need-lines'
 }
 
+/**
+ * Parse a complete string through the unbounded chunking path.
+ *
+ * @experimental Defaults to correctness-first fallback for known global-state
+ * constructs. Disabling the fallback is performance-oriented and can diverge
+ * from normal full parsing.
+ */
 export function parseStringUnbounded(
   md: MarkdownIt,
   src: string,

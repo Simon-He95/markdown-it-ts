@@ -51,6 +51,12 @@ function toRecommendation(fenceAware: boolean, discrete: DiscreteRecommendation)
   }
 }
 
+/**
+ * Suggest full-parse chunk settings for the current synthetic harness defaults.
+ *
+ * @experimental Recommendations are workload-dependent; validate on the corpus
+ * you plan to parse.
+ */
 export function recommendFullChunkStrategy(sizeChars: number, sizeLines = Math.max(0, (sizeChars / 40) | 0), opts: Partial<MarkdownItOptions> = {}): ChunkRecommendation {
   const fenceAware = opts.fullChunkFenceAware ?? true
   const target = opts.fullChunkTargetChunks ?? 8
@@ -75,6 +81,12 @@ export function recommendFullChunkStrategy(sizeChars: number, sizeLines = Math.m
   return { strategy: 'discrete', maxChunkChars: opts.fullChunkSizeChars ?? 10000, maxChunkLines: opts.fullChunkSizeLines ?? 200, fenceAware, maxChunks: opts.fullChunkMaxChunks }
 }
 
+/**
+ * Suggest stream chunk settings for the current synthetic harness defaults.
+ *
+ * @experimental Recommendations are workload-dependent; validate on the corpus
+ * you plan to parse.
+ */
 export function recommendStreamChunkStrategy(sizeChars: number, sizeLines = Math.max(0, (sizeChars / 40) | 0), opts: Partial<MarkdownItOptions> = {}): ChunkRecommendation {
   const fenceAware = opts.streamChunkFenceAware ?? true
   const target = opts.streamChunkTargetChunks ?? 8

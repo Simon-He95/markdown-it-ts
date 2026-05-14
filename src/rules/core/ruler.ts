@@ -1,4 +1,6 @@
-export type CoreRule = (state: any) => void
+import type { State } from '../../parse/state'
+
+export type CoreRule = (state: State) => void
 export interface CoreNamedRule {
   name: string
   fn: CoreRule

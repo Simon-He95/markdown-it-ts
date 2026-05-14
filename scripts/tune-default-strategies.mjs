@@ -3,7 +3,8 @@
 
 import { performance } from 'node:perf_hooks'
 import { writeFileSync } from 'node:fs'
-import MarkdownIt, { UnboundedBuffer } from '../dist/index.js'
+import MarkdownIt from '../dist/index.js'
+import { UnboundedBuffer } from '../dist/experimental.js'
 import MarkdownItOriginal from 'markdown-it'
 import { createMarkdownExit as createMarkdownExitFactory } from 'markdown-exit'
 import { parse as micromarkParse, preprocess as micromarkPreprocess, postprocess as micromarkPostprocess } from 'micromark'
@@ -345,11 +346,9 @@ function chunkNote(strategyInfo, info, stats) {
   return parts.length > 0 ? parts.join(' ') : '-'
 }
 
-function relativeGap(candidate, best, key) {
+function relativeMeasuredGap(candidate, best, key) {
   if (candidate?.[key] == null || best?.[key] == null || best[key] <= 0)
     return null
-  if (candidate.strategySignature && best.strategySignature && candidate.strategySignature === best.strategySignature)
-    return 0
   return (candidate[key] - best[key]) / best[key]
 }
 
@@ -438,8 +437,8 @@ for (const size of SIZES) {
     .sort((a, b) => (a.appendWorkloadMs ?? Number.POSITIVE_INFINITY) - (b.appendWorkloadMs ?? Number.POSITIVE_INFINITY))[0]
   const defaultFull = full.find(item => item.defaultCandidate) ?? full[0]
   const defaultStream = stream.find(item => item.defaultCandidate) ?? stream[0]
-  const defaultFullGapPct = relativeGap(defaultFull, bestFullDefaultEligible, 'oneShotMs')
-  const defaultStreamGapPct = relativeGap(defaultStream, bestStreamDefaultEligible, 'appendWorkloadMs')
+  const defaultFullGapPct = relativeMeasuredGap(defaultFull, bestFullDefaultEligible, 'oneShotMs')
+  const defaultStreamGapPct = relativeMeasuredGap(defaultStream, bestStreamDefaultEligible, 'appendWorkloadMs')
 
   summary.push({
     size,

@@ -1,6 +1,7 @@
 import { performance } from 'node:perf_hooks'
 import { writeFileSync } from 'node:fs'
-import MarkdownIt, { EditableBuffer } from '../dist/index.js'
+import MarkdownIt from '../dist/index.js'
+import { EditableBuffer } from '../dist/experimental.js'
 
 const SIZES = [100_000, 500_000, 1_000_000, 5_000_000]
 

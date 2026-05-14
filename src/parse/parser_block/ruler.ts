@@ -2,9 +2,10 @@
  * Block-level rule management with Ruler pattern
  */
 
+import type { StateBlock } from './state_block'
 import { recordRuleInvocation } from '../rule_profile'
 
-export type BlockRuleFn = (state: any, startLine: number, endLine: number, silent: boolean) => boolean
+export type BlockRuleFn = (state: StateBlock, startLine: number, endLine: number, silent: boolean) => boolean
 
 export interface BlockNamedRule {
   name: string
@@ -29,7 +30,7 @@ export class BlockRuler {
     this.version++
   }
 
-  push(name: string, fn: any, options?: { alt?: string[] }): void {
+  push(name: string, fn: BlockRuleFn, options?: { alt?: string[] }): void {
     this._rules.push({
       name,
       enabled: true,
@@ -39,7 +40,7 @@ export class BlockRuler {
     this.invalidateCache()
   }
 
-  before(beforeName: string, name: string, fn: any, options?: { alt?: string[] }): void {
+  before(beforeName: string, name: string, fn: BlockRuleFn, options?: { alt?: string[] }): void {
     const i = this._rules.findIndex(r => r.name === beforeName)
     if (i < 0)
       throw new Error(`Parser rule not found: ${beforeName}`)
@@ -50,7 +51,7 @@ export class BlockRuler {
     this.invalidateCache()
   }
 
-  after(afterName: string, name: string, fn: any, options?: { alt?: string[] }): void {
+  after(afterName: string, name: string, fn: BlockRuleFn, options?: { alt?: string[] }): void {
     const i = this._rules.findIndex(r => r.name === afterName)
     if (i < 0)
       throw new Error(`Parser rule not found: ${afterName}`)
@@ -75,7 +76,7 @@ export class BlockRuler {
     return this.namedCache![chain] ?? []
   }
 
-  getRulesForState(state: any, chainName: string): BlockRuleFn[] {
+  getRulesForState(state: StateBlock, chainName: string): BlockRuleFn[] {
     const env = state?.env
     const shouldProfile = !!env && (Object.prototype.hasOwnProperty.call(env, '__mdtsRuleProfile') || Object.prototype.hasOwnProperty.call(env, '__mdtsProfileRules'))
     if (!shouldProfile)
@@ -83,7 +84,7 @@ export class BlockRuler {
 
     const namedRules = this.getNamedRules(chainName)
     return namedRules.map(({ name, fn }) => {
-      return (currentState: any, startLine: number, endLine: number, silent: boolean) => {
+      return (currentState: StateBlock, startLine: number, endLine: number, silent: boolean) => {
         const startedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
           ? performance.now()
           : Date.now()
@@ -97,7 +98,7 @@ export class BlockRuler {
     })
   }
 
-  at(name: string, fn: any, options?: { alt?: string[] }): void {
+  at(name: string, fn: BlockRuleFn, options?: { alt?: string[] }): void {
     const index = this._rules.findIndex(r => r.name === name)
     if (index === -1) {
       throw new Error(`Parser rule not found: ${name}`)

@@ -73,6 +73,12 @@ function sliceAffectedLines(source: PieceTable, start: number, end: number): str
   return source.slice(from, to)
 }
 
+/**
+ * Piece-table backed buffer for repeated edits.
+ *
+ * @experimental Localized reparsing has markdown-specific correctness limits
+ * and falls back to full parsing when document-level state makes that necessary.
+ */
 export class EditableBuffer {
   private readonly md: MarkdownIt
   private source: PieceTable

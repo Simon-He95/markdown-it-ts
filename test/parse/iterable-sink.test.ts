@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import MarkdownIt, { UnboundedBuffer } from '../../src'
+import MarkdownIt from '../../src'
 import type { Token } from '../../src/common/token'
+import { UnboundedBuffer } from '../../src/experimental'
 
 function para(n: number) {
   return `## Section ${n}\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod.\n\n- a\n- b\n- c\n\n\`\`\`js\nconsole.log(${n})\n\`\`\`\n\n`

@@ -30,8 +30,9 @@ const DEFAULTS: Required<Omit<ChunkedOptions, 'maxChunks'>> & { maxChunks?: numb
  * Chunk a markdown document on reasonably safe boundaries (blank-line separated)
  * and parse each chunk separately, then merge token streams with line map offsets.
  *
- * This is experimental and aims to speed up very large documents by reducing the
- * cost of parsing one huge string at once, at the price of some orchestration.
+ * @experimental Markdown is not always chunk-local. The default path falls back
+ * to a full parse for known document-level state and unsafe chunk boundaries;
+ * disabling those fallbacks can produce output that differs from full parsing.
  */
 export function chunkedParse(md: MarkdownIt, src: string, env: Record<string, unknown> = {}, opts?: ChunkedOptions): Token[] {
   const options = { ...DEFAULTS, ...(opts || {}) }

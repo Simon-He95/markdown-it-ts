@@ -4,11 +4,11 @@ This matrix captures the recommended default parser strategy by input size and w
 
 | Size | Default one-shot | Best default-eligible one-shot | Default append | Best default-eligible append |
 |---:|:--|:--|:--|:--|
-| 100,000 | full-default (4.0953ms) | full-default (4.0953ms) | stream-default (5.7955ms) | stream-default (5.7955ms) |
-| 500,000 | full-default (29.03ms) | full-default (29.03ms) | stream-default (32.37ms) | stream-default (32.37ms) |
-| 1,000,000 | full-default (57.94ms) | full-64k-16 (56.37ms) | stream-default (65.60ms) | stream-default (65.60ms) |
-| 5,000,000 | full-default (290.97ms) | full-default (290.97ms) | stream-default (385.01ms) | stream-default (385.01ms) |
-| 20,000,000 | full-default (1151.20ms) | full-default (1151.20ms) | stream-default (4546.08ms) | stream-32k-16 (4359.07ms) |
+| 100,000 | full-default (3.3600ms) | full-default (3.3600ms) | stream-default (4.8536ms) | stream-default (4.8536ms) |
+| 500,000 | full-default (24.60ms) | full-auto (23.88ms) | stream-default (30.28ms) | stream-default (30.28ms) |
+| 1,000,000 | full-default (52.39ms) | full-20k-12 (46.34ms) | stream-default (64.05ms) | stream-default (64.05ms) |
+| 5,000,000 | full-default (288.48ms) | full-auto (256.84ms) | stream-default (388.18ms) | stream-default (388.18ms) |
+| 20,000,000 | full-default (998.70ms) | full-default (998.70ms) | stream-default (3920.46ms) | stream-32k-16 (3758.66ms) |
 
 ## Notes
 

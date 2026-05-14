@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import markdownit, { chunkedParse, EditableBuffer, UnboundedBuffer } from '../../src/index'
+import markdownit from '../../src/index'
+import { chunkedParse, EditableBuffer, UnboundedBuffer } from '../../src/experimental'
 import { parseStringUnbounded } from '../../src/stream/unbounded'
 
 function renderTokens(md: ReturnType<typeof markdownit>, tokens: any[], env: Record<string, unknown>) {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import markdownit, { UnboundedBuffer } from '../../src/index'
+import markdownit from '../../src/index'
+import { UnboundedBuffer } from '../../src/experimental'
 import { parseStringUnbounded } from '../../src/stream/unbounded'
 
 describe('parseStringUnbounded correctness', () => {

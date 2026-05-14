@@ -3,7 +3,9 @@
  * Similar to original markdown-it/lib/ruler.mjs but for inline rules
  */
 
-export type InlineRuleFn = (state: any, silent?: boolean) => boolean | void
+import type { StateInline } from './state_inline'
+
+export type InlineRuleFn = (state: StateInline, silent?: boolean) => boolean | void
 
 export interface InlineRule {
   name: string

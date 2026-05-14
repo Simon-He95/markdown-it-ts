@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import MarkdownIt, { EditableBuffer } from '../../src'
+import MarkdownIt from '../../src'
+import { EditableBuffer } from '../../src/experimental'
 
 function para(n: number) {
   return `## Section ${n}\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod.\n\n- a\n- b\n- c\n\n\`\`\`js\nconsole.log(${n})\n\`\`\`\n\n`

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import markdownit, { EditableBuffer } from '../../src/index'
+import markdownit from '../../src/index'
+import { EditableBuffer } from '../../src/experimental'
 
 describe('EditableBuffer correctness fallback', () => {
   it('falls back to full parse when inserting reference definitions', () => {

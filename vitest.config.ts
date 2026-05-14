@@ -22,6 +22,7 @@ export default defineConfig({
       'test/original/pathological_worker_thread.mjs',
       'test/original/pathological.json',
       'test/original/cjs.js',
+      'test/types/**',
       // Skip original markdown-it suite unless explicitly enabled
       ...(runOriginal ? [] : ['test/original/**']),
     ],
