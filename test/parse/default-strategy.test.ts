@@ -104,7 +104,7 @@ describe('default strategy selection', () => {
     expect(getParseDiagnostics(env)?.chunk?.count).toBeGreaterThan(0)
   })
 
-  it('keeps implicit large-input strategies on the plain path after plugin use', () => {
+  it('keeps plugin instances on the plain path for implicit large-input parsing', () => {
     const md = MarkdownIt({ autoUnboundedThresholdChars: 200_000 })
       .use((instance) => {
         instance.renderer.rules.text = (tokens, idx) => tokens[idx].content
@@ -119,7 +119,7 @@ describe('default strategy selection', () => {
     expect(getParseDiagnostics(env)?.unbounded).toBeUndefined()
   })
 
-  it('keeps implicit chunking on the plain path after parser ruler changes', () => {
+  it('keeps parser-ruler changes on the plain path for implicit chunking', () => {
     const md = MarkdownIt()
     md.core.ruler.after('inline', 'test_env_touch', (state: any) => {
       state.env.testEnvTouch = true

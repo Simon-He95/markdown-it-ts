@@ -140,7 +140,7 @@ const tokens = md.parse(hugeMarkdown)
 const html = md.render(hugeMarkdown)
 ```
 
-Those default `parse` / `render` calls may auto-activate an internal large-input path once the document crosses the large-document threshold. For compatibility, that implicit path is used only when no plugin has been installed and the parser rulers have not been modified. Plugin/custom-rule instances keep the plain full parse path unless you explicitly opt into `experimental.fullChunkedFallback`.
+Those default `parse` / `render` calls may auto-activate an internal large-input path once the document crosses the large-document threshold. For compatibility, that implicit path is used only when no plugin has been installed and the parser rulers have not been modified. Any `.use()` call, including renderer-only plugins, keeps the plain full parse path unless you explicitly opt into `experimental.fullChunkedFallback`; stream parsing has the separate `experimental.streamChunkedFallback` opt-in.
 
 Use the explicit stream-oriented APIs only when your upstream input already arrives as chunks and you do not want to join it into one giant string first:
 
