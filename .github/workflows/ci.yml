@@ -90,7 +90,12 @@ jobs:
           pnpm add "$PKG"
 
           cat > smoke.mjs <<'EOF'
-          import MarkdownIt from 'markdown-it-ts'
+          import MarkdownIt, {
+            Token as RootToken,
+            parse as rootParse,
+            parseInline as rootParseInline,
+            withRenderer as rootWithRenderer,
+          } from 'markdown-it-ts'
           import { withRenderer } from 'markdown-it-ts/plugins/with-renderer'
           import Renderer from 'markdown-it-ts/render/renderer'
           import { StreamBuffer as StreamBufferSubpath } from 'markdown-it-ts/stream/buffer'
@@ -149,6 +154,18 @@ jobs:
 
           if (typeof Renderer !== 'function')
             throw new Error('Renderer default export is not a function')
+
+          if (typeof RootToken !== 'function')
+            throw new Error('root Token export is not a function')
+
+          if (typeof rootParse !== 'function')
+            throw new Error('root parse export is not a function')
+
+          if (typeof rootParseInline !== 'function')
+            throw new Error('root parseInline export is not a function')
+
+          if (typeof rootWithRenderer !== 'function')
+            throw new Error('root withRenderer export is not a function')
 
           if (typeof withRenderer !== 'function')
             throw new Error('withRenderer subpath export is not a function')
@@ -262,7 +279,12 @@ jobs:
           npm install "$PKG"
 
           cat > smoke.mjs <<'EOF'
-          import MarkdownIt from 'markdown-it-ts'
+          import MarkdownIt, {
+            Token as RootToken,
+            parse as rootParse,
+            parseInline as rootParseInline,
+            withRenderer as rootWithRenderer,
+          } from 'markdown-it-ts'
           import { withRenderer } from 'markdown-it-ts/plugins/with-renderer'
           import Renderer from 'markdown-it-ts/render/renderer'
           import { StreamBuffer as StreamBufferSubpath } from 'markdown-it-ts/stream/buffer'
@@ -318,6 +340,18 @@ jobs:
 
           if (typeof Renderer !== 'function')
             throw new Error('Renderer default export is not a function')
+
+          if (typeof RootToken !== 'function')
+            throw new Error('root Token export is not a function')
+
+          if (typeof rootParse !== 'function')
+            throw new Error('root parse export is not a function')
+
+          if (typeof rootParseInline !== 'function')
+            throw new Error('root parseInline export is not a function')
+
+          if (typeof rootWithRenderer !== 'function')
+            throw new Error('root withRenderer export is not a function')
 
           if (typeof withRenderer !== 'function')
             throw new Error('withRenderer subpath export is not a function')

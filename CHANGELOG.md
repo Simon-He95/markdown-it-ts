@@ -6,6 +6,7 @@
 
 - Removed experimental stream, chunk, editable, and strategy helpers from root named exports.
 - Import large-input helpers from `markdown-it-ts/experimental` or explicit subpaths instead of `markdown-it-ts`.
+- Corresponding experimental type-only root exports moved to `markdown-it-ts/experimental` or documented subpaths.
 - `markdown-it-ts` is ESM-only and requires Node.js >= 18.
 - `withRenderer` remains available as an advanced helper from the root entry and `markdown-it-ts/plugins/with-renderer`.
 
@@ -17,6 +18,7 @@
 | `import { chunkedParse } from 'markdown-it-ts'` | `import { chunkedParse } from 'markdown-it-ts/experimental'` or `markdown-it-ts/stream/chunked` |
 | `import { recommendFullChunkStrategy } from 'markdown-it-ts'` | `import { recommendFullChunkStrategy } from 'markdown-it-ts/support/chunk_recommend'` |
 | `import { UnboundedBuffer } from 'markdown-it-ts'` | `import { UnboundedBuffer } from 'markdown-it-ts/experimental'` |
+| `import type { StreamStats } from 'markdown-it-ts'` | `import type { StreamStats } from 'markdown-it-ts/experimental'` |
 
 ### Validation
 
