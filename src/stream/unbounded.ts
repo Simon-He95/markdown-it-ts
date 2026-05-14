@@ -265,7 +265,7 @@ export class UnboundedBuffer {
       return null
     }
 
-    if (hasUnsafeChunkBoundary(this.pending, ranges)) {
+    if (hasUnsafeChunkBoundary(this.pending, ranges, { rangesCoverWholeSource: false })) {
       this.updateEnvDiagnostics(env, window, pendingLines)
       return null
     }
@@ -298,7 +298,11 @@ export class UnboundedBuffer {
       return null
     }
 
-    this.commitRanges(ranges, env)
+    const rangesToCommit = hasUnsafeChunkBoundary(this.pending, ranges, { rangesCoverWholeSource: true })
+      ? [{ start: 0, end: this.pending.length, lineCount: estimateLines(this.pending) }]
+      : ranges
+
+    this.commitRanges(rangesToCommit, env)
     this.pending = ''
     this.updateEnvDiagnostics(env, window, 0)
     return this.tokens
@@ -321,7 +325,7 @@ export class UnboundedBuffer {
     }, true)
 
     if (ranges.length) {
-      const rangesToCommit = hasUnsafeChunkBoundary(this.pending, ranges)
+      const rangesToCommit = hasUnsafeChunkBoundary(this.pending, ranges, { rangesCoverWholeSource: true })
         ? [{ start: 0, end: this.pending.length, lineCount: estimateLines(this.pending) }]
         : ranges
 

@@ -4,9 +4,11 @@ import { load } from 'markdown-it-testgen'
 import { describe, expect, it } from 'vitest'
 import markdownit from '../../src/index'
 
-function normalize(text) {
-  return text.replace(/<blockquote>\n<\/blockquote>/g, '<blockquote></blockquote>')
-}
+const knownEmptyBlockquoteFormattingDeviations = new Set([
+  'src line: 3502',
+  'src line: 3890',
+  'src line: 3898',
+])
 
 describe('CommonMark upstream fixture parity', () => {
   const md = markdownit('commonmark')
@@ -17,8 +19,17 @@ describe('CommonMark upstream fixture parity', () => {
     throw new Error('CommonMark fixture file is empty')
 
   for (const fixture of data.fixtures) {
-    it(fixture.header || `line ${fixture.first.range[0] - 1}`, () => {
-      expect(md.render(fixture.first.text)).toBe(normalize(fixture.second.text))
+    const name = fixture.header || `line ${fixture.first.range[0] - 1}`
+
+    it(name, () => {
+      const actual = md.render(fixture.first.text)
+
+      if (knownEmptyBlockquoteFormattingDeviations.has(name)) {
+        expect(actual).toBe(fixture.second.text.replace('<blockquote>\n</blockquote>', '<blockquote></blockquote>'))
+        return
+      }
+
+      expect(actual).toBe(fixture.second.text)
     })
   }
 

@@ -109,7 +109,7 @@
     "audit:prod": "pnpm audit --prod --audit-level high",
     "test:original": "RUN_ORIGINAL=1 pnpm test",
     "test:original:network": "RUN_ORIGINAL=1 RUN_NETWORK=1 pnpm test",
-    "prepublishOnly": "pnpm run lint && pnpm run typecheck && pnpm test -- --run && pnpm run build && mkdir -p /tmp/mdts-pack && pnpm pack --pack-destination /tmp/mdts-pack",
+    "prepublishOnly": "pnpm run audit:prod && pnpm run lint && pnpm run typecheck && pnpm test -- --run && pnpm run build && mkdir -p /tmp/mdts-pack && pnpm pack --pack-destination /tmp/mdts-pack",
     "release": "bumpp --commit --tag --push && pnpm publish",
     "perf:matrix": "npm run build && node scripts/perf-matrix.mjs",
     "perf:families": "npm run build && node scripts/perf-rule-hotspots.mjs",

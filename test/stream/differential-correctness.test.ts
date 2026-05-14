@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import markdownit, { chunkedParse, EditableBuffer } from '../../src/index'
+import markdownit, { chunkedParse, EditableBuffer, UnboundedBuffer } from '../../src/index'
 import { parseStringUnbounded } from '../../src/stream/unbounded'
 
 function renderTokens(md: ReturnType<typeof markdownit>, tokens: any[], env: Record<string, unknown>) {
@@ -115,5 +115,35 @@ describe('stream parser differential correctness', () => {
     buffer.replace(fenceEdit, fenceEdit + '"old"'.length, '"new"', env)
 
     expect(renderTokens(md, buffer.peek(), env)).toBe(md.render(buffer.toString()))
+  })
+
+  it('UnboundedBuffer.flushAvailable does not commit forced nonblank boundaries', () => {
+    const md = markdownit()
+    const src = Array.from({ length: 30 }, (_, index) => `- item ${index + 1}`).join('\n')
+    const buffer = new UnboundedBuffer(md, {
+      maxChunkChars: 40,
+      maxChunkLines: 2,
+    })
+
+    buffer.feed(src)
+
+    expect(buffer.flushAvailable({})).toBeNull()
+    expect(buffer.peek()).toHaveLength(0)
+    expect(buffer.pendingText()).toBe(src)
+  })
+
+  it('UnboundedBuffer.flushIfBoundary falls back to one chunk when internal boundaries are unsafe', () => {
+    const md = markdownit()
+    const src = `${Array.from({ length: 30 }, (_, index) => `- item ${index + 1}`).join('\n')}\n\n`
+    const env: Record<string, unknown> = {}
+    const buffer = new UnboundedBuffer(md, {
+      maxChunkChars: 40,
+      maxChunkLines: 2,
+    })
+
+    buffer.feed(src)
+    const tokens = buffer.flushIfBoundary(env)!
+
+    expect(renderTokens(md, tokens, env)).toBe(md.render(src))
   })
 })

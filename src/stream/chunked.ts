@@ -236,8 +236,14 @@ export function splitIntoChunkRanges(
   return chunks
 }
 
-export function hasUnsafeChunkBoundary(src: string, ranges: ChunkRange[]): boolean {
-  for (let i = 0; i < ranges.length - 1; i++) {
+export function hasUnsafeChunkBoundary(
+  src: string,
+  ranges: ChunkRange[],
+  options: { rangesCoverWholeSource: boolean } = { rangesCoverWholeSource: true },
+): boolean {
+  const limit = options.rangesCoverWholeSource ? ranges.length - 1 : ranges.length
+
+  for (let i = 0; i < limit; i++) {
     if (!endsAtBlankLine(src, ranges[i].end))
       return true
   }
