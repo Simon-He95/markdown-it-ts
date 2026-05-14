@@ -1,8 +1,8 @@
 # Markdown-it TypeScript Migration Status
 
-## 📊 Overall Progress: 100% Complete
+## Core Port Complete; API Stabilizing
 
-The TypeScript rewrite now mirrors the original markdown-it feature set while exposing a modern, typed API. Parsing, rendering, and plugin hooks are all in feature parity with the upstream JavaScript implementation.
+The TypeScript rewrite now covers the original markdown-it core parser, renderer, and public plugin hooks while exposing a modern, typed API. The package is still versioned `0.x`, so treat the API surface as stabilizing until `1.0.0`.
 
 ### ✅ Core & Parsing Pipeline
 - ParserCore orchestrates the canonical 7-rule core pipeline.
@@ -20,14 +20,14 @@ The TypeScript rewrite now mirrors the original markdown-it feature set while ex
 
 ### ✅ Renderer & Ecosystem Compatibility
 - Renderer has been ported with the full default rule set and attribute handling semantics.
-- `markdownit()` instances now expose `render`, `renderInline`, and `renderer` by default, so plugins built for markdown-it Just Work™.
+- `markdownit()` instances expose `render`, `renderInline`, and `renderer` by default for plugins that use the markdown-it public API.
 - `withRenderer` remains available for tree-shaken core-only builds and is idempotent when applied to full instances.
 
 ### ✅ Tooling & Types
 - Public type definitions cover `MarkdownIt`, tokens, parser states, and renderer options.
-- Test suite (1,079 tests) passes against original markdown-it fixtures, ensuring behavioral parity.
+- The test suite includes upstream markdown-it fixtures and local plugin/stream coverage to guard behavioral parity for supported public API paths.
 
-## � Current Focus
+## Current Focus
 
 - 📚 Refresh documentation to describe the renderer integration, TypeScript plugin ergonomics, and migration guidance.
 - 🧪 Continue adding regression tests for edge cases surfaced by consumers.

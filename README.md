@@ -1,6 +1,6 @@
 # markdown-it-ts
 
-A TypeScript-first, markdown-it compatible Markdown parser and renderer with streaming/incremental parsing and async render.
+A TypeScript-first Markdown parser and renderer compatible with the markdown-it public API for common plugin patterns, with streaming/incremental parsing and async render.
 
 English | [简体中文](./README.zh-CN.md)
 
@@ -34,12 +34,12 @@ A TypeScript migration of [markdown-it](https://github.com/markdown-it/markdown-
 
 ## Migration Status: CI-backed compatibility baseline
 
-Port from markdown-it to TypeScript is complete and maintained with the following goals:
+The core TypeScript port is complete. Compatibility is maintained against the markdown-it public API and common plugin patterns with the following goals:
 - ✅ Full TypeScript type safety
 - ✅ Modular architecture (separate parse/render imports)
 - ✅ Tree-shaking support
 - ✅ Ruler-based rule system
-- ✅ markdown-it API and plugin compatibility, backed by the always-on CommonMark fixture test and the plugin compatibility matrix in CI
+- ✅ markdown-it public API compatibility for common plugin patterns, backed by the always-on CommonMark fixture test and the plugin compatibility matrix in CI
 
 ### What's Implemented
 
@@ -194,13 +194,13 @@ The main package entry already includes `render`, `renderAsync`, `renderInline`,
 
 ## Why render with markdown-it-ts?
 
-- **Compared with markdown-it**: same API/plugin surface, but rewritten in TypeScript with a modular architecture that can be tree-shaken and that ships streaming/chunked strategies. Normal `parse` / `render` usage stays unchanged, large finite strings now auto-enable internal large-input optimizations, and editor-style flows can additionally opt into `stream`, `streamChunkedFallback`, etc., to re-parse only appended content instead of reprocessing entire documents.
-- **Compared with markdown-exit**: both projects target speed, but markdown-it-ts keeps the markdown-it API/plugin surface, offers typed APIs plus async rendering (`renderAsync`), and exposes richer tuning knobs (fence-aware chunking, hybrid fallback modes). In this repository’s 5k–100k synthetic measurements, markdown-it-ts leads one-shot parse latency (see “Parse ranking”), and its streaming path keeps append latency lower than re-running a full parse per keystroke.
+- **Compared with markdown-it**: familiar public API and common plugin hooks, but rewritten in TypeScript with a modular architecture that can be tree-shaken and that ships streaming/chunked strategies. Normal `parse` / `render` usage stays unchanged, large finite strings now auto-enable internal large-input optimizations, and editor-style flows can additionally opt into `stream`, `streamChunkedFallback`, etc., to avoid repeatedly reparsing stable appended content when the input shape is safe.
+- **Compared with markdown-exit**: both projects target speed, but markdown-it-ts keeps the markdown-it-style public API, offers typed APIs plus async rendering (`renderAsync`), and exposes tuning knobs for large-input and append-heavy workloads. Benchmark numbers below describe this repository's synthetic harness, not a promise that every workload is faster.
 - **Compared with remark**: remark’s strength is AST transforms, and many real workflows include additional unified/rehype stages. In this repository’s Markdown → HTML harness, markdown-it-ts produces HTML directly and keeps markdown-it renderer semantics while still supporting async highlighting or token post-processing.
 - **Compared with micromark**: micromark is a CommonMark-oriented reference implementation with different goals and APIs. markdown-it-ts targets markdown-it’s plugin API and renderer semantics; the numbers below compare only the specific parse/render scenarios measured by this repository’s harness.
 - **Developer experience**: Type definitions and tuning helpers ship in the package (`docs/stream-optimization.md`, `recommend*Strategy` APIs, `StreamBuffer`, `chunkedParse`, etc.), so teams can build adaptive streaming pipelines quickly. The repository’s benchmark scripts (`perf:generate`, `perf:update-readme`) keep comparison data up to date in CI, reducing the risk of unnoticed regressions.
-- **Drop-in compatibility**: markdown-it-ts preserves the ruler system, Token shape, and plugin hooks, so most existing markdown-it plugins just work after changing the import.
-- **Production readiness**: async render, Token-level post-processing, streaming buffers, and chunked fallbacks serve SSR, collaborative editors, and large batch pipelines alike. With `docs/perf-report.md` plus long-term history (`docs/perf-history/*.json`) you can track performance trends over time and catch regressions early.
+- **Migration compatibility**: markdown-it-ts preserves the ruler system, Token shape, renderer rules, and public plugin hooks used by common plugins. Plugins that depend on private markdown-it file paths, CommonJS-only loading assumptions, or undocumented internal state require validation.
+- **0.x readiness**: async render, Token-level post-processing, streaming buffers, and chunked fallbacks are covered by CI and package smoke tests, but the package is still versioned `0.x`; treat the public API as stabilizing until `1.0.0`.
 
 ### Customization
 
@@ -484,9 +484,9 @@ pnpm run test:original:network   # also sets RUN_NETWORK=1
 
 ## Performance summary
 
-markdown-it-ts is optimized for fast parser throughput while preserving the markdown-it API and plugin model.
+markdown-it-ts is optimized for fast parser throughput while preserving the markdown-it public API and common plugin model.
 
-In the latest local benchmark snapshot from this repository’s synthetic harness, one-shot parsing is roughly at parity with or faster than upstream markdown-it on common large-document sizes:
+In the latest local benchmark snapshot from this repository’s synthetic harness, one-shot parsing is roughly at parity with or faster than upstream markdown-it on the measured large-document sizes:
 
 <!-- perf-auto:one-examples:start -->
 - 5,000 chars: 0.1448ms vs 0.2630ms → ~1.8× faster, ~45% less time
@@ -498,7 +498,7 @@ In the latest local benchmark snapshot from this repository’s synthetic harnes
 
 For append-heavy editor or streaming workloads, enable the stream parser or use `StreamBuffer` / `UnboundedBuffer`. These paths are designed to avoid reparsing stable historical text when the input shape is safe for incremental parsing.
 
-Benchmark results are workload-, CPU-, and Node-version-dependent. Reproduce locally with:
+Benchmark results are workload-, CPU-, and Node-version-dependent. `docs/perf-latest.json` records the Node version, platform, CPU, generated time, benchmark version, and commit for each generated snapshot. Reproduce locally with:
 
 ```bash
 pnpm run build
@@ -559,7 +559,7 @@ The following shows one-shot parse times (oneShotMs) comparing the best markdown
 | 200,000 | 10.10ms | 12.17ms |
 <!-- perf-auto:exit-one:end -->
 
-Notes: markdown-it-ts remains substantially faster for small one-shot parses due to streaming/chunk strategies; for very large documents (200k+) raw one-shot times are closer between implementations. See `docs/perf-latest.json` for full details.
+Notes: these numbers describe this repository's synthetic harness. For very large documents (200k+) raw one-shot times are closer between implementations. See `docs/perf-latest.json` for full details.
 
 
 Notes on interpretation

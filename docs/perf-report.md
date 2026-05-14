@@ -2,6 +2,8 @@
 
 This report summarizes measured performance across five configurations and four document sizes. Benchmarks were run on Node.js using synthetic paragraph-heavy content.
 
+Treat these numbers as local harness data, not as a blanket claim that every workload is faster. The latest generated snapshot in `docs/perf-latest.json` records `benchmarkVersion`, `generatedAt`, Node version, platform, CPU, CPU count, and commit SHA so results can be reproduced or compared against later runs.
+
 Default API note:
 - Normal callers should keep using `md.parse(src)` / `md.render(src)`.
 - Large finite strings are already handled by the default API via internal large-input optimizations.
@@ -89,6 +91,16 @@ node scripts/full-vs-chunked-sweep.mjs
 ```
 
 These scripts print best-per-size summaries and can export JSON by setting `PERF_JSON=1`.
+
+When publishing or comparing benchmark numbers, include:
+
+- Node.js version
+- CPU and OS/platform
+- benchmark version
+- commit SHA for this repository
+- baseline package versions
+- content generator or fixture source
+- warmup/iteration settings from the harness
 
 ## Baseline: markdown-it (JS) example
 

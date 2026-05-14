@@ -117,6 +117,117 @@ describe('stream parser differential correctness', () => {
     expect(renderTokens(md, buffer.peek(), env)).toBe(md.render(buffer.toString()))
   })
 
+  it('stream parser matches full render across deterministic edit sequence', () => {
+    const streamMd = markdownit({
+      html: true,
+      linkify: true,
+      stream: true,
+      streamOptimizationMinSize: 0,
+    })
+    const fullMd = markdownit({ html: true, linkify: true })
+    const env: Record<string, unknown> = {}
+    const snippets = [
+      'Inserted paragraph with **strong text** and [a link](https://example.com).\n\n',
+      '- inserted item one\n- inserted item two\n\n',
+      '> inserted quote\n> continued quote\n\n',
+      '```ts\nconst inserted = true\n```\n\n',
+      '| a | b |\n| - | - |\n| 1 | 2 |\n\n',
+      '| left | right |\n|:-----|------:|\n| a | b |\n\n',
+      '![alt text](https://example.com/img.png "title")\n\n',
+      '### Inserted heading\n\n',
+    ]
+    let rng = 0x5eed1234
+    const random = () => {
+      rng = (rng * 1664525 + 1013904223) >>> 0
+      return rng / 0x100000000
+    }
+    const lineBoundaries = (src: string) => {
+      const offsets = [0]
+      for (let index = 0; index < src.length; index++) {
+        if (src.charCodeAt(index) === 0x0A)
+          offsets.push(index + 1)
+      }
+      if (offsets[offsets.length - 1] !== src.length)
+        offsets.push(src.length)
+      return offsets
+    }
+    const renderWithStream = (src: string) => {
+      const tokens = streamMd.stream.parse(src, env)
+      return renderTokens(streamMd, tokens, env)
+    }
+    const firstDiffIndex = (left: string, right: string) => {
+      const length = Math.min(left.length, right.length)
+      for (let index = 0; index < length; index++) {
+        if (left.charCodeAt(index) !== right.charCodeAt(index))
+          return index
+      }
+      return left.length === right.length ? -1 : length
+    }
+    const history: string[] = []
+    const assertMatches = (src: string, step: number, edit = 'initial parse') => {
+      const actual = renderWithStream(src)
+      const expected = fullMd.render(src)
+      if (actual !== expected) {
+        const diffAt = firstDiffIndex(actual, expected)
+        throw new Error([
+          `stream render differed from full render at edit step ${step} (${edit})`,
+          `source length: ${src.length}`,
+          `diff at: ${diffAt}`,
+          `recent edits: ${history.slice(-8).join(' | ')}`,
+          `source tail: ${src.slice(-500)}`,
+          `actual: ${actual.slice(Math.max(0, diffAt - 80), diffAt + 160)}`,
+          `expected: ${expected.slice(Math.max(0, diffAt - 80), diffAt + 160)}`,
+        ].join('\n'))
+      }
+    }
+
+    let current = Array.from({ length: 32 }, (_, index) => [
+      `## Section ${index + 1}`,
+      '',
+      `Paragraph ${index + 1} with [site](https://example.com/${index + 1}) and *emphasis*.`,
+      '',
+      '- alpha',
+      '- beta',
+      '',
+    ].join('\n')).join('\n')
+
+    assertMatches(current, 0)
+
+    for (let step = 1; step <= 80; step++) {
+      const snippet = snippets[Math.floor(random() * snippets.length)]
+      const op = Math.floor(random() * 3)
+      const boundaries = lineBoundaries(current)
+
+      if (op === 0) {
+        current += snippet
+        const edit = `append ${JSON.stringify(snippet)}`
+        history.push(`${step}: ${edit}`)
+        assertMatches(current, step, edit)
+        continue
+      }
+      else if (op === 1) {
+        const offset = boundaries[Math.floor(random() * boundaries.length)]
+        current = `${current.slice(0, offset)}${snippet}${current.slice(offset)}`
+        const edit = `insert ${JSON.stringify(snippet)} at ${offset}`
+        history.push(`${step}: ${edit}`)
+        assertMatches(current, step, edit)
+        continue
+      }
+      else {
+        const startIndex = Math.floor(random() * Math.max(1, boundaries.length - 1))
+        const endIndex = Math.min(boundaries.length - 1, startIndex + 1 + Math.floor(random() * 4))
+        const start = boundaries[startIndex]
+        const end = boundaries[endIndex]
+        if (end > start && current.length - (end - start) > 200)
+          current = `${current.slice(0, start)}${snippet}${current.slice(end)}`
+        const edit = `replace ${start}:${end} with ${JSON.stringify(snippet)}`
+        history.push(`${step}: ${edit}`)
+        assertMatches(current, step, edit)
+        continue
+      }
+    }
+  })
+
   it('UnboundedBuffer.flushAvailable does not commit forced nonblank boundaries', () => {
     const md = markdownit()
     const src = Array.from({ length: 30 }, (_, index) => `- item ${index + 1}`).join('\n')

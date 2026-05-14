@@ -171,5 +171,6 @@ pnpm perf:gate
 - 现有 parser/renderer/stream/plugin tests 全部通过。
 - `Token` shape 和 `state.Token` 兼容回归通过。
 - stream/full token parity 通过，尤其是 `map`、`hidden`、`info`、`attrs`、`children`。
+- 固定 seed 的编辑序列测试通过，保证每一步 `stream.parse(current)` 渲染结果都等于 `md.render(current)`。
 - family 热点报告能解释本次优化命中的规则。
 - 默认策略矩阵没有偏离该长度档已测最佳方案。
