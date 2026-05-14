@@ -2,6 +2,9 @@
  * Common utility functions for escaping HTML and unescaping entities
  */
 
+import { decodeHTML } from 'entities'
+import { fromCodePoint, isValidEntityCode } from '../common/utils'
+
 const HTML_ESCAPE_TEST_RE = /[&<>"]/
 const HTML_ESCAPE_REPLACE_RE = /[&<>"]/g
 const HTML_ESCAPE_AMP_RE = /&/g
@@ -72,18 +75,10 @@ export function unescapeAll(str: string): string {
         ? Number.parseInt(entity.slice(2), 16)
         : Number.parseInt(entity.slice(1), 10)
 
-      if (code >= 0xD800 && code <= 0xDFFF) {
-        return '\uFFFD' // Invalid surrogate pair
-      }
-      if (code >= 0x80 && code <= 0x9F) {
-        return '\uFFFD' // Invalid control character
-      }
-
-      return String.fromCodePoint(code)
+      return isValidEntityCode(code) ? fromCodePoint(code) : '\uFFFD'
     }
 
-    // For named entities, we'd need a full entity map
-    // For now, just return the original
-    return match
+    const decoded = decodeHTML(match)
+    return decoded !== match ? decoded : match
   })
 }

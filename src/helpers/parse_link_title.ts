@@ -1,4 +1,5 @@
 import type { ParseSource } from '../parse/source'
+import { unescapeAll } from '../common/utils'
 
 /**
  * Parse link title: returns { ok, can_continue, pos, str, marker }
@@ -33,7 +34,7 @@ export function parseLinkTitle(str: ParseSource, start: number, max: number, pre
     code = str.charCodeAt(pos)
     if (code === state.marker) {
       state.pos = pos + 1
-      state.str += str.slice(start, pos)
+      state.str += unescapeAll(str.slice(start, pos))
       state.ok = true
       return state
     }
@@ -46,7 +47,7 @@ export function parseLinkTitle(str: ParseSource, start: number, max: number, pre
     pos++
   }
   state.can_continue = true
-  state.str += str.slice(start, pos)
+  state.str += unescapeAll(str.slice(start, pos))
   return state
 }
 

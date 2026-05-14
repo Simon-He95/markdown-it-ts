@@ -30,26 +30,10 @@ const fixtureCases: Array<{
   { name: 'html-block', text: readFixture('block-html.md'), options: { html: true } },
   { name: 'table', text: readFixture('block-tables.md') },
   { name: 'reference', text: readFixture('block-ref-list.md') },
-  {
-    name: 'links',
-    text: readFixture('inline-links-flat.md'),
-    assert(html) {
-      expect(html).toContain('href="%5C%3E%5C%3E%5C%3E')
-      expect(html).toContain('title="\\\'\\\'\\\'')
-      expect(html).toContain('href="%5C)%5C)%5C)')
-    },
-  },
+  { name: 'links', text: readFixture('inline-links-flat.md') },
   { name: 'links-nested', text: readFixture('inline-links-nested.md') },
   { name: 'backticks', text: readFixture('inline-backticks.md') },
-  {
-    name: 'entity',
-    text: readFixture('inline-entity.md'),
-    assert(html) {
-      expect(html).toContain('&amp;copy;')
-      expect(html).toContain('&amp;AElig;')
-      expect(html).toContain('&amp;ClockwiseContourIntegral;')
-    },
-  },
+  { name: 'entity', text: readFixture('inline-entity.md') },
   { name: 'escape', text: readFixture('inline-escape.md') },
   { name: 'html-inline', text: readFixture('inline-html.md'), options: { html: true } },
   { name: 'autolink', text: readFixture('inline-autolink.md') },

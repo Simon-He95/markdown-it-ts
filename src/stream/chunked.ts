@@ -63,6 +63,23 @@ export function chunkedParse(md: MarkdownIt, src: string, env: Record<string, un
     ranges = rebalanceChunkRanges(ranges, options.maxChunks)
   }
 
+  if (hasUnsafeChunkBoundary(src, ranges)) {
+    try {
+      ;(env as any).__mdtsChunkInfo = {
+        count: 1,
+        fallback: true,
+        fallbackReason: 'unsafe-chunk-boundary',
+        maxChunkChars: options.maxChunkChars,
+        maxChunkLines: options.maxChunkLines,
+      }
+    }
+    catch {}
+
+    return runWithKnownGlobalMarkdownState(env, currentGlobalStateReason, () => {
+      return md.core.parse(src, env, md).tokens
+    })
+  }
+
   let lineOffset = 0
   const out: Token[] = []
 
@@ -217,6 +234,36 @@ export function splitIntoChunkRanges(
   if (final)
     flush(src.length)
   return chunks
+}
+
+export function hasUnsafeChunkBoundary(
+  src: string,
+  ranges: ChunkRange[],
+  options: { rangesCoverWholeSource: boolean } = { rangesCoverWholeSource: true },
+): boolean {
+  const limit = options.rangesCoverWholeSource ? ranges.length - 1 : ranges.length
+
+  for (let i = 0; i < limit; i++) {
+    if (!endsAtBlankLine(src, ranges[i].end))
+      return true
+  }
+  return false
+}
+
+function endsAtBlankLine(src: string, end: number): boolean {
+  if (end <= 0 || end > src.length || src.charCodeAt(end - 1) !== 0x0A)
+    return false
+
+  let lineStart = end - 2
+  while (lineStart >= 0 && src.charCodeAt(lineStart) !== 0x0A) lineStart--
+
+  for (let i = lineStart + 1; i < end - 1; i++) {
+    const ch = src.charCodeAt(i)
+    if (ch !== 0x20 && ch !== 0x09 && ch !== 0x0D)
+      return false
+  }
+
+  return true
 }
 
 function shiftTokenLines(tokens: Token[], offset: number): void {

@@ -372,41 +372,6 @@ export function list(state: StateBlock, startLine: number, endLine: number, sile
     if (state.sCount[nextLine] - state.blkIndent >= 4)
       break
 
-    if (!isOrdered) {
-      const nextLineStart = bMarks[nextLine] + tShift[nextLine]
-      const nextLineEnd = eMarks[nextLine]
-
-      if (nextLineStart < nextLineEnd && src.charCodeAt(nextLineStart) === markerCharCode) {
-        const afterMarker = nextLineStart + 1
-
-        if (afterMarker >= nextLineEnd) {
-          posAfterMarker = afterMarker
-          continue
-        }
-
-        const nextChar = src.charCodeAt(afterMarker)
-        if (nextChar === 0x09 || nextChar === 0x20) {
-          if (markerCharCode !== 0x2D) {
-            posAfterMarker = afterMarker
-            continue
-          }
-
-          let probe = afterMarker + 1
-          while (probe < nextLineEnd) {
-            const ch = src.charCodeAt(probe)
-            if (ch !== 0x09 && ch !== 0x20)
-              break
-            probe++
-          }
-
-          if (probe >= nextLineEnd || src.charCodeAt(probe) !== 0x2D) {
-            posAfterMarker = afterMarker
-            continue
-          }
-        }
-      }
-    }
-
     // fail if terminating block found
     let terminate = false
     for (let i = 0, l = terminatorRules.length; i < l; i++) {

@@ -81,6 +81,9 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "provenance": true
+  },
   "engines": {
     "node": ">=18"
   },
@@ -103,9 +106,11 @@
     "lint": "eslint . --cache",
     "lint:fix": "pnpm run lint --fix",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "audit:prod": "pnpm audit --prod --audit-level high",
     "test:original": "RUN_ORIGINAL=1 pnpm test",
     "test:original:network": "RUN_ORIGINAL=1 RUN_NETWORK=1 pnpm test",
-    "release": "bumpp --commit --tag --push && pnpm publish",
+    "prepublishOnly": "pnpm run audit:prod && pnpm run lint && pnpm run typecheck && pnpm test -- --run && pnpm run build && mkdir -p /tmp/mdts-pack && pnpm pack --pack-destination /tmp/mdts-pack",
+    "release": "pnpm run prepublishOnly && bumpp --commit --tag --push",
     "perf:matrix": "npm run build && node scripts/perf-matrix.mjs",
     "perf:families": "npm run build && node scripts/perf-rule-hotspots.mjs",
     "perf:strategies": "npm run build && node scripts/tune-default-strategies.mjs",
