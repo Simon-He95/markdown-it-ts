@@ -1,8 +1,8 @@
 # Markdown-it TypeScript Migration Status
 
-## Core Port Complete; API Stabilizing
+## Core Port Complete; 1.0 Stable Surface Defined
 
-The TypeScript rewrite now covers the original markdown-it core parser, renderer, and public plugin hooks while exposing a modern, typed API. The package is still versioned `0.x`, so treat the API surface as stabilizing until `1.0.0`.
+The TypeScript rewrite covers the original markdown-it core parser, renderer, and public plugin hooks. As of `1.0.0`, the root entry targets the stable markdown-it public API compatibility surface. Streaming, chunked, unbounded, and editable-buffer APIs remain available through `markdown-it-ts/experimental` or explicit subpaths and should be treated as advanced/experimental.
 
 ### ✅ Core & Parsing Pipeline
 - ParserCore orchestrates the canonical 7-rule core pipeline.

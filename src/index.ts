@@ -48,6 +48,10 @@ export interface MarkdownItOptions {
   quotes?: QuotesOption
   highlight?: ((str: string, lang?: string, attrs?: string) => string | Promise<string>) | null
   maxNesting?: number
+  /**
+   * @experimental Large-input and append-heavy parsing options are not part of
+   * the markdown-it stable compatibility surface.
+   */
   stream?: boolean
   // Stream optimization knobs
   streamOptimizationMinSize?: number // characters threshold to start stream append optimizations
@@ -113,6 +117,10 @@ export interface MarkdownIt {
   linkify: InstanceType<typeof LinkifyIt>
   renderer: Renderer
   options: MarkdownItOptions
+  /**
+   * @experimental Append-heavy stream parser controls. Not part of the
+   * markdown-it stable compatibility surface.
+   */
   stream: {
     enabled: boolean
     parse: (src: string, env?: Record<string, unknown>) => TokenType[]
@@ -128,7 +136,17 @@ export interface MarkdownIt {
   use: (plugin: MarkdownItPlugin, ...params: unknown[]) => this
   render: (src: string, env?: Record<string, unknown>) => string
   renderAsync: (src: string, env?: Record<string, unknown>) => Promise<string>
+  /**
+   * Render iterable chunk sources.
+   *
+   * @experimental Same correctness boundary as parseIterable().
+   */
   renderIterable: (chunks: Iterable<string>, env?: Record<string, unknown>) => string
+  /**
+   * Render async iterable chunk sources.
+   *
+   * @experimental Same correctness boundary as parseAsyncIterable().
+   */
   renderAsyncIterable: (chunks: AsyncIterable<string>, env?: Record<string, unknown>) => Promise<string>
   renderInline: (src: string, env?: Record<string, unknown>) => string
   validateLink: typeof validateLink

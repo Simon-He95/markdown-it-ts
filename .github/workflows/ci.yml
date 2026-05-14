@@ -284,6 +284,24 @@ jobs:
             --strict \
             --noEmit
 
+          cat > negative-smoke.ts <<'EOF'
+          // @ts-expect-error chunkedParse must not be a root named export.
+          import { chunkedParse } from 'markdown-it-ts'
+
+          // @ts-expect-error StreamBuffer must not be a root named export.
+          import { StreamBuffer } from 'markdown-it-ts'
+
+          void chunkedParse
+          void StreamBuffer
+          EOF
+
+          pnpm exec tsc negative-smoke.ts \
+            --module NodeNext \
+            --moduleResolution NodeNext \
+            --target ES2022 \
+            --strict \
+            --noEmit
+
       - name: Bundler smoke packed package
         if: matrix.node == 20
         run: |

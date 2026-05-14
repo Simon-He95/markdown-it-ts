@@ -42,7 +42,7 @@
 | 高级用法 | 已文档化的子路径导出，例如 `core`、renderer helper、common utilities |
 | 实验性 | `stream`、`chunkedParse`、`StreamBuffer`、`UnboundedBuffer`、`EditableBuffer`、`PieceTable`、iterable/sink parsing、通过 `markdown-it-ts/experimental` 或显式子路径使用的 chunk strategy recommender |
 
-`1.0.0` 的根入口会刻意保持精简。实验性大文本 API 仍可从 `markdown-it-ts/experimental` 或文档化子路径导入，但不属于稳定的 markdown-it 兼容面。
+根入口不再以顶层 named export 暴露实验性 helper。部分高级实例方法和选项仍保留给既有的大输入集成使用，并会在类型声明中标记为 experimental。
 
 ## 安装
 
