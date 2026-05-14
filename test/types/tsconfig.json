@@ -7,6 +7,13 @@
     "noEmit": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "markdown-it-ts": ["../../src/index.ts"],
+      "markdown-it-ts/core": ["../../src/core.ts"],
+      "markdown-it-ts/experimental": ["../../src/experimental.ts"],
+      "markdown-it-ts/render/renderer": ["../../src/render/renderer.ts"]
+    },
     "lib": ["DOM", "ES2022"]
   },
   "include": ["./*.ts", "../../src/**/*.d.ts"]

@@ -27,7 +27,7 @@
 - 不依赖上游私有文件的第三方 markdown-it 插件
 - 在 ESM 项目中通过 Node 或 bundler interop 加载的 CJS 插件
 - 使用 `renderAsync` 的异步 renderer/highlight 集成
-- 面向大输入或 append-heavy 编辑器场景的 stream、chunked、unbounded、editable-buffer API（通过 `markdown-it-ts/experimental` 或显式子路径使用）
+- 面向大输入或 append-heavy 编辑器场景的 stream、chunked、unbounded、editable-buffer API（通过 `markdown-it-ts/experimental` 使用；部分 helper 也有显式子路径：`markdown-it-ts/stream/buffer`、`markdown-it-ts/stream/chunked`、`markdown-it-ts/stream/debounced`、`markdown-it-ts/support/chunk_recommend`）
 
 ### Unsupported
 
@@ -45,7 +45,7 @@
 - **运行时**：要求 Node.js >= 18。
 - **子路径导出**：请使用文档化的 `markdown-it-ts/...` exports，不要依赖上游私有路径。
 - **Renderer 集成**：主入口包含 `render`、`renderInline`、`renderAsync` 和 `renderer`；`withRenderer` 保留给 custom/core-shaped instance。
-- **大输入 API**：`stream`、`chunkedParse`、`StreamBuffer`、`UnboundedBuffer`、`EditableBuffer` 是本包扩展能力，只适合特定输入形态，并有独立正确性边界；它们从 `markdown-it-ts/experimental` 或显式子路径导入，不从 1.0 根入口导出。
+- **大输入 API**：`stream`、`chunkedParse`、`StreamBuffer`、`UnboundedBuffer`、`EditableBuffer` 是本包扩展能力，只适合特定输入形态，并有独立正确性边界；它们从 `markdown-it-ts/experimental` 导入，部分 helper 也可从 `markdown-it-ts/stream/buffer`、`markdown-it-ts/stream/chunked`、`markdown-it-ts/stream/debounced`、`markdown-it-ts/support/chunk_recommend` 导入，不从 1.0 根入口导出。
 
 ## 导入示例
 
@@ -112,7 +112,7 @@ Markdown 不总是 chunk-local。Reference definition、footnote definition、ab
 `markdown-it-ts` targets the markdown-it public API, not every private upstream implementation detail.
 
 - **Stable**: main parse/render APIs, `Token` shape, ruler APIs, renderer rules, common public plugin hooks, and documented stable package exports.
-- **Best effort**: third-party plugins that avoid private upstream files, CJS plugin interop from ESM, async render/highlight integrations, and large-input stream/chunk/editable APIs imported from `markdown-it-ts/experimental` or explicit subpaths.
+- **Best effort**: third-party plugins that avoid private upstream files, CJS plugin interop from ESM, async render/highlight integrations, and large-input stream/chunk/editable APIs imported from `markdown-it-ts/experimental`; selected helpers also have explicit subpaths: `markdown-it-ts/stream/buffer`, `markdown-it-ts/stream/chunked`, `markdown-it-ts/stream/debounced`, and `markdown-it-ts/support/chunk_recommend`.
 - **Unsupported**: private upstream imports such as `markdown-it/lib/...`, undocumented internal state dependencies, direct CommonJS `require('markdown-it-ts')`, Node.js < 18, and assuming stream/chunk output is always equivalent before future document-level definitions are known.
 
 Use normal `md.parse` / `md.render` first. Adopt stream/chunk APIs only for large-input or append-heavy workloads, and validate output against full parse when exact parity matters.

@@ -1,50 +1,50 @@
 // @ts-expect-error chunkedParse must not be a root named export.
-import { chunkedParse } from '../../src'
+import { chunkedParse } from 'markdown-it-ts'
 
 // @ts-expect-error StreamBuffer must not be a root named export.
-import { StreamBuffer } from '../../src'
+import { StreamBuffer } from 'markdown-it-ts'
 
 // @ts-expect-error UnboundedBuffer must not be a root named export.
-import { UnboundedBuffer } from '../../src'
+import { UnboundedBuffer } from 'markdown-it-ts'
 
 // @ts-expect-error EditableBuffer must not be a root named export.
-import { EditableBuffer } from '../../src'
+import { EditableBuffer } from 'markdown-it-ts'
 
 // @ts-expect-error PieceTable must not be a root named export.
-import { PieceTable } from '../../src'
+import { PieceTable } from 'markdown-it-ts'
 
 // @ts-expect-error parseIterable must not be a root named export.
-import { parseIterable } from '../../src'
+import { parseIterable } from 'markdown-it-ts'
 
 // @ts-expect-error parseAsyncIterable must not be a root named export.
-import { parseAsyncIterable } from '../../src'
+import { parseAsyncIterable } from 'markdown-it-ts'
 
 // @ts-expect-error parseIterableToSink must not be a root named export.
-import { parseIterableToSink } from '../../src'
+import { parseIterableToSink } from 'markdown-it-ts'
 
 // @ts-expect-error parseAsyncIterableToSink must not be a root named export.
-import { parseAsyncIterableToSink } from '../../src'
+import { parseAsyncIterableToSink } from 'markdown-it-ts'
 
 // @ts-expect-error recommendFullChunkStrategy must not be a root named export.
-import { recommendFullChunkStrategy } from '../../src'
+import { recommendFullChunkStrategy } from 'markdown-it-ts'
 
 // @ts-expect-error recommendStreamChunkStrategy must not be a root named export.
-import { recommendStreamChunkStrategy } from '../../src'
+import { recommendStreamChunkStrategy } from 'markdown-it-ts'
 
 // @ts-expect-error DebouncedStreamParser must not be a root named export.
-import { DebouncedStreamParser } from '../../src'
+import { DebouncedStreamParser } from 'markdown-it-ts'
 
 // @ts-expect-error ThrottledStreamParser must not be a root named export.
-import { ThrottledStreamParser } from '../../src'
+import { ThrottledStreamParser } from 'markdown-it-ts'
 
 // @ts-expect-error ChunkedOptions must not be a root named export.
-import type { ChunkedOptions } from '../../src'
+import type { ChunkedOptions } from 'markdown-it-ts'
 
 // @ts-expect-error EditableBufferStats must not be a root named export.
-import type { EditableBufferStats } from '../../src'
+import type { EditableBufferStats } from 'markdown-it-ts'
 
 // @ts-expect-error PieceTableStats must not be a root named export.
-import type { PieceTableStats } from '../../src'
+import type { PieceTableStats } from 'markdown-it-ts'
 
 // @ts-expect-error UnboundedBufferOptions must not be a root named export.
-import type { UnboundedBufferOptions } from '../../src'
+import type { UnboundedBufferOptions } from 'markdown-it-ts'

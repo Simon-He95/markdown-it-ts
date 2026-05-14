@@ -4,15 +4,13 @@ import MarkdownIt, {
   type MarkdownItPlugin,
   type RendererEnv,
   type RendererOptions,
-} from '../../src'
-import { chunkedParse, StreamBuffer } from '../../src/experimental'
-import type { BlockRuleFn } from '../../src/parse/parser_block/ruler'
-import type { InlineRuleFn } from '../../src/parse/parser_inline/ruler'
-import type { RendererRule } from '../../src/render/renderer'
-import type { CoreRule } from '../../src/rules/core/ruler'
+} from 'markdown-it-ts'
+import { ParserCore } from 'markdown-it-ts/core'
+import { chunkedParse, StreamBuffer } from 'markdown-it-ts/experimental'
+import type { RendererRule } from 'markdown-it-ts/render/renderer'
 
 // @ts-expect-error Experimental helpers must stay out of the stable root entry.
-import { chunkedParse as rootChunkedParse } from '../../src'
+import { chunkedParse as rootChunkedParse } from 'markdown-it-ts'
 
 interface DemoEnv extends RendererEnv {
   headings?: string[]
@@ -29,24 +27,21 @@ const plugin: MarkdownItPlugin = (md, classNameParam) => {
     return self.renderToken(tokens, idx, options)
   }) satisfies RendererRule
 
-  const coreRule: CoreRule = (state) => {
+  md.core.ruler.after('inline', 'typed_core_rule', (state) => {
     ;(state.env as DemoEnv).touchedByCore = true
-  }
-  md.core.ruler.after('inline', 'typed_core_rule', coreRule)
+  })
 
-  const blockRule: BlockRuleFn = (state, startLine, _endLine, silent) => {
+  md.block.ruler.before('paragraph', 'typed_block_rule', (state, startLine, _endLine, silent) => {
     if (!silent)
       state.line = startLine
     return false
-  }
-  md.block.ruler.before('paragraph', 'typed_block_rule', blockRule)
+  })
 
-  const inlineRule: InlineRuleFn = (state, silent) => {
+  md.inline.ruler.before('text', 'typed_inline_rule', (state, silent) => {
     if (!silent)
       state.pending += ''
     return false
-  }
-  md.inline.ruler.before('text', 'typed_inline_rule', inlineRule)
+  })
 
   return md
 }
@@ -80,6 +75,7 @@ const streamBuffer = new StreamBuffer(typedMd)
 streamBuffer.feed('# Title\n\n')
 
 const chunkedTokens: Token[] = chunkedParse(typedMd, '# Title\n\nBody', env)
+const coreTokens: Token[] = new ParserCore().parse('# Core').tokens
 
 void rootChunkedParse
 void rendererOptions
@@ -92,3 +88,4 @@ void asyncIterableHtml
 void token
 void streamBuffer
 void chunkedTokens
+void coreTokens

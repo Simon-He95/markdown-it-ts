@@ -40,7 +40,7 @@ A TypeScript migration of [markdown-it](https://github.com/markdown-it/markdown-
 | --- | --- |
 | Stable target | `MarkdownIt()`, `parse`, `render`, `renderInline`, `renderAsync`, `renderer.rules`, `Token`, and public ruler/plugin APIs |
 | Advanced | Documented subpath exports such as `core`, renderer helpers, and common utilities |
-| Experimental | `stream`, `chunkedParse`, `StreamBuffer`, `UnboundedBuffer`, `EditableBuffer`, `PieceTable`, iterable/sink parsing, and chunk strategy recommenders via `markdown-it-ts/experimental` or explicit subpaths |
+| Experimental | `stream`, `chunkedParse`, `StreamBuffer`, `UnboundedBuffer`, `EditableBuffer`, `PieceTable`, iterable/sink parsing, and chunk strategy recommenders via `markdown-it-ts/experimental`; selected helpers also have explicit subpaths such as `markdown-it-ts/stream/buffer`, `markdown-it-ts/stream/chunked`, `markdown-it-ts/stream/debounced`, and `markdown-it-ts/support/chunk_recommend` |
 
 The root entry no longer exposes experimental helpers as top-level named exports. Some advanced instance methods and options remain available for existing large-input integrations and are marked experimental in the type declarations.
 
@@ -222,7 +222,7 @@ The main package entry already includes `render`, `renderAsync`, `renderInline`,
 - **Compared with micromark**: micromark is a CommonMark-oriented reference implementation with different goals and APIs. markdown-it-ts targets markdown-it’s plugin API and renderer semantics; the numbers below compare only the specific parse/render scenarios measured by this repository’s harness.
 - **Developer experience**: Type definitions and tuning helpers ship in the package (`docs/stream-optimization.md`, `markdown-it-ts/experimental`, and documented subpaths for `recommend*Strategy`, `StreamBuffer`, `chunkedParse`, etc.), so teams can build adaptive streaming pipelines quickly. The repository’s benchmark scripts (`perf:generate`, `perf:update-readme`) keep comparison data up to date in CI, reducing the risk of unnoticed regressions.
 - **Migration compatibility**: markdown-it-ts preserves the ruler system, Token shape, renderer rules, and public plugin hooks used by common plugins. Plugins that depend on private markdown-it file paths, CommonJS-only loading assumptions, or undocumented internal state require validation.
-- **1.0 readiness**: top-level root named exports are limited to the stable markdown-it compatibility surface, while streaming buffers, chunked fallbacks, and editable-buffer helpers remain available through experimental or explicit subpath imports. Some advanced instance methods and options remain available for existing large-input integrations and are marked experimental in the type declarations.
+- **1.0 readiness**: top-level root named exports are limited to the stable markdown-it compatibility surface, while streaming buffers, chunked fallbacks, and editable-buffer helpers remain available through `markdown-it-ts/experimental`; selected helpers also have explicit subpath imports. Some advanced instance methods and options remain available for existing large-input integrations and are marked experimental in the type declarations.
 
 ### Customization
 

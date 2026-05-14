@@ -29,7 +29,7 @@ export class BlockRuler {
     this.version++
   }
 
-  push(name: string, fn: any, options?: { alt?: string[] }): void {
+  push(name: string, fn: BlockRuleFn, options?: { alt?: string[] }): void {
     this._rules.push({
       name,
       enabled: true,
@@ -39,7 +39,7 @@ export class BlockRuler {
     this.invalidateCache()
   }
 
-  before(beforeName: string, name: string, fn: any, options?: { alt?: string[] }): void {
+  before(beforeName: string, name: string, fn: BlockRuleFn, options?: { alt?: string[] }): void {
     const i = this._rules.findIndex(r => r.name === beforeName)
     if (i < 0)
       throw new Error(`Parser rule not found: ${beforeName}`)
@@ -50,7 +50,7 @@ export class BlockRuler {
     this.invalidateCache()
   }
 
-  after(afterName: string, name: string, fn: any, options?: { alt?: string[] }): void {
+  after(afterName: string, name: string, fn: BlockRuleFn, options?: { alt?: string[] }): void {
     const i = this._rules.findIndex(r => r.name === afterName)
     if (i < 0)
       throw new Error(`Parser rule not found: ${afterName}`)
@@ -97,7 +97,7 @@ export class BlockRuler {
     })
   }
 
-  at(name: string, fn: any, options?: { alt?: string[] }): void {
+  at(name: string, fn: BlockRuleFn, options?: { alt?: string[] }): void {
     const index = this._rules.findIndex(r => r.name === name)
     if (index === -1) {
       throw new Error(`Parser rule not found: ${name}`)
