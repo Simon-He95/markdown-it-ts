@@ -69,6 +69,8 @@ const html = md.render('# 你好，世界')
 console.log(html)
 ```
 
+安全提醒：`markdown-it-ts` 不是 HTML sanitizer。默认会转义 raw HTML，但 `html: true` 会直接放行 raw HTML，插件写入的属性也会被视为可信输出。处理不可信作者内容时，请在应用边界额外做 HTML sanitize。
+
 ## 大文本输入
 
 普通场景继续使用原来的 markdown-it 兼容 API 即可：
@@ -79,7 +81,7 @@ const tokens = md.parse(hugeMarkdown)
 const html = md.render(hugeMarkdown)
 ```
 
-现在默认的 `parse` / `render` 在输入超过大文档阈值时，会自动切到内部的大文本优化路径，用户不需要额外改调用方式；如果需要，也可以用 `autoUnbounded: false` 关闭。
+默认的 `parse` / `render` 在输入超过大文档阈值时，可能切到内部的大文本优化路径。为了兼容插件生态，这个隐式路径只会在没有安装插件、parser ruler 没有被修改时启用；调用 `.use()` 或自定义 parser rule 后默认继续走 plain full parse。如需显式启用分块路径，请使用 `experimental.fullChunkedFallback`。
 
 只有当你的上游输入本来就是 chunk 流，而且你不想先 `join('')` 成一个超大字符串时，才需要显式使用下面这些高级入口：
 
@@ -98,6 +100,19 @@ for await (const chunk of logChunks) {
 }
 const finalTokens = buffer.flushForce()
 ```
+
+大输入调参选项建议放在 `experimental` 命名空间下：
+
+```ts
+const md = MarkdownIt({
+  experimental: {
+    autoUnbounded: false,
+    fullChunkedFallback: true,
+  },
+})
+```
+
+旧的顶层实验选项在 1.x 中仍然保留兼容，但推荐新代码使用命名空间写法。
 
 `parseIterable` / `parseAsyncIterable` 用于“输入本身就是 `Iterable<string>` / `AsyncIterable<string>`”的高级场景；`UnboundedBuffer` 用于 append-only 的 chunk 流，只保留有界尾部，而不是把历史全文一直留在一个大字符串里。
 
@@ -244,7 +259,7 @@ pnpm run perf:update-readme
 
 除了纯解析，我们也持续跟踪 `md.render(markdown)` 这一整条 render API 调用的耗时，也就是“解析 + HTML 输出”的总成本，而不是单独比较低层 renderer 热路径。以下数据来自最近一次 `pnpm run perf:generate`。
 
-对于超大但有限的字符串，这里的数据已经包含默认自动触发的大文本优化；用户不需要切换到 `parseIterable` / `UnboundedBuffer` 才能吃到这层收益。那些 API 只保留给“输入本来就是 chunk 流”的高级场景。
+对于超大但有限的字符串，stock parser 实例可能使用内部大文本优化；插件或自定义 parser rule 的实例默认保留 full parse 语义。`parseIterable` / `UnboundedBuffer` 这类 API 只保留给“输入本来就是 chunk 流”的高级场景。
 
 ### 对比 markdown-it render API
 

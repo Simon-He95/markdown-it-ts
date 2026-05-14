@@ -5,7 +5,7 @@
  *
  * Create new token and fill passed properties.
  */
-export class Token {
+export class Token<Meta = unknown> {
   /**
    * Token#type -> String
    *
@@ -90,7 +90,7 @@ export class Token {
    *
    * A place for plugins to store an arbitrary data
    */
-  meta: any
+  meta: Meta | null
 
   /**
    * Token#block -> Boolean

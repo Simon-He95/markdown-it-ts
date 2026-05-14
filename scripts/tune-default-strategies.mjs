@@ -4,7 +4,7 @@
 import { performance } from 'node:perf_hooks'
 import { writeFileSync } from 'node:fs'
 import MarkdownIt from '../dist/index.js'
-import { UnboundedBuffer } from '../dist/experimental.js'
+import { getParseDiagnostics, UnboundedBuffer } from '../dist/experimental.js'
 import MarkdownItOriginal from 'markdown-it'
 import { createMarkdownExit as createMarkdownExitFactory } from 'markdown-exit'
 import { parse as micromarkParse, preprocess as micromarkPreprocess, postprocess as micromarkPostprocess } from 'micromark'
@@ -184,10 +184,11 @@ function resetIfNeeded(impl) {
 }
 
 function captureDiagnostics(env, impl) {
+  const diagnostics = getParseDiagnostics(env)
   return {
-    strategyInfo: snapshot(env.__mdtsStrategyInfo ?? null),
-    chunkInfo: snapshot(env.__mdtsChunkInfo ?? null),
-    unboundedInfo: snapshot(env.__mdtsUnboundedInfo ?? null),
+    strategyInfo: snapshot(diagnostics?.strategy ?? null),
+    chunkInfo: snapshot(diagnostics?.chunk ?? null),
+    unboundedInfo: snapshot(diagnostics?.unbounded ?? null),
     stats: snapshot(impl.instance.stream?.stats?.() ?? null),
   }
 }
@@ -357,7 +358,7 @@ function toMarkdown(summary) {
   lines.push('# Large Strategy Tuning')
   lines.push('')
   lines.push('Sizes: 100k, 500k, 1M, 5M, 20M chars. Lower is better.')
-  lines.push('Default API note: for normal string inputs, keep using `md.parse(src)` / `md.render(src)` and let the library auto-select the internal large-input path. `iterable-*` / `unbounded-*` rows are included as advanced explicit chunk-stream baselines, not as required public APIs for ordinary callers.')
+  lines.push('Default API note: for normal string inputs, keep using `md.parse(src)` / `md.render(src)`. Stock parser instances may auto-select an internal large-input path; plugin/custom-rule instances keep plain full-parse behavior unless chunking is explicitly enabled. `iterable-*` / `unbounded-*` rows are included as advanced explicit chunk-stream baselines, not as required public APIs for ordinary callers.')
   lines.push('')
 
   for (const row of summary) {

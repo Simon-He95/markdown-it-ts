@@ -1,6 +1,7 @@
 import process from 'node:process'
 import { describe, expect, it, vi } from 'vitest'
 import MarkdownIt from '../../src'
+import { getParseDiagnostics } from '../../src/experimental'
 
 const runSlowStreamTests = process.env.RUN_SLOW_STREAM_TESTS === '1'
 const slowStreamIt = runSlowStreamTests ? it : it.skip
@@ -186,13 +187,13 @@ describe('stream parser', () => {
     const html = md.renderer.render(tokens, md.options, env)
 
     expect(html).toBe(md.render(src))
-    expect((env as any).__mdtsChunkInfo).toMatchObject({
+    expect(getParseDiagnostics(env)?.chunk).toMatchObject({
       fallback: true,
       fallbackReason: 'reference-definition',
     })
     expect(md.stream.stats().lastMode).toBe('full')
     expect(md.stream.stats().fullParses).toBeGreaterThan(0)
-    expect((env as any).__mdtsStrategyInfo).toMatchObject({
+    expect(getParseDiagnostics(env)?.strategy).toMatchObject({
       path: 'stream-full',
       reason: 'global-state:reference-definition',
     })

@@ -11,6 +11,12 @@ export interface ChunkRecommendation {
 
 const clamp = (v: number, lo: number, hi: number) => v < lo ? lo : (v > hi ? hi : v)
 
+function normalizeOptions(opts: Partial<MarkdownItOptions>): Partial<MarkdownItOptions> {
+  return opts.experimental
+    ? { ...opts, ...opts.experimental }
+    : opts
+}
+
 interface DiscreteRecommendation {
   max: number
   strategy: ChunkRecommendation['strategy']
@@ -58,9 +64,10 @@ function toRecommendation(fenceAware: boolean, discrete: DiscreteRecommendation)
  * you plan to parse.
  */
 export function recommendFullChunkStrategy(sizeChars: number, sizeLines = Math.max(0, (sizeChars / 40) | 0), opts: Partial<MarkdownItOptions> = {}): ChunkRecommendation {
-  const fenceAware = opts.fullChunkFenceAware ?? true
-  const target = opts.fullChunkTargetChunks ?? 8
-  const adaptive = opts.fullChunkAdaptive !== false
+  const options = normalizeOptions(opts)
+  const fenceAware = options.fullChunkFenceAware ?? true
+  const target = options.fullChunkTargetChunks ?? 8
+  const adaptive = options.fullChunkAdaptive !== false
   for (let i = 0; i < FULL_DISCRETE_RECOMMENDATIONS.length; i++) {
     const rec = FULL_DISCRETE_RECOMMENDATIONS[i]
     if (sizeChars <= rec.max) {
@@ -78,7 +85,7 @@ export function recommendFullChunkStrategy(sizeChars: number, sizeLines = Math.m
     const maxChunks = clamp(Math.ceil(sizeChars / 64_000), target, 16)
     return { strategy: 'adaptive', maxChunkChars, maxChunkLines, maxChunks, fenceAware, notes: 'adaptive fallback' }
   }
-  return { strategy: 'discrete', maxChunkChars: opts.fullChunkSizeChars ?? 10000, maxChunkLines: opts.fullChunkSizeLines ?? 200, fenceAware, maxChunks: opts.fullChunkMaxChunks }
+  return { strategy: 'discrete', maxChunkChars: options.fullChunkSizeChars ?? 10000, maxChunkLines: options.fullChunkSizeLines ?? 200, fenceAware, maxChunks: options.fullChunkMaxChunks }
 }
 
 /**
@@ -88,9 +95,10 @@ export function recommendFullChunkStrategy(sizeChars: number, sizeLines = Math.m
  * you plan to parse.
  */
 export function recommendStreamChunkStrategy(sizeChars: number, sizeLines = Math.max(0, (sizeChars / 40) | 0), opts: Partial<MarkdownItOptions> = {}): ChunkRecommendation {
-  const fenceAware = opts.streamChunkFenceAware ?? true
-  const target = opts.streamChunkTargetChunks ?? 8
-  const adaptive = opts.streamChunkAdaptive !== false
+  const options = normalizeOptions(opts)
+  const fenceAware = options.streamChunkFenceAware ?? true
+  const target = options.streamChunkTargetChunks ?? 8
+  const adaptive = options.streamChunkAdaptive !== false
   for (let i = 0; i < STREAM_DISCRETE_RECOMMENDATIONS.length; i++) {
     const rec = STREAM_DISCRETE_RECOMMENDATIONS[i]
     if (sizeChars <= rec.max) {
@@ -109,9 +117,9 @@ export function recommendStreamChunkStrategy(sizeChars: number, sizeLines = Math
   }
   return {
     strategy: 'discrete',
-    maxChunkChars: opts.streamChunkSizeChars ?? 10000,
-    maxChunkLines: opts.streamChunkSizeLines ?? 200,
-    maxChunks: (opts as any).streamChunkMaxChunks,
+    maxChunkChars: options.streamChunkSizeChars ?? 10000,
+    maxChunkLines: options.streamChunkSizeLines ?? 200,
+    maxChunks: options.streamChunkMaxChunks,
     fenceAware,
   }
 }

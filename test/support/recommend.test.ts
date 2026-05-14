@@ -65,4 +65,24 @@ describe('chunk recommendation helpers', () => {
     const rHuge = recommendStreamChunkStrategy(20_000_000)
     expect(rHuge.strategy).toBe('plain')
   })
+
+  it('accepts namespaced experimental options', () => {
+    expect(recommendFullChunkStrategy(20_000, 500, {
+      experimental: {
+        fullChunkFenceAware: false,
+      },
+    })).toMatchObject({
+      strategy: 'discrete',
+      fenceAware: false,
+    })
+
+    expect(recommendStreamChunkStrategy(20_000, 500, {
+      experimental: {
+        streamChunkFenceAware: false,
+      },
+    })).toMatchObject({
+      strategy: 'discrete',
+      fenceAware: false,
+    })
+  })
 })

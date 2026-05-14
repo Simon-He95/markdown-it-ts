@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import MarkdownIt from '../../src'
+import { getParseDiagnostics } from '../../src/experimental'
 import { StreamParser } from '../../src/stream/parser'
 
 describe('stream parser global-state cache', () => {
@@ -17,7 +18,7 @@ describe('stream parser global-state cache', () => {
 
     parser.parse('Paragraph without definitions.\n\n', env, md)
 
-    expect((env as any).__mdtsStrategyInfo).toMatchObject({
+    expect(getParseDiagnostics(env)?.strategy).toMatchObject({
       path: 'stream-full',
       reason: 'small-non-append',
     })

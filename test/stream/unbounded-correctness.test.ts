@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import markdownit from '../../src/index'
-import { UnboundedBuffer } from '../../src/experimental'
+import { getParseDiagnostics, UnboundedBuffer } from '../../src/experimental'
 import { parseStringUnbounded } from '../../src/stream/unbounded'
 
 describe('parseStringUnbounded correctness', () => {
@@ -25,7 +25,7 @@ describe('parseStringUnbounded correctness', () => {
     const html = md.renderer.render(tokens, md.options, env)
 
     expect(html).toBe(md.render(src))
-    expect((env as any).__mdtsUnboundedInfo).toMatchObject({
+    expect(getParseDiagnostics(env)?.unbounded).toMatchObject({
       fallback: true,
       fallbackReason: 'reference-definition',
     })
@@ -52,7 +52,7 @@ describe('parseStringUnbounded correctness', () => {
     const html = md.renderer.render(tokens, md.options, env)
 
     expect(html).toBe(md.render(src))
-    expect((env as any).__mdtsUnboundedInfo).toMatchObject({
+    expect(getParseDiagnostics(env)?.unbounded).toMatchObject({
       fallback: true,
       fallbackReason: 'reference-definition',
     })
@@ -79,7 +79,7 @@ describe('parseStringUnbounded correctness', () => {
 
     expect(html).toBe(md.render(src))
     expect(html).toContain('href="https://example.com"')
-    expect((env as any).__mdtsUnboundedInfo).toMatchObject({
+    expect(getParseDiagnostics(env)?.unbounded).toMatchObject({
       fallback: true,
       fallbackReason: 'reference-definition',
     })
@@ -214,8 +214,8 @@ describe('parseStringUnbounded correctness', () => {
       fallbackOnGlobalState: false,
     })
 
-    expect((env as any).__mdtsUnboundedInfo?.fallback).not.toBe(true)
-    expect((env as any).__mdtsUnboundedInfo).toMatchObject({
+    expect(getParseDiagnostics(env)?.unbounded?.fallback).not.toBe(true)
+    expect(getParseDiagnostics(env)?.unbounded).toMatchObject({
       globalStateDetected: 'reference-definition',
       globalStateFallbackDisabled: true,
     })

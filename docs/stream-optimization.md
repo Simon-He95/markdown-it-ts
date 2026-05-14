@@ -14,9 +14,10 @@
 ### `md.parse(src)`
 
 - 小中型字符串默认走 plain full parse。
-- 较长的 one-shot 字符串会自动进入 full chunked path。
-- `autoUnbounded` 仍然保留，但只在现有阈值命中时才接管；不会因为引入 chunk 策略就移除原有兼容行为。
-- 诊断信息会写入 `env.__mdtsStrategyInfo`，用于确认最终走的是 `plain`、`full-chunk` 还是 `auto-unbounded`。
+- 没有插件且 parser ruler 未被修改时，较长的 one-shot 字符串可以自动进入内部大输入路径。
+- 一旦调用 `.use()` 或修改 core/block/inline ruler，默认回到 plain full parse；需要 chunked 行为时显式开启 `experimental.fullChunkedFallback`。
+- `autoUnbounded` 仍然保留，但只在现有阈值命中且满足默认安全条件时才接管。
+- 诊断信息通过 `getParseDiagnostics(env)` 读取，用于确认最终走的是 `plain`、`full-chunk` 还是 `auto-unbounded`。
 
 ### `md.stream.parse(src)`
 
@@ -107,9 +108,13 @@ chunkedParse(md, source, env, {
 
 ### Strategy diagnostics
 
+```ts
+import { getParseDiagnostics } from 'markdown-it-ts/experimental'
+```
+
 默认策略决策会写入：
 
-- `env.__mdtsStrategyInfo`
+- `getParseDiagnostics(env)?.strategy`
 
 常见路径包括：
 

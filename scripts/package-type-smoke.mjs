@@ -29,6 +29,7 @@ import {
   PieceTable,
   StreamBuffer,
   UnboundedBuffer,
+  getParseDiagnostics,
   parseAsyncIterable,
   parseAsyncIterableToSink,
   parseIterable,
@@ -107,17 +108,25 @@ const plugin: MarkdownItPlugin = (md) => {
 
 const env: DemoEnv = {}
 const md = MarkdownIt().use(plugin)
+const namespacedOptionsMd = MarkdownIt({
+  experimental: {
+    fullChunkedFallback: true,
+  },
+})
 const typedMd: MarkdownItInstance = md
 const patched: MarkdownItInstance = withRenderer(typedMd)
 const html: string = patched.render('# typed', env)
 const tokens: Token[] = patched.parse('# typed', env)
 const renderer = new Renderer()
 const token = new Token('text', '', 0)
+const typedMetaToken = new Token<{ source: string }>('text', '', 0)
+typedMetaToken.meta = { source: 'package-type-smoke' }
 const core = new ParserCore()
 const coreToken = new CoreToken('text', '', 0)
 const streamBuffer = new StreamBuffer(typedMd)
 const streamStats: StreamStats = typedMd.stream.stats()
 const chunkedTokens: Token[] = chunkedParse(typedMd, '# Title\\n\\nBody', env)
+const diagnostics = getParseDiagnostics(env)
 const iterableTokens: Token[] = parseIterable(typedMd, ['# A\\n', '\\nB'], env)
 const asyncTokens: Promise<Token[]> = parseAsyncIterable(typedMd, (async function* chunks() {
   yield '# A\\n'
@@ -132,11 +141,14 @@ void html
 void tokens
 void renderer
 void token
+void typedMetaToken
 void core
 void coreToken
 void streamBuffer
 void streamStats
 void chunkedTokens
+void diagnostics
+void namespacedOptionsMd
 void iterableTokens
 void asyncTokens
 void sinkStats
@@ -157,6 +169,9 @@ void escapeHtml
 writeFileSync(join(tmp, 'negative-smoke.ts'), `
 // @ts-expect-error chunkedParse must not be a root named export.
 import { chunkedParse } from 'markdown-it-ts'
+
+// @ts-expect-error getParseDiagnostics must not be a root named export.
+import { getParseDiagnostics } from 'markdown-it-ts'
 
 // @ts-expect-error StreamBuffer must not be a root named export.
 import { StreamBuffer } from 'markdown-it-ts'

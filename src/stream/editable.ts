@@ -2,6 +2,7 @@ import type { Token } from '../common/token'
 import type { MarkdownIt } from '../index'
 import type { GlobalMarkdownStateReason } from '../parse/global_state'
 import { detectGlobalMarkdownState, detectGlobalMarkdownStateFromChunks, getKnownGlobalMarkdownState, resetKnownGlobalMarkdownState, runWithKnownGlobalMarkdownState } from '../parse/global_state'
+import { setEditableDiagnostics } from '../parse/strategy_diagnostics'
 import { PieceTable } from './piece_table'
 
 interface SegmentAnchor {
@@ -194,13 +195,10 @@ export class EditableBuffer {
     const mustFullParse = mustFullParseBeforeEdit || introducedReason !== null
 
     if (mustFullParse) {
-      try {
-        ;(env as any).__mdtsEditableInfo = {
-          fallback: true,
-          fallbackReason: fallbackReason || 'global-markdown-state-edit',
-        }
-      }
-      catch {}
+      setEditableDiagnostics(env, {
+        fallback: true,
+        fallbackReason: fallbackReason || 'global-markdown-state-edit',
+      })
 
       return this.fullParse(env)
     }

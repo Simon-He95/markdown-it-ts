@@ -2,6 +2,7 @@
 // Compatibility layer: re-export public types from runtime source to avoid drift.
 
 export type {
+  MarkdownItExperimentalOptions,
   MarkdownItOptions,
   RendererOptions,
   MarkdownItPlugin,

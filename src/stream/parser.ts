@@ -4,7 +4,7 @@ import type { GlobalMarkdownStateReason } from '../parse/global_state'
 import type { ParserCore } from '../parse/parser_core'
 import { countLines } from '../common/utils'
 import { detectGlobalMarkdownState, getKnownGlobalMarkdownState, resetKnownGlobalMarkdownState, runWithKnownGlobalMarkdownState } from '../parse/global_state'
-import { setStrategyDiagnostics } from '../parse/strategy_diagnostics'
+import { getParseDiagnostics, setStrategyDiagnostics } from '../parse/strategy_diagnostics'
 import { recommendStreamChunkStrategy } from '../support/chunk_recommend'
 import { chunkedParse } from './chunked'
 import { getAutoUnboundedDecision, parseStringUnbounded, shouldAutoUseUnbounded } from './unbounded'
@@ -137,7 +137,7 @@ export class StreamParser {
         this.stats.total += 1
         this.stats.fullParses += 1
         this.stats.lastMode = 'full'
-        setStrategyDiagnostics(workingEnv, { area: 'stream', path: 'stream-full', reason: 'skip-cache-large-one-shot', unbounded: !!(workingEnv as any).__mdtsUnboundedInfo })
+        setStrategyDiagnostics(workingEnv, { area: 'stream', path: 'stream-full', reason: 'skip-cache-large-one-shot', unbounded: !!getParseDiagnostics(workingEnv)?.unbounded })
         return parsed.tokens
       }
       else if (chunkedEnabled) {
@@ -186,7 +186,7 @@ export class StreamParser {
       this.stats.total += 1
       this.stats.fullParses += 1
       this.stats.lastMode = 'full'
-      setStrategyDiagnostics(workingEnv, { area: 'stream', path: 'stream-full', reason: 'initial-parse', unbounded: !!(workingEnv as any).__mdtsUnboundedInfo })
+      setStrategyDiagnostics(workingEnv, { area: 'stream', path: 'stream-full', reason: 'initial-parse', unbounded: !!getParseDiagnostics(workingEnv)?.unbounded })
       return parsed.tokens
     }
 
@@ -228,7 +228,7 @@ export class StreamParser {
         area: 'stream',
         path: 'stream-full',
         reason: `global-state:${nextGlobalStateReason}`,
-        unbounded: !!(fallbackEnv as any).__mdtsUnboundedInfo,
+        unbounded: !!getParseDiagnostics(fallbackEnv)?.unbounded,
       })
       return nextTokens
     }
@@ -249,7 +249,7 @@ export class StreamParser {
       this.stats.total += 1
       this.stats.fullParses += 1
       this.stats.lastMode = 'full'
-      setStrategyDiagnostics(fallbackEnv, { area: 'stream', path: 'stream-full', reason: 'small-non-append', unbounded: !!(fallbackEnv as any).__mdtsUnboundedInfo })
+      setStrategyDiagnostics(fallbackEnv, { area: 'stream', path: 'stream-full', reason: 'small-non-append', unbounded: !!getParseDiagnostics(fallbackEnv)?.unbounded })
       return nextTokens
     }
 
@@ -733,7 +733,7 @@ export class StreamParser {
     this.stats.total += 1
     this.stats.fullParses += 1
     this.stats.lastMode = 'full'
-    setStrategyDiagnostics(fallbackEnv, { area: 'stream', path: 'stream-full', reason: 'fallback-full', unbounded: !!(fallbackEnv as any).__mdtsUnboundedInfo })
+    setStrategyDiagnostics(fallbackEnv, { area: 'stream', path: 'stream-full', reason: 'fallback-full', unbounded: !!getParseDiagnostics(fallbackEnv)?.unbounded })
     return nextTokens
   }
 
@@ -741,7 +741,7 @@ export class StreamParser {
     env: Record<string, unknown>,
     chunkReason: string,
   ): void {
-    const chunkInfo = (env as any).__mdtsChunkInfo
+    const chunkInfo = getParseDiagnostics(env)?.chunk
     const fallbackReason = chunkInfo?.fallback
       ? String(chunkInfo.fallbackReason || 'global-state')
       : null
@@ -756,7 +756,7 @@ export class StreamParser {
         area: 'stream',
         path: 'stream-full',
         reason: `global-state:${fallbackReason}`,
-        unbounded: !!(env as any).__mdtsUnboundedInfo,
+        unbounded: !!getParseDiagnostics(env)?.unbounded,
       })
 
       return

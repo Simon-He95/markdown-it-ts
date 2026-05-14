@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import MarkdownIt from '../../src'
+import { getParseDiagnostics } from '../../src/experimental'
 
 function para(n: number) {
   return `## Section ${n}\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod.\n\n- a\n- b\n- c\n\n\`\`\`js\nconsole.log(${n})\n\`\`\`\n\n`
@@ -21,16 +22,17 @@ function buildHugeDoc(targetChars: number) {
 }
 
 function expectGlobalStateFallbackDiagnostics(env: Record<string, unknown>) {
-  expect((env as any).__mdtsChunkInfo).toMatchObject({
+  const diagnostics = getParseDiagnostics(env)
+  expect(diagnostics?.chunk).toMatchObject({
     fallback: true,
     fallbackReason: 'reference-definition',
   })
-  expect((env as any).__mdtsStrategyInfo).toMatchObject({
+  expect(diagnostics?.strategy).toMatchObject({
     area: 'parse',
     path: 'plain',
     reason: 'global-state:reference-definition',
   })
-  expect((env as any).__mdtsStrategyInfo?.chunked).toBeUndefined()
+  expect(diagnostics?.strategy?.chunked).toBeUndefined()
 }
 
 describe('full parse: chunked fallback correctness', () => {
@@ -100,8 +102,8 @@ describe('full parse: chunked fallback correctness', () => {
     const env: Record<string, unknown> = {}
     md.parse(doc, env)
 
-    expect((env as any).__mdtsChunkInfo?.maxChunkChars).toBe(24_000)
-    expect((env as any).__mdtsChunkInfo?.maxChunkLines).toBe(200)
+    expect(getParseDiagnostics(env)?.chunk?.maxChunkChars).toBe(24_000)
+    expect(getParseDiagnostics(env)?.chunk?.maxChunkLines).toBe(200)
   })
 
   it('uses the tuned large-doc chunk config in auto mode before the plain-parse cutoff', () => {
@@ -114,9 +116,9 @@ describe('full parse: chunked fallback correctness', () => {
     const env: Record<string, unknown> = {}
     md.parse(doc, env)
 
-    expect((env as any).__mdtsChunkInfo?.maxChunkChars).toBe(64_000)
-    expect((env as any).__mdtsChunkInfo?.maxChunkLines).toBe(700)
-    expect((env as any).__mdtsChunkInfo?.count).toBe(16)
+    expect(getParseDiagnostics(env)?.chunk?.maxChunkChars).toBe(64_000)
+    expect(getParseDiagnostics(env)?.chunk?.maxChunkLines).toBe(700)
+    expect(getParseDiagnostics(env)?.chunk?.count).toBe(16)
   })
 
   it('reports plain diagnostics when auto-tuned full chunk falls back for global state', () => {

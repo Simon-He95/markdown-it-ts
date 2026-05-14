@@ -9,7 +9,7 @@
   "homepage": "https://github.com/Simon-He95/markdown-it-ts#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Simon-He95/markdown-it-ts.git"
+    "url": "git+https://github.com/Simon-He95/markdown-it-ts.git"
   },
   "bugs": {
     "url": "https://github.com/Simon-He95/markdown-it-ts/issues"
@@ -93,6 +93,7 @@
     "test:plugins": "vitest test/plugin-matrix.test.ts --run",
     "test:types": "tsc -p test/types/tsconfig.json --noEmit",
     "test:package-types": "pnpm run build && rm -rf /tmp/mdts-pack && mkdir -p /tmp/mdts-pack && pnpm pack --pack-destination /tmp/mdts-pack && node scripts/package-type-smoke.mjs \"$(ls /tmp/mdts-pack/markdown-it-ts-*.tgz)\"",
+    "test:package-lint": "pnpm run build && publint && attw --pack . --profile esm-only",
     "test:bundler": "pnpm run build && node scripts/bundler-smoke.mjs",
     "test:perf-threshold": "RUN_PERF_THRESHOLD_TESTS=1 vitest test/parse/parse-performance.test.ts --run",
     "test:stream:slow": "RUN_SLOW_STREAM_TESTS=1 vitest test/stream/stream-parser.test.ts --run --testTimeout 30000",
@@ -112,7 +113,7 @@
     "audit:prod": "pnpm audit --prod --audit-level high",
     "test:original": "RUN_ORIGINAL=1 pnpm test",
     "test:original:network": "RUN_ORIGINAL=1 RUN_NETWORK=1 pnpm test",
-    "prepublishOnly": "pnpm run audit:prod && pnpm run lint && pnpm run typecheck && pnpm run test:types && pnpm test -- --run && pnpm run build && rm -rf /tmp/mdts-pack && mkdir -p /tmp/mdts-pack && pnpm pack --pack-destination /tmp/mdts-pack && node scripts/package-type-smoke.mjs \"$(ls /tmp/mdts-pack/markdown-it-ts-*.tgz)\" && MDTS_PACKAGE_SPEC=\"$(ls /tmp/mdts-pack/markdown-it-ts-*.tgz)\" node scripts/bundler-smoke.mjs",
+    "prepublishOnly": "pnpm run audit:prod && pnpm run lint && pnpm run typecheck && pnpm run test:types && pnpm test -- --run && pnpm run build && publint && attw --pack . --profile esm-only && rm -rf /tmp/mdts-pack && mkdir -p /tmp/mdts-pack && pnpm pack --pack-destination /tmp/mdts-pack && node scripts/package-type-smoke.mjs \"$(ls /tmp/mdts-pack/markdown-it-ts-*.tgz)\" && MDTS_PACKAGE_SPEC=\"$(ls /tmp/mdts-pack/markdown-it-ts-*.tgz)\" node scripts/bundler-smoke.mjs",
     "release": "pnpm run prepublishOnly && bumpp --commit --tag --push",
     "perf:matrix": "npm run build && node scripts/perf-matrix.mjs",
     "perf:families": "npm run build && node scripts/perf-rule-hotspots.mjs",
@@ -161,6 +162,7 @@
   },
   "devDependencies": {
     "@antfu/eslint-config": "^6.7.3",
+    "@arethetypeswrong/cli": "^0.18.2",
     "@rollup/plugin-babel": "^6.1.0",
     "@rollup/plugin-commonjs": "^25.0.8",
     "@rollup/plugin-node-resolve": "^15.3.1",
@@ -187,6 +189,7 @@
     "micromark": "^4.0.2",
     "ndoc": "^6.0.1",
     "needle": "^3.3.1",
+    "publint": "^0.3.21",
     "rehype-stringify": "^10.0.1",
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.2",

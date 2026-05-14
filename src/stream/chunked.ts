@@ -1,6 +1,7 @@
 import type { Token } from '../common/token'
 import type { MarkdownIt } from '../index'
 import { detectGlobalMarkdownState, runWithKnownGlobalMarkdownState } from '../parse/global_state'
+import { setChunkDiagnostics } from '../parse/strategy_diagnostics'
 
 export interface ChunkedOptions {
   maxChunkChars?: number // hard limit per chunk by characters
@@ -39,17 +40,14 @@ export function chunkedParse(md: MarkdownIt, src: string, env: Record<string, un
   const currentGlobalStateReason = detectGlobalMarkdownState(src)
 
   if (options.fallbackOnGlobalState !== false && currentGlobalStateReason) {
-    try {
-      ;(env as any).__mdtsChunkInfo = {
-        count: 1,
-        fallback: true,
-        fallbackReason: currentGlobalStateReason,
-        globalStateDetected: currentGlobalStateReason,
-        maxChunkChars: options.maxChunkChars,
-        maxChunkLines: options.maxChunkLines,
-      }
-    }
-    catch {}
+    setChunkDiagnostics(env, {
+      count: 1,
+      fallback: true,
+      fallbackReason: currentGlobalStateReason,
+      globalStateDetected: currentGlobalStateReason,
+      maxChunkChars: options.maxChunkChars,
+      maxChunkLines: options.maxChunkLines,
+    })
 
     return runWithKnownGlobalMarkdownState(env, currentGlobalStateReason, () => {
       return md.core.parse(src, env, md).tokens
@@ -65,16 +63,13 @@ export function chunkedParse(md: MarkdownIt, src: string, env: Record<string, un
   }
 
   if (hasUnsafeChunkBoundary(src, ranges)) {
-    try {
-      ;(env as any).__mdtsChunkInfo = {
-        count: 1,
-        fallback: true,
-        fallbackReason: 'unsafe-chunk-boundary',
-        maxChunkChars: options.maxChunkChars,
-        maxChunkLines: options.maxChunkLines,
-      }
-    }
-    catch {}
+    setChunkDiagnostics(env, {
+      count: 1,
+      fallback: true,
+      fallbackReason: 'unsafe-chunk-boundary',
+      maxChunkChars: options.maxChunkChars,
+      maxChunkLines: options.maxChunkLines,
+    })
 
     return runWithKnownGlobalMarkdownState(env, currentGlobalStateReason, () => {
       return md.core.parse(src, env, md).tokens
@@ -84,17 +79,13 @@ export function chunkedParse(md: MarkdownIt, src: string, env: Record<string, un
   let lineOffset = 0
   const out: Token[] = []
 
-  // Expose diagnostic chunk info on env for tooling/benchmarks
-  try {
-    ;(env as any).__mdtsChunkInfo = {
-      count: ranges.length,
-      maxChunkChars: options.maxChunkChars,
-      maxChunkLines: options.maxChunkLines,
-      globalStateDetected: currentGlobalStateReason || undefined,
-      globalStateFallbackDisabled: options.fallbackOnGlobalState === false && !!currentGlobalStateReason,
-    }
-  }
-  catch {}
+  setChunkDiagnostics(env, {
+    count: ranges.length,
+    maxChunkChars: options.maxChunkChars,
+    maxChunkLines: options.maxChunkLines,
+    globalStateDetected: currentGlobalStateReason || undefined,
+    globalStateFallbackDisabled: options.fallbackOnGlobalState === false && !!currentGlobalStateReason,
+  })
 
   return runWithKnownGlobalMarkdownState(env, currentGlobalStateReason, () => {
     for (let i = 0; i < ranges.length; i++) {

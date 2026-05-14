@@ -3,6 +3,7 @@ import type { MarkdownIt } from '../index'
 import type { GlobalMarkdownStateReason } from '../parse/global_state'
 import { countLines } from '../common/utils'
 import { detectGlobalMarkdownState, finalizeKnownGlobalMarkdownState, getKnownGlobalMarkdownState, markKnownGlobalMarkdownState, resetKnownGlobalMarkdownState, runWithKnownGlobalMarkdownState } from '../parse/global_state'
+import { getParseDiagnostics, setUnboundedDiagnostics } from '../parse/strategy_diagnostics'
 import { hasUnsafeChunkBoundary, splitIntoChunkRanges } from './chunked'
 
 export interface UnboundedBufferOptions {
@@ -454,21 +455,18 @@ export class UnboundedBuffer {
   }
 
   private updateEnvDiagnostics(env: Record<string, unknown>, window: ResolvedWindow, pendingLines: number): void {
-    try {
-      ;(env as any).__mdtsUnboundedInfo = {
-        mode: this.options.mode ?? 'full',
-        maxChunkChars: window.maxChunkChars,
-        maxChunkLines: window.maxChunkLines,
-        committedChars: this.committedChars,
-        committedLines: this.committedLines,
-        pendingChars: this.pending.length,
-        pendingLines,
-        fedChunks: this.fedChunks,
-        parsedChunks: this.parsedChunks,
-        globalStateDetected: this.markedGlobalStateReason || undefined,
-      }
-    }
-    catch {}
+    setUnboundedDiagnostics(env, {
+      mode: this.options.mode ?? 'full',
+      maxChunkChars: window.maxChunkChars,
+      maxChunkLines: window.maxChunkLines,
+      committedChars: this.committedChars,
+      committedLines: this.committedLines,
+      pendingChars: this.pending.length,
+      pendingLines,
+      fedChunks: this.fedChunks,
+      parsedChunks: this.parsedChunks,
+      globalStateDetected: this.markedGlobalStateReason || undefined,
+    })
   }
 }
 
@@ -624,21 +622,18 @@ export function parseStringUnbounded(
     resetKnownGlobalMarkdownState(env)
 
   if (opts.fallbackOnGlobalState !== false && currentGlobalStateReason) {
-    try {
-      ;(env as any).__mdtsUnboundedInfo = {
-        mode: 'full',
-        fallback: true,
-        fallbackReason: currentGlobalStateReason,
-        committedChars: src.length,
-        committedLines: countLines(src),
-        pendingChars: 0,
-        pendingLines: 0,
-        fedChunks: 1,
-        parsedChunks: 1,
-        globalStateDetected: currentGlobalStateReason,
-      }
-    }
-    catch {}
+    setUnboundedDiagnostics(env, {
+      mode: 'full',
+      fallback: true,
+      fallbackReason: currentGlobalStateReason,
+      committedChars: src.length,
+      committedLines: countLines(src),
+      pendingChars: 0,
+      pendingLines: 0,
+      fedChunks: 1,
+      parsedChunks: 1,
+      globalStateDetected: currentGlobalStateReason,
+    })
 
     return runWithKnownGlobalMarkdownState(env, currentGlobalStateReason, () => {
       return md.core.parse(src, env, md).tokens
@@ -664,14 +659,11 @@ export function parseStringUnbounded(
   if (currentGlobalStateReason) {
     finalizeKnownGlobalMarkdownState(env)
     if (opts.fallbackOnGlobalState === false) {
-      try {
-        const info = (env as any).__mdtsUnboundedInfo
-        if (info && typeof info === 'object') {
-          info.globalStateDetected = currentGlobalStateReason
-          info.globalStateFallbackDisabled = true
-        }
+      const info = getParseDiagnostics(env)?.unbounded
+      if (info) {
+        info.globalStateDetected = currentGlobalStateReason
+        info.globalStateFallbackDisabled = true
       }
-      catch {}
     }
   }
 

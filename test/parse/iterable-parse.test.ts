@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import MarkdownIt from '../../src'
+import { getParseDiagnostics } from '../../src/experimental'
 
 function para(n: number) {
   return `## Section ${n}\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod.\n\n- a\n- b\n- c\n\n\`\`\`js\nconsole.log(${n})\n\`\`\`\n\n`
@@ -40,7 +41,7 @@ describe('iterable parsing', () => {
 
     expect(md.renderer.render(tokens, md.options, env))
       .toEqual(baseline.render(doc))
-    expect((env as any).__mdtsUnboundedInfo?.parsedChunks).toBeGreaterThan(1)
+    expect(getParseDiagnostics(env)?.unbounded?.parsedChunks).toBeGreaterThan(1)
   })
 
   it('parses async iterables and can render them directly', async () => {

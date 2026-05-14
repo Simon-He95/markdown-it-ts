@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import markdownit from '../../src/index'
-import { chunkedParse, EditableBuffer, UnboundedBuffer } from '../../src/experimental'
+import { chunkedParse, EditableBuffer, getParseDiagnostics, UnboundedBuffer } from '../../src/experimental'
 import { parseStringUnbounded } from '../../src/stream/unbounded'
 
 function renderTokens(md: ReturnType<typeof markdownit>, tokens: any[], env: Record<string, unknown>) {
@@ -69,7 +69,7 @@ describe('stream parser differential correctness', () => {
 
       expect(renderTokens(md, tokens, env)).toBe(md.render(entry.src))
       if (entry.expectChunkFallback) {
-        expect((env as any).__mdtsChunkInfo).toMatchObject({
+        expect(getParseDiagnostics(env)?.chunk).toMatchObject({
           fallback: true,
           fallbackReason: 'unsafe-chunk-boundary',
         })

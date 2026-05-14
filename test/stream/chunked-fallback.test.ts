@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import MarkdownIt from '../../src'
+import { getParseDiagnostics } from '../../src/experimental'
 
 function buildDoc(multiplier: number): string {
   const paragraph = `# Title\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor.\n\n- item 1\n- item 2\n- item 3\n\n\`\`\`js\nconsole.log('hello')\n\`\`\`\n\n`
@@ -36,8 +37,8 @@ describe('stream parser chunked fallback', () => {
 
     md.stream.parse(large, env)
 
-    expect((env as any).__mdtsChunkInfo?.maxChunkChars).toBe(20_000)
-    expect((env as any).__mdtsChunkInfo?.maxChunkLines).toBe(200)
+    expect(getParseDiagnostics(env)?.chunk?.maxChunkChars).toBe(20_000)
+    expect(getParseDiagnostics(env)?.chunk?.maxChunkLines).toBe(200)
   })
 
   it('keeps stream chunk fallback available beyond the old 120k ceiling', () => {
@@ -52,6 +53,6 @@ describe('stream parser chunked fallback', () => {
 
     md.stream.parse(huge, env)
 
-    expect((env as any).__mdtsChunkInfo?.count).toBeGreaterThan(0)
+    expect(getParseDiagnostics(env)?.chunk?.count).toBeGreaterThan(0)
   })
 })

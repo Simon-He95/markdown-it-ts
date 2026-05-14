@@ -1,3 +1,16 @@
+export {
+  clearParseDiagnostics,
+  getParseDiagnostics,
+  MDTS_DIAGNOSTICS,
+} from './parse/strategy_diagnostics'
+export type {
+  ChunkDiagnostics,
+  EditableDiagnostics,
+  ParseDiagnostics,
+  StrategyDiagnostics,
+  UnboundedDiagnostics,
+} from './parse/strategy_diagnostics'
+
 export { StreamBuffer } from './stream/buffer'
 export { chunkedParse, splitIntoChunkRanges, splitIntoChunks } from './stream/chunked'
 export type { ChunkedOptions, ChunkRange } from './stream/chunked'

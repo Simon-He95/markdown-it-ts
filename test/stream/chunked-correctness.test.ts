@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import markdownit from '../../src/index'
-import { chunkedParse } from '../../src/experimental'
+import { chunkedParse, getParseDiagnostics } from '../../src/experimental'
 import abbr from 'markdown-it-abbr'
 import footnote from 'markdown-it-footnote'
 
@@ -56,7 +56,7 @@ describe('chunkedParse correctness', () => {
     const result = renderChunked(src)
 
     expect(result.html).toBe(result.full)
-    expect((result.env as any).__mdtsChunkInfo).toMatchObject({
+    expect(getParseDiagnostics(result.env)?.chunk).toMatchObject({
       fallback: true,
       fallbackReason: 'reference-definition',
     })
@@ -75,7 +75,7 @@ describe('chunkedParse correctness', () => {
     const result = renderChunked(src)
 
     expect(result.html).toBe(result.full)
-    expect((result.env as any).__mdtsChunkInfo).toMatchObject({
+    expect(getParseDiagnostics(result.env)?.chunk).toMatchObject({
       fallback: true,
       fallbackReason: 'reference-definition',
     })
@@ -97,7 +97,7 @@ describe('chunkedParse correctness', () => {
 
     expect(result.html).toBe(result.full)
     expect(result.html).toContain('href="https://example.com"')
-    expect((result.env as any).__mdtsChunkInfo).toMatchObject({
+    expect(getParseDiagnostics(result.env)?.chunk).toMatchObject({
       fallback: true,
       fallbackReason: 'reference-definition',
     })
@@ -235,7 +235,7 @@ describe('chunkedParse correctness', () => {
     })
 
     expect(md.renderer.render(tokens, md.options, env)).toBe(md.render(src))
-    expect((env as any).__mdtsChunkInfo).toMatchObject({
+    expect(getParseDiagnostics(env)?.chunk).toMatchObject({
       fallback: true,
       fallbackReason: 'footnote-definition',
     })
@@ -257,7 +257,7 @@ describe('chunkedParse correctness', () => {
     })
 
     expect(md.renderer.render(tokens, md.options, env)).toBe(md.render(src))
-    expect((env as any).__mdtsChunkInfo).toMatchObject({
+    expect(getParseDiagnostics(env)?.chunk).toMatchObject({
       fallback: true,
       fallbackReason: 'abbreviation-definition',
     })
@@ -277,8 +277,8 @@ describe('chunkedParse correctness', () => {
       fallbackOnGlobalState: false,
     })
 
-    expect((result.env as any).__mdtsChunkInfo?.fallback).not.toBe(true)
-    expect((result.env as any).__mdtsChunkInfo).toMatchObject({
+    expect(getParseDiagnostics(result.env)?.chunk?.fallback).not.toBe(true)
+    expect(getParseDiagnostics(result.env)?.chunk).toMatchObject({
       globalStateDetected: 'reference-definition',
       globalStateFallbackDisabled: true,
     })

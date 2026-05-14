@@ -7,6 +7,7 @@ import { writeFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
 import os from 'node:os'
 import MarkdownIt from '../dist/index.js'
+import { getParseDiagnostics } from '../dist/experimental.js'
 import MarkdownItOriginal from 'markdown-it'
 import { createMarkdownExit as createMarkdownExitFactory } from 'markdown-exit'
 import { micromark, parse as micromarkParse, preprocess as micromarkPreprocess, postprocess as micromarkPostprocess } from 'micromark'
@@ -232,8 +233,8 @@ function measureScenarioOneShot(entry, doc, iters) {
   }, iters).ms / iters
 
   entry.chunkInfoOne = entry.sc.type === 'full-chunk'
-    ? (lastEnvs.plain.__mdtsChunkInfo || null)
-    : (entry.sc.type.startsWith('stream') ? (lastEnvs.stream.__mdtsChunkInfo || null) : null)
+    ? (getParseDiagnostics(lastEnvs.plain)?.chunk || null)
+    : (entry.sc.type.startsWith('stream') ? (getParseDiagnostics(lastEnvs.stream)?.chunk || null) : null)
 
   return ms
 }
@@ -256,8 +257,8 @@ function measureScenarioAppend(entry, parts, repeatCount = 1) {
   }
 
   entry.chunkInfoAppendLast = entry.sc.type === 'full-chunk'
-    ? (lastEnvs.plain.__mdtsChunkInfo || null)
-    : (entry.sc.type.startsWith('stream') ? (lastEnvs.stream.__mdtsChunkInfo || null) : null)
+    ? (getParseDiagnostics(lastEnvs.plain)?.chunk || null)
+    : (entry.sc.type.startsWith('stream') ? (getParseDiagnostics(lastEnvs.stream)?.chunk || null) : null)
   entry.lastMode = entry.md.stream?.stats?.().lastMode || 'n/a'
   entry.appendHits = entry.md.stream?.stats?.().appendHits || 0
 
@@ -414,8 +415,8 @@ function runMatrix() {
         replaceParagraphMs: replaceMs,
         lastMode: md.stream?.stats?.().lastMode || 'n/a',
         appendHits: md.stream?.stats?.().appendHits || 0,
-        chunkInfoOne: (sc.type === 'full-chunk') ? (envOne.__mdtsChunkInfo || null) : (sc.type.startsWith('stream') ? (envStream.__mdtsChunkInfo || null) : null),
-        chunkInfoAppendLast: (sc.type === 'full-chunk') ? (envAppend.__mdtsChunkInfo || null) : (sc.type.startsWith('stream') ? (envStream.__mdtsChunkInfo || null) : null),
+        chunkInfoOne: (sc.type === 'full-chunk') ? (getParseDiagnostics(envOne)?.chunk || null) : (sc.type.startsWith('stream') ? (getParseDiagnostics(envStream)?.chunk || null) : null),
+        chunkInfoAppendLast: (sc.type === 'full-chunk') ? (getParseDiagnostics(envAppend)?.chunk || null) : (sc.type.startsWith('stream') ? (getParseDiagnostics(envStream)?.chunk || null) : null),
       })
     }
   }
@@ -522,7 +523,7 @@ function toMarkdown(results, coldHot, environment) {
   lines.push(`- CPU count: ${environment.cpuCount}`)
   lines.push(`- Commit: ${environment.commit}`)
   lines.push('')
-  lines.push('Default API note: normal `md.parse(src)` / `md.render(src)` calls already auto-activate the internal large-input path for very large finite strings. Explicit chunk-stream APIs such as `parseIterable` / `UnboundedBuffer` are advanced tools for sources that already arrive as chunks.')
+  lines.push('Default API note: normal `md.parse(src)` / `md.render(src)` calls may auto-activate an internal large-input path for very large finite strings only when no plugin has been installed and parser rulers have not been modified. Explicit chunk-stream APIs such as `parseIterable` / `UnboundedBuffer` are advanced tools for sources that already arrive as chunks.')
   lines.push('')
   const ids = ['S1','S2','S3','S4','S5','M1','E1','MM1']
   lines.push('| Size (chars) | ' + ids.map(id => `${id} one`).join(' | ') + ' | ' + ids.map(id => `${id} append(par)`).join(' | ') + ' | ' + ids.map(id => `${id} append(line)`).join(' | ') + ' | ' + ids.map(id => `${id} replace`).join(' | ') + ' |')

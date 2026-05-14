@@ -1,5 +1,6 @@
 import MarkdownIt, {
   Token,
+  type MarkdownItExperimentalOptions,
   type MarkdownIt as MarkdownItInstance,
   type MarkdownItPlugin,
   type RendererEnv,
@@ -79,6 +80,11 @@ const rendererOptions: RendererOptions = {
 
 const env: DemoEnv = {}
 const md = MarkdownIt({ html: false }).use(plugin, 'demo')
+const mdWithNamespacedExperimentalOptions = MarkdownIt({
+  experimental: {
+    fullChunkedFallback: true,
+  } satisfies MarkdownItExperimentalOptions,
+})
 const typedMd: MarkdownItInstance = md
 const tokens: Token[] = typedMd.parse('# Title', env)
 const inlineTokens: Token[] = typedMd.parseInline('**strong**', env)
@@ -97,6 +103,15 @@ token.attrJoin('class', 'one')
 token.meta = { source: 'type-smoke' }
 token.children = inlineTokens
 
+const typedMetaToken = new Token<{ source: string }>('text', '', 0)
+typedMetaToken.meta = { source: 'type-smoke' }
+if (typedMetaToken.meta) {
+  const source: string = typedMetaToken.meta.source
+  void source
+}
+// @ts-expect-error Token meta generic should reject incompatible shapes.
+typedMetaToken.meta = { other: 'field' }
+
 const streamBuffer = new StreamBuffer(typedMd)
 streamBuffer.feed('# Title\n\n')
 const streamStats: StreamStats = typedMd.stream.stats()
@@ -113,6 +128,8 @@ void asyncHtml
 void iterableHtml
 void asyncIterableHtml
 void token
+void mdWithNamespacedExperimentalOptions
+void typedMetaToken
 void streamBuffer
 void streamStats
 void chunkedTokens

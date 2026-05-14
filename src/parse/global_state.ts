@@ -11,7 +11,7 @@ const GLOBAL_STATE_ENV_KEYS = [
   'abbr',
   'abbrs',
 ] as const
-const GLOBAL_STATE_ENV_MARKER = '__mdtsGlobalStateReason'
+const GLOBAL_STATE_ENV_MARKER = Symbol.for('markdown-it-ts.global-state')
 const hasOwn = Object.prototype.hasOwnProperty
 
 type GlobalStateEnvKey = typeof GLOBAL_STATE_ENV_KEYS[number]

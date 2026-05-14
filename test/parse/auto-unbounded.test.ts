@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import MarkdownIt from '../../src'
+import { getParseDiagnostics } from '../../src/experimental'
 
 function para(n: number) {
   return `## Section ${n}\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod.\n\n- a\n- b\n- c\n\n\`\`\`js\nconsole.log(${n})\n\`\`\`\n\n`
@@ -33,7 +34,7 @@ describe('auto unbounded full parse', () => {
 
     md.parse(doc, env)
 
-    expect((env as any).__mdtsUnboundedInfo).toBeUndefined()
+    expect(getParseDiagnostics(env)?.unbounded).toBeUndefined()
   })
 
   it('does not switch just because a small document has many short lines', () => {
@@ -45,7 +46,7 @@ describe('auto unbounded full parse', () => {
     const html = md.render(doc, env)
 
     expect(html).toBe(baseline.render(doc))
-    expect((env as any).__mdtsUnboundedInfo).toBeUndefined()
+    expect(getParseDiagnostics(env)?.unbounded).toBeUndefined()
   })
 
   it('uses the internal unbounded path once the default thresholds are exceeded', () => {
@@ -57,8 +58,8 @@ describe('auto unbounded full parse', () => {
     const html = md.render(doc, env)
 
     expect(html).toBe(baseline.render(doc))
-    expect((env as any).__mdtsUnboundedInfo?.parsedChunks).toBeGreaterThan(1)
-    expect((env as any).__mdtsUnboundedInfo?.committedChars).toBe(doc.length)
+    expect(getParseDiagnostics(env)?.unbounded?.parsedChunks).toBeGreaterThan(1)
+    expect(getParseDiagnostics(env)?.unbounded?.committedChars).toBe(doc.length)
   })
 
   it('also applies to stream.parse full-document fallbacks for large one-shot inputs', () => {
@@ -75,7 +76,7 @@ describe('auto unbounded full parse', () => {
 
     expect(md.renderer.render(tokens, md.options, env))
       .toBe(baseline.render(doc))
-    expect((env as any).__mdtsUnboundedInfo?.parsedChunks).toBeGreaterThan(1)
+    expect(getParseDiagnostics(env)?.unbounded?.parsedChunks).toBeGreaterThan(1)
   })
 
   it('also applies when callers go through md.stream.parse() with stream mode disabled', () => {
@@ -88,7 +89,7 @@ describe('auto unbounded full parse', () => {
 
     expect(md.renderer.render(tokens, md.options, env))
       .toBe(baseline.render(doc))
-    expect((env as any).__mdtsUnboundedInfo?.parsedChunks).toBeGreaterThan(1)
+    expect(getParseDiagnostics(env)?.unbounded?.parsedChunks).toBeGreaterThan(1)
   })
 
   it('can be disabled explicitly', () => {
@@ -98,6 +99,6 @@ describe('auto unbounded full parse', () => {
 
     md.parse(doc, env)
 
-    expect((env as any).__mdtsUnboundedInfo).toBeUndefined()
+    expect(getParseDiagnostics(env)?.unbounded).toBeUndefined()
   })
 })

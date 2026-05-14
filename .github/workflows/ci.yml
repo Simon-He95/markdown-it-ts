@@ -74,6 +74,10 @@ jobs:
         if: matrix.node == 20
         run: pnpm run build
 
+      - name: Package export/type lint
+        if: matrix.node == 20
+        run: pnpm run test:package-lint
+
       - name: Pack package
         if: matrix.node == 20
         run: |
@@ -147,6 +151,7 @@ jobs:
             'recommendStreamChunkStrategy',
             'DebouncedStreamParser',
             'ThrottledStreamParser',
+            'getParseDiagnostics',
           ]) {
             if (name in rootExports)
               throw new Error(`${name} should be imported from markdown-it-ts/experimental or a subpath`)
@@ -333,6 +338,7 @@ jobs:
             'recommendStreamChunkStrategy',
             'DebouncedStreamParser',
             'ThrottledStreamParser',
+            'getParseDiagnostics',
           ]) {
             if (name in rootExports)
               throw new Error(`${name} should be imported from markdown-it-ts/experimental or a subpath`)

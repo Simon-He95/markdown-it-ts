@@ -6,7 +6,7 @@ Treat these numbers as local harness data, not as a blanket claim that every wor
 
 Default API note:
 - Normal callers should keep using `md.parse(src)` / `md.render(src)`.
-- Large finite strings are already handled by the default API via internal large-input optimizations.
+- Large finite strings can be handled by the default API via internal large-input optimizations on stock parser instances; plugin/custom-rule instances keep plain full-parse behavior unless chunking is explicitly enabled.
 - Explicit chunk-stream APIs such as `parseIterable` / `UnboundedBuffer` are advanced tools for sources that already arrive as chunks; they are not required to benefit from the default large-text path.
 
 Scenarios:

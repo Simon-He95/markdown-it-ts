@@ -10,7 +10,7 @@ import * as helpers from './helpers'
 import { detectGlobalMarkdownState, getKnownGlobalMarkdownState, resetKnownGlobalMarkdownState, runWithKnownGlobalMarkdownState } from './parse/global_state'
 import { normalizeLink, normalizeLinkText, validateLink } from './parse/link_utils'
 import { ParserCore } from './parse/parser_core'
-import { setStrategyDiagnostics } from './parse/strategy_diagnostics'
+import { getParseDiagnostics, setStrategyDiagnostics } from './parse/strategy_diagnostics'
 import commonmarkPreset from './presets/commonmark'
 import defaultPreset from './presets/default'
 import zeroPreset from './presets/zero'
@@ -37,6 +37,36 @@ export type { RendererEnv, RendererOptions } from './render'
 
 type QuotesOption = string | [string, string, string, string]
 
+export interface MarkdownItExperimentalOptions {
+  stream?: boolean
+  streamOptimizationMinSize?: number
+  streamContextParseStrategy?: 'chars' | 'lines' | 'constructs'
+  streamContextParseMinChars?: number
+  streamContextParseMinLines?: number
+  streamChunkedFallback?: boolean
+  streamChunkSizeChars?: number
+  streamChunkSizeLines?: number
+  streamChunkFenceAware?: boolean
+  streamChunkAdaptive?: boolean
+  streamChunkTargetChunks?: number
+  streamChunkMaxChunks?: number
+  streamSkipCacheAboveChars?: number
+  streamSkipCacheAboveLines?: number
+  fullChunkedFallback?: boolean
+  fullChunkThresholdChars?: number
+  fullChunkThresholdLines?: number
+  fullChunkSizeChars?: number
+  fullChunkSizeLines?: number
+  fullChunkFenceAware?: boolean
+  fullChunkMaxChunks?: number
+  fullChunkAdaptive?: boolean
+  fullChunkTargetChunks?: number
+  autoTuneChunks?: boolean
+  autoUnbounded?: boolean
+  autoUnboundedThresholdChars?: number
+  autoUnboundedThresholdLines?: number
+}
+
 export interface MarkdownItOptions {
   html?: boolean
   xhtmlOut?: boolean
@@ -48,58 +78,60 @@ export interface MarkdownItOptions {
   highlight?: ((str: string, lang?: string, attrs?: string) => string | Promise<string>) | null
   maxNesting?: number
   /** @experimental Not part of the markdown-it stable compatibility surface. */
+  experimental?: MarkdownItExperimentalOptions
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.stream instead. */
   stream?: boolean
-  /** @experimental Not part of the markdown-it stable compatibility surface. */
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamOptimizationMinSize instead. */
   streamOptimizationMinSize?: number
-  /** @experimental Not part of the markdown-it stable compatibility surface. */
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamContextParseStrategy instead. */
   streamContextParseStrategy?: 'chars' | 'lines' | 'constructs'
-  /** @experimental Not part of the markdown-it stable compatibility surface. */
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamContextParseMinChars instead. */
   streamContextParseMinChars?: number
-  /** @experimental Not part of the markdown-it stable compatibility surface. */
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamContextParseMinLines instead. */
   streamContextParseMinLines?: number
-  /** @experimental Not part of the markdown-it stable compatibility surface. */
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamChunkedFallback instead. */
   streamChunkedFallback?: boolean
-  /** @experimental Not part of the markdown-it stable compatibility surface. */
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamChunkSizeChars instead. */
   streamChunkSizeChars?: number
-  /** @experimental Not part of the markdown-it stable compatibility surface. */
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamChunkSizeLines instead. */
   streamChunkSizeLines?: number
-  /** @experimental Not part of the markdown-it stable compatibility surface. */
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamChunkFenceAware instead. */
   streamChunkFenceAware?: boolean
-  /** @experimental Not part of the markdown-it stable compatibility surface. */
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamChunkAdaptive instead. */
   streamChunkAdaptive?: boolean
-  /** @experimental Not part of the markdown-it stable compatibility surface. */
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamChunkTargetChunks instead. */
   streamChunkTargetChunks?: number
-  /** @experimental Not part of the markdown-it stable compatibility surface. */
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamChunkMaxChunks instead. */
   streamChunkMaxChunks?: number
-  /** @experimental Not part of the markdown-it stable compatibility surface. */
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamSkipCacheAboveChars instead. */
   streamSkipCacheAboveChars?: number
-  /** @experimental Not part of the markdown-it stable compatibility surface. */
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamSkipCacheAboveLines instead. */
   streamSkipCacheAboveLines?: number
-  /** @experimental Not part of the markdown-it stable compatibility surface. */
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.fullChunkedFallback instead. */
   fullChunkedFallback?: boolean
-  /** @experimental Not part of the markdown-it stable compatibility surface. */
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.fullChunkThresholdChars instead. */
   fullChunkThresholdChars?: number
-  /** @experimental Not part of the markdown-it stable compatibility surface. */
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.fullChunkThresholdLines instead. */
   fullChunkThresholdLines?: number
-  /** @experimental Not part of the markdown-it stable compatibility surface. */
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.fullChunkSizeChars instead. */
   fullChunkSizeChars?: number
-  /** @experimental Not part of the markdown-it stable compatibility surface. */
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.fullChunkSizeLines instead. */
   fullChunkSizeLines?: number
-  /** @experimental Not part of the markdown-it stable compatibility surface. */
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.fullChunkFenceAware instead. */
   fullChunkFenceAware?: boolean
-  /** @experimental Not part of the markdown-it stable compatibility surface. */
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.fullChunkMaxChunks instead. */
   fullChunkMaxChunks?: number
-  /** @experimental Not part of the markdown-it stable compatibility surface. */
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.fullChunkAdaptive instead. */
   fullChunkAdaptive?: boolean
-  /** @experimental Not part of the markdown-it stable compatibility surface. */
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.fullChunkTargetChunks instead. */
   fullChunkTargetChunks?: number
-  /** @experimental Not part of the markdown-it stable compatibility surface. */
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.autoTuneChunks instead. */
   autoTuneChunks?: boolean
-  /** @experimental Not part of the markdown-it stable compatibility surface. */
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.autoUnbounded instead. */
   autoUnbounded?: boolean
-  /** @experimental Not part of the markdown-it stable compatibility surface. */
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.autoUnboundedThresholdChars instead. */
   autoUnboundedThresholdChars?: number
-  /** @experimental Not part of the markdown-it stable compatibility surface. */
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.autoUnboundedThresholdLines instead. */
   autoUnboundedThresholdLines?: number
 }
 
@@ -203,17 +235,59 @@ export type MarkdownItPluginFn = (md: MarkdownIt, ...params: unknown[]) => unkno
 export interface MarkdownItPluginModule { default: MarkdownItPluginFn }
 export type MarkdownItPlugin = MarkdownItPluginFn | MarkdownItPluginModule
 
+interface ParserRuleVersions {
+  core: number
+  block: number
+  inline: number
+  inline2: number
+}
+
+function getParserRuleVersions(md: MarkdownIt): ParserRuleVersions {
+  return {
+    core: md.core.ruler.version,
+    block: md.block.ruler.version,
+    inline: md.inline.ruler.version,
+    inline2: md.inline.ruler2.version,
+  }
+}
+
+function hasParserRuleChanges(md: MarkdownIt, initial: ParserRuleVersions): boolean {
+  return md.core.ruler.version !== initial.core
+    || md.block.ruler.version !== initial.block
+    || md.inline.ruler.version !== initial.inline
+    || md.inline.ruler2.version !== initial.inline2
+}
+
+function applyExperimentalOptions(options: MarkdownItOptions): MarkdownItOptions {
+  return options.experimental
+    ? { ...options, ...options.experimental }
+    : options
+}
+
+function hasOwnOption(
+  obj: MarkdownItOptions | undefined,
+  key: keyof MarkdownItOptions,
+): boolean {
+  if (!obj)
+    return false
+
+  if (Object.prototype.hasOwnProperty.call(obj, key) && obj[key] !== undefined)
+    return true
+
+  const experimental = obj.experimental as Record<string, unknown> | undefined
+  return !!experimental
+    && Object.prototype.hasOwnProperty.call(experimental, key)
+    && experimental[key as string] !== undefined
+}
+
 function hasExplicitChunkOverride(
   presetOptions: MarkdownItOptions | undefined,
   userOptions: MarkdownItOptions | undefined,
   keys: ReadonlyArray<keyof MarkdownItOptions>,
 ): boolean {
-  const hasOwn = (obj: MarkdownItOptions | undefined, key: keyof MarkdownItOptions) =>
-    !!obj && Object.prototype.hasOwnProperty.call(obj, key) && obj[key] !== undefined
-
   for (let i = 0; i < keys.length; i++) {
     const key = keys[i]
-    if (hasOwn(userOptions, key) || hasOwn(presetOptions, key))
+    if (hasOwnOption(userOptions, key) || hasOwnOption(presetOptions, key))
       return true
   }
 
@@ -225,12 +299,11 @@ function hasExplicitOption(
   userOptions: MarkdownItOptions | undefined,
   key: keyof MarkdownItOptions,
 ): boolean {
-  return (!!userOptions && Object.prototype.hasOwnProperty.call(userOptions, key))
-    || (!!presetOptions && Object.prototype.hasOwnProperty.call(presetOptions, key))
+  return hasOwnOption(userOptions, key) || hasOwnOption(presetOptions, key)
 }
 
 function setFullChunkStrategyDiagnostics(env: Record<string, unknown>, reason: string): void {
-  const chunkInfo = (env as any).__mdtsChunkInfo
+  const chunkInfo = getParseDiagnostics(env)?.chunk
 
   if (chunkInfo?.fallback) {
     setStrategyDiagnostics(env, {
@@ -311,6 +384,7 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
     opts = { ...opts, ...preset.options }
   if (userOptions)
     opts = { ...opts, ...userOptions }
+  opts = applyExperimentalOptions(opts)
 
   // Normalize quotes option: convert string to array if needed
   if (typeof opts.quotes === 'string') {
@@ -342,6 +416,8 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
   ])
   let explicitFullChunkFallbackSetting = hasExplicitOption(preset?.options, userOptions, 'fullChunkedFallback')
   let explicitStreamChunkFallbackSetting = hasExplicitOption(preset?.options, userOptions, 'streamChunkedFallback')
+  let usedPlugin = false
+  let initialParserRuleVersions: ParserRuleVersions | null = null
 
   // construct minimal core instance; avoid importing renderer here
   const core = new ParserCore()
@@ -364,6 +440,11 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
     if (!linkifyInstance)
       linkifyInstance = new LinkifyIt()
     return linkifyInstance
+  }
+  const canUseImplicitLargeInputStrategy = (instance: MarkdownIt) => {
+    return !usedPlugin
+      && !!initialParserRuleVersions
+      && !hasParserRuleChanges(instance, initialParserRuleVersions)
   }
 
   const md: any = {
@@ -389,27 +470,28 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
     __explicitFullChunkFallbackSetting: explicitFullChunkFallbackSetting,
     __explicitStreamChunkFallbackSetting: explicitStreamChunkFallbackSetting,
     set(newOpts: MarkdownItOptions) {
-      this.options = { ...this.options, ...newOpts }
-      if (newOpts.fullChunkSizeChars !== undefined || newOpts.fullChunkSizeLines !== undefined || newOpts.fullChunkMaxChunks !== undefined) {
+      const resolvedNewOpts = applyExperimentalOptions(newOpts)
+      this.options = { ...this.options, ...resolvedNewOpts }
+      if (hasOwnOption(newOpts, 'fullChunkSizeChars') || hasOwnOption(newOpts, 'fullChunkSizeLines') || hasOwnOption(newOpts, 'fullChunkMaxChunks')) {
         explicitFullChunkConfig = true
         this.__explicitFullChunkConfig = true
       }
-      if (newOpts.streamChunkSizeChars !== undefined || newOpts.streamChunkSizeLines !== undefined || newOpts.streamChunkMaxChunks !== undefined) {
+      if (hasOwnOption(newOpts, 'streamChunkSizeChars') || hasOwnOption(newOpts, 'streamChunkSizeLines') || hasOwnOption(newOpts, 'streamChunkMaxChunks')) {
         explicitStreamChunkConfig = true
         this.__explicitStreamChunkConfig = true
       }
-      if (Object.prototype.hasOwnProperty.call(newOpts, 'fullChunkedFallback')) {
+      if (hasOwnOption(newOpts, 'fullChunkedFallback')) {
         explicitFullChunkFallbackSetting = true
         this.__explicitFullChunkFallbackSetting = true
       }
-      if (Object.prototype.hasOwnProperty.call(newOpts, 'streamChunkedFallback')) {
+      if (hasOwnOption(newOpts, 'streamChunkedFallback')) {
         explicitStreamChunkFallbackSetting = true
         this.__explicitStreamChunkFallbackSetting = true
       }
       if (renderer)
-        renderer.set(newOpts as RendererOptions)
-      if (typeof newOpts.stream === 'boolean') {
-        this.stream.enabled = newOpts.stream
+        renderer.set(resolvedNewOpts as RendererOptions)
+      if (typeof resolvedNewOpts.stream === 'boolean') {
+        this.stream.enabled = resolvedNewOpts.stream
         if (streamParser) {
           streamParser.reset()
           streamParser.resetStats()
@@ -494,6 +576,7 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
 
       const args = [this, ...params] as Parameters<MarkdownItPluginFn>
       const thisArg = typeof plugin === 'function' ? plugin : plugin
+      usedPlugin = true
       fn.apply(thisArg as unknown, args)
       return this
     },
@@ -535,17 +618,19 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       let countedLines: number | undefined
 
       // Fast path: stream disabled and chunked fallback disabled -> direct parse,
-      // unless the default auto large-input strategy selects chunked parsing.
+      // unless the default auto large-input strategy selects an internal path.
       if (!this.stream.enabled && !this.options.fullChunkedFallback) {
-        const autoUnboundedDecision = getAutoUnboundedDecision(this, src.length)
-        if (autoUnboundedDecision === 'yes') {
-          setStrategyDiagnostics(env, { area: 'parse', path: 'auto-unbounded', unbounded: true, reason: 'char-threshold' })
-          return parseStringUnbounded(this, src, env)
-        }
-        if (
-          autoUnboundedDecision === 'need-lines'
-        ) {
-          countedLines = utils.countLines(src)
+        if (canUseImplicitLargeInputStrategy(this)) {
+          const autoUnboundedDecision = getAutoUnboundedDecision(this, src.length)
+          if (autoUnboundedDecision === 'yes') {
+            setStrategyDiagnostics(env, { area: 'parse', path: 'auto-unbounded', unbounded: true, reason: 'char-threshold' })
+            return parseStringUnbounded(this, src, env)
+          }
+          if (
+            autoUnboundedDecision === 'need-lines'
+          ) {
+            countedLines = utils.countLines(src)
+          }
         }
       }
 
@@ -556,6 +641,7 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
         const auto = this.options.autoTuneChunks !== false
         const userForcedChunk = explicitFullChunkConfig
         const allowImplicitChunk = !explicitFullChunkFallbackSetting
+          && canUseImplicitLargeInputStrategy(this)
         const wantsChunking = !!this.options.fullChunkedFallback
         const shouldAutoChunk = allowImplicitChunk
           && chars >= 200_000
@@ -607,7 +693,7 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
           }
         }
 
-        if (countedLines !== undefined && shouldAutoUseUnbounded(this, chars, lines)) {
+        if (countedLines !== undefined && canUseImplicitLargeInputStrategy(this) && shouldAutoUseUnbounded(this, chars, lines)) {
           setStrategyDiagnostics(env, { area: 'parse', path: 'auto-unbounded', unbounded: true, reason: 'line-threshold' })
           return parseStringUnbounded(this, src, env)
         }
@@ -679,6 +765,8 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
     if (c.inline2?.rules)
       md.inline.ruler2.enableOnly(c.inline2.rules)
   }
+
+  initialParserRuleVersions = getParserRuleVersions(md)
 
   return md as MarkdownIt
 }

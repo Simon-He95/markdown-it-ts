@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import markdownit from '../../src/index'
 import { chunkedParse, EditableBuffer } from '../../src/experimental'
+import { getKnownGlobalMarkdownState } from '../../src/parse/global_state'
 import { parseStringUnbounded } from '../../src/stream/unbounded'
 
 const srcWithReference = '[x][ref]\n\n[ref]: https://old.example\n'
@@ -22,7 +23,7 @@ describe('global markdown state cleanup on parse errors', () => {
       })
     }).toThrow('boom')
 
-    expect(env.__mdtsGlobalStateReason).toBeUndefined()
+    expect(getKnownGlobalMarkdownState(env)).toBeNull()
   })
 
   it('cleans env marker when chunked global-state parsing throws', () => {
@@ -42,7 +43,7 @@ describe('global markdown state cleanup on parse errors', () => {
       })
     }).toThrow('boom')
 
-    expect(env.__mdtsGlobalStateReason).toBeUndefined()
+    expect(getKnownGlobalMarkdownState(env)).toBeNull()
   })
 
   it('cleans env marker when unbounded fallback parse throws', () => {
@@ -61,7 +62,7 @@ describe('global markdown state cleanup on parse errors', () => {
       })
     }).toThrow('boom')
 
-    expect(env.__mdtsGlobalStateReason).toBeUndefined()
+    expect(getKnownGlobalMarkdownState(env)).toBeNull()
   })
 
   it('cleans env marker when unbounded global-state parsing throws', () => {
@@ -81,7 +82,7 @@ describe('global markdown state cleanup on parse errors', () => {
       })
     }).toThrow('boom')
 
-    expect(env.__mdtsGlobalStateReason).toBeUndefined()
+    expect(getKnownGlobalMarkdownState(env)).toBeNull()
   })
 
   it('cleans env marker when editable full parse throws', () => {
@@ -98,7 +99,7 @@ describe('global markdown state cleanup on parse errors', () => {
       buffer.parse(env)
     }).toThrow('boom')
 
-    expect(env.__mdtsGlobalStateReason).toBeUndefined()
+    expect(getKnownGlobalMarkdownState(env)).toBeNull()
   })
 
   it('does not leak stale references into the next successful parse after an error', () => {

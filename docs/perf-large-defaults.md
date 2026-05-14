@@ -1,7 +1,7 @@
 # Large Strategy Tuning
 
 Sizes: 100k, 500k, 1M, 5M, 20M chars. Lower is better.
-Default API note: for normal string inputs, keep using `md.parse(src)` / `md.render(src)` and let the library auto-select the internal large-input path. `iterable-*` / `unbounded-*` rows are included as advanced explicit chunk-stream baselines, not as required public APIs for ordinary callers.
+Default API note: for normal string inputs, keep using `md.parse(src)` / `md.render(src)`. Stock parser instances may auto-select an internal large-input path; plugin/custom-rule instances keep plain full-parse behavior unless chunking is explicitly enabled. `iterable-*` / `unbounded-*` rows are included as advanced explicit chunk-stream baselines, not as required public APIs for ordinary callers.
 
 ## 100,000 chars
 
