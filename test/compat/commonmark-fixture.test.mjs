@@ -4,6 +4,7 @@ import { load } from 'markdown-it-testgen'
 import { describe, expect, it } from 'vitest'
 import markdownit from '../../src/index'
 
+// Formatting-only deviations for empty blockquote output; token semantics still match the fixture.
 const knownEmptyBlockquoteFormattingDeviations = new Set([
   'src line: 3502',
   'src line: 3890',
