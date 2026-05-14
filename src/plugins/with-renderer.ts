@@ -2,9 +2,9 @@ import type { MarkdownIt, MarkdownItOptions } from '../index'
 import Renderer from '../render/renderer'
 
 /**
- * Attach rendering capabilities to a core-only md instance.
- * Importing this module brings renderer code into the bundle explicitly,
- * preserving tree-shaking when consumers only use md.parse/parseInline.
+ * Attach or refresh rendering methods on a markdown-it-shaped instance.
+ * The main markdown-it-ts entry already exposes renderer methods; this helper is
+ * for custom instances that provide parse/parseInline but need renderer methods.
  */
 export function withRenderer(md: MarkdownIt, options?: MarkdownItOptions) {
   if (!md.renderer)

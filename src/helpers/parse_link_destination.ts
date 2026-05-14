@@ -1,4 +1,5 @@
 import type { ParseSource } from '../parse/source'
+import { unescapeAll } from '../common/utils'
 
 /**
  * Parse link destination: returns { ok, pos, str }
@@ -18,7 +19,7 @@ export function parseLinkDestination(str: ParseSource, start: number, max: numbe
         return result
       if (code === 0x3E /* > */) {
         result.pos = pos + 1
-        result.str = str.slice(start + 1, pos)
+        result.str = unescapeAll(str.slice(start + 1, pos))
         result.ok = true
         return result
       }
@@ -60,7 +61,7 @@ export function parseLinkDestination(str: ParseSource, start: number, max: numbe
     return result
   if (level !== 0)
     return result
-  result.str = str.slice(start, pos)
+  result.str = unescapeAll(str.slice(start, pos))
   result.pos = pos
   result.ok = true
   return result

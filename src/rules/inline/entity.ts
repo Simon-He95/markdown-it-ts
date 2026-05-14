@@ -2,36 +2,11 @@
  * Process html entity - &#123;, &#xAF;, &quot;, ...
  */
 
-// Basic entity decoding (simplified version)
-const entities: Record<string, string> = {
-  amp: '&',
-  lt: '<',
-  gt: '>',
-  quot: '"',
-  apos: '\'',
-  nbsp: '\u00A0',
-}
-
-function isValidEntityCode(code: number): boolean {
-  // Valid unicode code points
-  if (code >= 0xD800 && code <= 0xDFFF)
-    return false // surrogate pairs
-  if (code >= 0x10FFFF)
-    return false
-  return true
-}
-
-function fromCodePoint(code: number): string {
-  return String.fromCodePoint(code)
-}
+import { decodeHTML as decodeHtmlEntity } from 'entities'
+import { fromCodePoint, isValidEntityCode } from '../../common/utils'
 
 function decodeHTML(str: string): string {
-  if (str.length >= 4 && str.charCodeAt(0) === 0x26 && str.charCodeAt(str.length - 1) === 0x3B) {
-    const name = str.slice(1, -1).toLowerCase()
-    if (entities[name])
-      return entities[name]
-  }
-  return str
+  return decodeHtmlEntity(str)
 }
 
 function isDigit(code: number): boolean {

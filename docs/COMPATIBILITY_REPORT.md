@@ -3,14 +3,14 @@
 - **Purpose**: 简要说明 `markdown-it-ts` 与上游 `markdown-it` 在使用、API 与生态兼容性方面的异同，指出可能的 breaking changes 并给出迁移建议与验证清单。
 
 **概要**
-- **兼容性目标**: `markdown-it-ts` 声称“API compatibility with original markdown-it”，并实现了大部分核心规则与 renderer。实际实现为 TypeScript 重写，提供更好的类型、安全性与按需子路径导出，从而支持 tree-shaking 与精细化导入。
+- **兼容性目标**: `markdown-it-ts` 以 markdown-it API/plugin 兼容为目标，并通过默认 CI 中的 CommonMark fixture 与插件矩阵持续验证。实际实现为 TypeScript 重写，提供更好的类型、安全性与按需子路径导出，从而支持 tree-shaking 与精细化导入。
 - **结论（简要）**: 大多数插件与使用方式在语义上兼容；但以下几类情况可能需要改动或额外验证：CJS/ESM 导入方式、运行时引擎与包入口差异、流（stream）/chunk 特性的新增配置项，以及依赖内部分支或内部 API 的插件。
 
 **主要差异（高层）**
 - **语言与类型**: `markdown-it-ts` 完全用 TypeScript 实现并导出类型（`dist/index.d.ts`），对插件作者与 TypeScript 项目更友好。
 - **模块系统**: `package.json` 使用 `"type": "module"`（ESM），并通过 `exports` 提供子路径导出，默认发布为 ESM。上游 `markdown-it` 曾同时提供 CJS/UMD，可能存在导入方式差异（CommonJS 项目需额外处理）。
 - **模块化与子路径导出**: 支持精细导入（例如 `markdown-it-ts/render/renderer`），有利于 tree-shaking 与按需引入，但会改变直接读取内部文件路径的方案。
-- **分离 parse / render**: 明确区分 parse-only API（`parse`, `parseInline` 等）与 renderer；并提供 `withRenderer` 帮助函数用于按需附加 renderer。
+- **分离 parse / render**: 主入口实例已经提供 `render`、`renderAsync`、`renderInline` 与 `renderer`；`withRenderer` 子路径保留为 custom/core-shaped instance 的辅助函数。
 - **流与增量解析**: 新增 `stream`、`chunkedParse`、`StreamBuffer` 等运行时选项及 API（例如 `renderAsync`、`stream.parse` 等），为编辑器等场景优化了 append-heavy 工作流。这些是上游没有的扩展功能，可能影响语义或性能边界。
 
 **使用对比（示例）
@@ -84,14 +84,14 @@ RUN_ORIGINAL=1 pnpm test   # 可选：运行上游兼容测试（若已配置 up
   - **Purpose**: 简要说明 `markdown-it-ts` 与上游 `markdown-it` 在使用、API 与生态兼容性方面的异同，指出可能的 breaking changes 并给出迁移建议与验证清单。
 
   ## 中文概要
-  - **兼容性目标**: `markdown-it-ts` 声称“API compatibility with original markdown-it”，并实现了大部分核心规则与 renderer。实际实现为 TypeScript 重写，提供更好的类型、安全性与按需子路径导出，从而支持 tree-shaking 与精细化导入。
+  - **兼容性目标**: `markdown-it-ts` 以 markdown-it API/plugin 兼容为目标，并通过默认 CI 中的 CommonMark fixture 与插件矩阵持续验证。实际实现为 TypeScript 重写，提供更好的类型、安全性与按需子路径导出，从而支持 tree-shaking 与精细化导入。
   - **结论（简要）**: 大多数插件与使用方式在语义上兼容；但以下几类情况可能需要改动或额外验证：CJS/ESM 导入方式、运行时引擎与包入口差异、流（stream）/chunk 特性的新增配置项，以及依赖内部分支或内部 API 的插件。
 
   ### 主要差异（高层）
   - **语言与类型**: `markdown-it-ts` 完全用 TypeScript 实现并导出类型（`dist/index.d.ts`），对插件作者与 TypeScript 项目更友好。
   - **模块系统**: `package.json` 使用 `"type": "module"`（ESM），并通过 `exports` 提供子路径导出，默认发布为 ESM。上游 `markdown-it` 曾同时提供 CJS/UMD，可能存在导入方式差异（CommonJS 项目需额外处理）。
   - **模块化与子路径导出**: 支持精细导入（例如 `markdown-it-ts/render/renderer`），有利于 tree-shaking 与按需引入，但会改变直接读取内部文件路径的方案。
-  - **分离 parse / render**: 明确区分 parse-only API（`parse`, `parseInline` 等）与 renderer；并提供 `withRenderer` 帮助函数用于按需附加 renderer。
+  - **分离 parse / render**: 主入口实例已经提供 `render`、`renderAsync`、`renderInline` 与 `renderer`；`withRenderer` 子路径保留为 custom/core-shaped instance 的辅助函数。
   - **流与增量解析**: 新增 `stream`、`chunkedParse`、`StreamBuffer` 等运行时选项及 API（例如 `renderAsync`、`stream.parse` 等），为编辑器等场景优化了 append-heavy 工作流。这些是上游没有的扩展功能，可能影响语义或性能边界。
 
   ### 使用对比（示例）

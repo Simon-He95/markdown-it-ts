@@ -3,7 +3,7 @@ import type { MarkdownIt } from '../index'
 import type { GlobalMarkdownStateReason } from '../parse/global_state'
 import { countLines } from '../common/utils'
 import { detectGlobalMarkdownState, finalizeKnownGlobalMarkdownState, getKnownGlobalMarkdownState, markKnownGlobalMarkdownState, resetKnownGlobalMarkdownState, runWithKnownGlobalMarkdownState } from '../parse/global_state'
-import { splitIntoChunkRanges } from './chunked'
+import { hasUnsafeChunkBoundary, splitIntoChunkRanges } from './chunked'
 
 export interface UnboundedBufferOptions {
   mode?: 'full' | 'stream'
@@ -265,6 +265,11 @@ export class UnboundedBuffer {
       return null
     }
 
+    if (hasUnsafeChunkBoundary(this.pending, ranges)) {
+      this.updateEnvDiagnostics(env, window, pendingLines)
+      return null
+    }
+
     const consumed = this.commitRanges(ranges, env)
     this.pending = this.pending.slice(consumed)
     this.updateEnvDiagnostics(env, window, estimateLines(this.pending))
@@ -316,7 +321,11 @@ export class UnboundedBuffer {
     }, true)
 
     if (ranges.length) {
-      this.commitRanges(ranges, env)
+      const rangesToCommit = hasUnsafeChunkBoundary(this.pending, ranges)
+        ? [{ start: 0, end: this.pending.length, lineCount: estimateLines(this.pending) }]
+        : ranges
+
+      this.commitRanges(rangesToCommit, env)
       this.pending = ''
     }
 

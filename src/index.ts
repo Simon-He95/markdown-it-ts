@@ -613,8 +613,7 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
   }
 
   // Apply preset components after md is constructed (so rulers are ready)
-  // Only for 'zero' preset for now (others don't specify components yet)
-  if (presetToUse === 'zero' && preset?.components) {
+  if (preset?.components) {
     const c = preset.components
     if (c.core?.rules)
       md.core.ruler.enableOnly(c.core.rules)

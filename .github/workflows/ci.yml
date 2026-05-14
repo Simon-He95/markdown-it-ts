@@ -32,6 +32,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Production dependency audit
+        if: matrix.node == 20
+        run: pnpm run audit:prod
+
       - name: Lint
         if: matrix.node == 20
         run: pnpm run lint

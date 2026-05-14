@@ -22,7 +22,7 @@ export function heading(state: StateBlock, startLine: number, endLine: number, s
   const tShift = state.tShift
   const eMarks = state.eMarks
   let pos = bMarks[startLine] + tShift[startLine]
-  const max = eMarks[startLine]
+  let max = eMarks[startLine]
 
   // if it's indented more than 3 spaces, it should be a code block
   if (state.sCount[startLine] - state.blkIndent >= 4)
@@ -47,42 +47,10 @@ export function heading(state: StateBlock, startLine: number, endLine: number, s
   if (silent)
     return true
 
-  let contentStart = pos
-  while (contentStart < max) {
-    ch = src.charCodeAt(contentStart)
-    if (ch !== 0x09 && ch !== 0x20)
-      break
-    contentStart++
-  }
-
-  let contentEnd = max
-  if (contentEnd > contentStart) {
-    ch = src.charCodeAt(contentEnd - 1)
-    if (ch === 0x09 || ch === 0x20 || ch === 0x23 /* # */) {
-      // Let's cut tails like '    ###  ' from the end of string
-      while (contentEnd > contentStart) {
-        ch = src.charCodeAt(contentEnd - 1)
-        if (ch !== 0x09 && ch !== 0x20)
-          break
-        contentEnd--
-      }
-
-      let tmp = contentEnd
-      while (tmp > contentStart && src.charCodeAt(tmp - 1) === 0x23 /* # */) {
-        tmp--
-      }
-      if (tmp > contentStart && isSpace(src.charCodeAt(tmp - 1))) {
-        contentEnd = tmp
-      }
-
-      while (contentEnd > contentStart) {
-        ch = src.charCodeAt(contentEnd - 1)
-        if (ch !== 0x09 && ch !== 0x20)
-          break
-        contentEnd--
-      }
-    }
-  }
+  max = state.skipSpacesBack(max, pos)
+  const tmp = state.skipCharsBack(max, 0x23 /* # */, pos)
+  if (tmp > pos && isSpace(src.charCodeAt(tmp - 1)))
+    max = tmp
 
   state.line = startLine + 1
 
@@ -91,7 +59,7 @@ export function heading(state: StateBlock, startLine: number, endLine: number, s
   token_o.map = [startLine, state.line]
 
   const token_i = state.push('inline', '', 0)
-  token_i.content = src.slice(contentStart, contentEnd)
+  token_i.content = src.slice(pos, max).trim()
   token_i.map = [startLine, state.line]
   token_i.children = []
 
