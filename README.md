@@ -44,6 +44,15 @@ A TypeScript migration of [markdown-it](https://github.com/markdown-it/markdown-
 
 The root entry no longer exposes experimental helpers as top-level named exports. Some advanced instance methods and options remain available for existing large-input integrations and are marked experimental in the type declarations.
 
+Common 0.x import migrations:
+
+| 0.x import | 1.0 import |
+| --- | --- |
+| `import { StreamBuffer } from 'markdown-it-ts'` | `import { StreamBuffer } from 'markdown-it-ts/experimental'` or `markdown-it-ts/stream/buffer` |
+| `import { chunkedParse } from 'markdown-it-ts'` | `import { chunkedParse } from 'markdown-it-ts/experimental'` or `markdown-it-ts/stream/chunked` |
+| `import { recommendFullChunkStrategy } from 'markdown-it-ts'` | `import { recommendFullChunkStrategy } from 'markdown-it-ts/support/chunk_recommend'` |
+| `import { UnboundedBuffer } from 'markdown-it-ts'` | `import { UnboundedBuffer } from 'markdown-it-ts/experimental'` |
+
 ## Migration Status: CI-backed compatibility baseline
 
 The core TypeScript port is complete. Compatibility is maintained against the markdown-it public API and common plugin patterns with the following goals:
@@ -345,7 +354,7 @@ import { DebouncedStreamParser, ThrottledStreamParser } from 'markdown-it-ts/str
 Plugins are regular functions that receive the `markdown-it-ts` instance. For full type-safety use the exported `MarkdownItPlugin` type:
 
 ```typescript
-import markdownIt, { MarkdownItPlugin } from 'markdown-it-ts'
+import markdownIt, { type MarkdownItPlugin } from 'markdown-it-ts'
 
 const plugin: MarkdownItPlugin = (md) => {
   md.core.ruler.after('block', 'my_rule', (state) => {

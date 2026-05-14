@@ -44,6 +44,15 @@
 
 根入口不再以顶层 named export 暴露实验性 helper。部分高级实例方法和选项仍保留给既有的大输入集成使用，并会在类型声明中标记为 experimental。
 
+常见 0.x import 迁移：
+
+| 0.x import | 1.0 import |
+| --- | --- |
+| `import { StreamBuffer } from 'markdown-it-ts'` | `import { StreamBuffer } from 'markdown-it-ts/experimental'` 或 `markdown-it-ts/stream/buffer` |
+| `import { chunkedParse } from 'markdown-it-ts'` | `import { chunkedParse } from 'markdown-it-ts/experimental'` 或 `markdown-it-ts/stream/chunked` |
+| `import { recommendFullChunkStrategy } from 'markdown-it-ts'` | `import { recommendFullChunkStrategy } from 'markdown-it-ts/support/chunk_recommend'` |
+| `import { UnboundedBuffer } from 'markdown-it-ts'` | `import { UnboundedBuffer } from 'markdown-it-ts/experimental'` |
+
 ## 安装
 
 ```bash

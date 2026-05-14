@@ -48,45 +48,59 @@ export interface MarkdownItOptions {
   quotes?: QuotesOption
   highlight?: ((str: string, lang?: string, attrs?: string) => string | Promise<string>) | null
   maxNesting?: number
-  /**
-   * @experimental Large-input and append-heavy parsing options are not part of
-   * the markdown-it stable compatibility surface.
-   */
+  /** @experimental Not part of the markdown-it stable compatibility surface. */
   stream?: boolean
-  // Stream optimization knobs
-  streamOptimizationMinSize?: number // characters threshold to start stream append optimizations
-  // Context-parse strategy options (controls when to attempt parsing with context)
+  /** @experimental Not part of the markdown-it stable compatibility surface. */
+  streamOptimizationMinSize?: number
+  /** @experimental Not part of the markdown-it stable compatibility surface. */
   streamContextParseStrategy?: 'chars' | 'lines' | 'constructs'
+  /** @experimental Not part of the markdown-it stable compatibility surface. */
   streamContextParseMinChars?: number
+  /** @experimental Not part of the markdown-it stable compatibility surface. */
   streamContextParseMinLines?: number
-  // Chunked fallback when stream falls back to full parse for very large docs
+  /** @experimental Not part of the markdown-it stable compatibility surface. */
   streamChunkedFallback?: boolean
+  /** @experimental Not part of the markdown-it stable compatibility surface. */
   streamChunkSizeChars?: number
+  /** @experimental Not part of the markdown-it stable compatibility surface. */
   streamChunkSizeLines?: number
+  /** @experimental Not part of the markdown-it stable compatibility surface. */
   streamChunkFenceAware?: boolean
-  // Adaptive chunk sizing for stream chunked fallback (if true, sizes chosen by doc size)
+  /** @experimental Not part of the markdown-it stable compatibility surface. */
   streamChunkAdaptive?: boolean
+  /** @experimental Not part of the markdown-it stable compatibility surface. */
   streamChunkTargetChunks?: number
+  /** @experimental Not part of the markdown-it stable compatibility surface. */
   streamChunkMaxChunks?: number
-  // Skip caching for extremely large one-shot payloads (chars or lines)
+  /** @experimental Not part of the markdown-it stable compatibility surface. */
   streamSkipCacheAboveChars?: number
+  /** @experimental Not part of the markdown-it stable compatibility surface. */
   streamSkipCacheAboveLines?: number
-  // Full (non-stream) parse: optional chunked mode
+  /** @experimental Not part of the markdown-it stable compatibility surface. */
   fullChunkedFallback?: boolean
+  /** @experimental Not part of the markdown-it stable compatibility surface. */
   fullChunkThresholdChars?: number
+  /** @experimental Not part of the markdown-it stable compatibility surface. */
   fullChunkThresholdLines?: number
+  /** @experimental Not part of the markdown-it stable compatibility surface. */
   fullChunkSizeChars?: number
+  /** @experimental Not part of the markdown-it stable compatibility surface. */
   fullChunkSizeLines?: number
+  /** @experimental Not part of the markdown-it stable compatibility surface. */
   fullChunkFenceAware?: boolean
+  /** @experimental Not part of the markdown-it stable compatibility surface. */
   fullChunkMaxChunks?: number
-  // Adaptive chunk sizing for full chunked fallback (if true, sizes chosen by doc size)
+  /** @experimental Not part of the markdown-it stable compatibility surface. */
   fullChunkAdaptive?: boolean
+  /** @experimental Not part of the markdown-it stable compatibility surface. */
   fullChunkTargetChunks?: number
-  // Auto-tune best-practice chunk strategy by doc size when user did not provide explicit sizes
+  /** @experimental Not part of the markdown-it stable compatibility surface. */
   autoTuneChunks?: boolean
-  // For large plain-string inputs, transparently switch to the internal unbounded full parser
+  /** @experimental Not part of the markdown-it stable compatibility surface. */
   autoUnbounded?: boolean
+  /** @experimental Not part of the markdown-it stable compatibility surface. */
   autoUnboundedThresholdChars?: number
+  /** @experimental Not part of the markdown-it stable compatibility surface. */
   autoUnboundedThresholdLines?: number
 }
 
