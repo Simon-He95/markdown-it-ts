@@ -5,7 +5,7 @@
  *
  * Create new token and fill passed properties.
  */
-export class Token<Meta = unknown> {
+export class Token<Meta = any> {
   /**
    * Token#type -> String
    *

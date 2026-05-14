@@ -5,6 +5,7 @@ import {
   runWithKnownGlobalMarkdownState,
 } from './global_state'
 import { ParserCore as ParserCoreClass } from './parser_core'
+import { beginParseDiagnostics } from './strategy_diagnostics'
 
 export { ParserBlock } from './parser_block'
 export { ParserCore } from './parser_core'
@@ -24,6 +25,7 @@ function getSharedCore(): ParserCoreClass {
 }
 
 export function parse(src: string, env: Record<string, unknown> = {}) {
+  beginParseDiagnostics(env)
   const core = getSharedCore()
   const reason = detectGlobalMarkdownState(src)
   return runWithKnownGlobalMarkdownState(env, reason, () => {
@@ -36,6 +38,7 @@ export function parse(src: string, env: Record<string, unknown> = {}) {
  * (scaffold) — it may be adjusted to set inline mode in a future step.
  */
 export function parseInline(src: string, env: Record<string, unknown> = {}) {
+  beginParseDiagnostics(env)
   const core = getSharedCore()
   if (getKnownGlobalMarkdownState(env))
     resetKnownGlobalMarkdownState(env)

@@ -10,7 +10,7 @@ import * as helpers from './helpers'
 import { detectGlobalMarkdownState, getKnownGlobalMarkdownState, resetKnownGlobalMarkdownState, runWithKnownGlobalMarkdownState } from './parse/global_state'
 import { normalizeLink, normalizeLinkText, validateLink } from './parse/link_utils'
 import { ParserCore } from './parse/parser_core'
-import { getParseDiagnostics, setStrategyDiagnostics } from './parse/strategy_diagnostics'
+import { beginParseDiagnostics, getParseDiagnostics, setStrategyDiagnostics } from './parse/strategy_diagnostics'
 import commonmarkPreset from './presets/commonmark'
 import defaultPreset from './presets/default'
 import zeroPreset from './presets/zero'
@@ -469,6 +469,9 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
     __explicitStreamChunkConfig: explicitStreamChunkConfig,
     __explicitFullChunkFallbackSetting: explicitFullChunkFallbackSetting,
     __explicitStreamChunkFallbackSetting: explicitStreamChunkFallbackSetting,
+    __canUseImplicitLargeInputStrategy() {
+      return canUseImplicitLargeInputStrategy(this)
+    },
     set(newOpts: MarkdownItOptions) {
       const resolvedNewOpts = applyExperimentalOptions(newOpts)
       this.options = { ...this.options, ...resolvedNewOpts }
@@ -615,6 +618,8 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       if (typeof src !== 'string')
         throw new TypeError('Input data should be a String')
 
+      beginParseDiagnostics(env)
+
       let countedLines: number | undefined
 
       // Fast path: stream disabled and chunked fallback disabled -> direct parse,
@@ -623,8 +628,9 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
         if (canUseImplicitLargeInputStrategy(this)) {
           const autoUnboundedDecision = getAutoUnboundedDecision(this, src.length)
           if (autoUnboundedDecision === 'yes') {
+            const tokens = parseStringUnbounded(this, src, env)
             setStrategyDiagnostics(env, { area: 'parse', path: 'auto-unbounded', unbounded: true, reason: 'char-threshold' })
-            return parseStringUnbounded(this, src, env)
+            return tokens
           }
           if (
             autoUnboundedDecision === 'need-lines'
@@ -694,8 +700,9 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
         }
 
         if (countedLines !== undefined && canUseImplicitLargeInputStrategy(this) && shouldAutoUseUnbounded(this, chars, lines)) {
+          const tokens = parseStringUnbounded(this, src, env)
           setStrategyDiagnostics(env, { area: 'parse', path: 'auto-unbounded', unbounded: true, reason: 'line-threshold' })
-          return parseStringUnbounded(this, src, env)
+          return tokens
         }
       }
       const currentGlobalStateReason = detectGlobalMarkdownState(src)
@@ -705,20 +712,25 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       })
     },
     parseIterable(this: MarkdownIt, chunks: Iterable<string>, env: Record<string, unknown> = {}) {
+      beginParseDiagnostics(env)
       return parseIterableSource(this, chunks, env)
     },
     parseAsyncIterable(this: MarkdownIt, chunks: AsyncIterable<string>, env: Record<string, unknown> = {}) {
+      beginParseDiagnostics(env)
       return parseAsyncIterableSource(this, chunks, env)
     },
     parseIterableToSink(this: MarkdownIt, chunks: Iterable<string>, onChunkTokens: (tokens: TokenType[], info: UnboundedChunkInfo) => void, env: Record<string, unknown> = {}) {
+      beginParseDiagnostics(env)
       return parseIterableToSinkSource(this, chunks, onChunkTokens, env)
     },
     parseAsyncIterableToSink(this: MarkdownIt, chunks: AsyncIterable<string>, onChunkTokens: (tokens: TokenType[], info: UnboundedChunkInfo) => void, env: Record<string, unknown> = {}) {
+      beginParseDiagnostics(env)
       return parseAsyncIterableToSinkSource(this, chunks, onChunkTokens, env)
     },
     parseInline(src: string, env: Record<string, unknown> = {}) {
       if (typeof src !== 'string')
         throw new TypeError('Input data should be a String')
+      beginParseDiagnostics(env)
       if (getKnownGlobalMarkdownState(env))
         resetKnownGlobalMarkdownState(env)
       const state = core.createState(src, env, this)

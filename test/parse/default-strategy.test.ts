@@ -52,6 +52,19 @@ describe('default strategy selection', () => {
     expect(Object.keys(env).filter(key => key.startsWith('__mdts'))).toEqual([])
   })
 
+  it('clears stale chunk diagnostics when reusing env for a later plain parse', () => {
+    const md = MarkdownIt()
+    const env: Record<string, unknown> = {}
+
+    md.parse(buildDoc(600_000), env)
+    expect(getParseDiagnostics(env)?.chunk).toBeDefined()
+
+    md.parse('small', env)
+    expect(getParseDiagnostics(env)?.strategy?.path).toBe('plain')
+    expect(getParseDiagnostics(env)?.chunk).toBeUndefined()
+    expect(getParseDiagnostics(env)?.unbounded).toBeUndefined()
+  })
+
   it('accepts experimental options through a namespaced option bag', () => {
     const md = MarkdownIt({
       experimental: {
@@ -142,6 +155,33 @@ describe('default strategy selection', () => {
     expect(md.renderer.render(tokens, md.options, env)).toBe(baseline.render(doc))
     expect(getParseDiagnostics(env)?.strategy?.path).toBe('stream-chunked')
     expect(getParseDiagnostics(env)?.chunk?.count).toBeGreaterThan(0)
+  })
+
+  it('keeps stream implicit initial chunking disabled after plugin use', () => {
+    const md = MarkdownIt({ stream: true }).use((instance) => {
+      instance.core.ruler.after('inline', 'touch_env', (state) => {
+        state.env.touched = true
+      })
+    })
+    const env: Record<string, unknown> = {}
+
+    md.stream.parse(buildDoc(300_000), env)
+
+    expect(env.touched).toBe(true)
+    expect(getParseDiagnostics(env)?.strategy?.path).toBe('stream-full')
+    expect(getParseDiagnostics(env)?.chunk).toBeUndefined()
+  })
+
+  it('still allows stream chunking after plugin use when explicitly enabled', () => {
+    const md = MarkdownIt({
+      stream: true,
+      streamChunkedFallback: true,
+    }).use(() => {})
+    const env: Record<string, unknown> = {}
+
+    md.stream.parse(buildDoc(300_000), env)
+
+    expect(getParseDiagnostics(env)?.strategy?.path).toBe('stream-chunked')
   })
 
   it('uses unbounded-backed append for large pure append deltas', () => {

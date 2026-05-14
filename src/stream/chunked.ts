@@ -1,7 +1,7 @@
 import type { Token } from '../common/token'
 import type { MarkdownIt } from '../index'
 import { detectGlobalMarkdownState, runWithKnownGlobalMarkdownState } from '../parse/global_state'
-import { setChunkDiagnostics } from '../parse/strategy_diagnostics'
+import { beginParseDiagnostics, setChunkDiagnostics } from '../parse/strategy_diagnostics'
 
 export interface ChunkedOptions {
   maxChunkChars?: number // hard limit per chunk by characters
@@ -36,6 +36,8 @@ const DEFAULTS: Required<Omit<ChunkedOptions, 'maxChunks'>> & { maxChunks?: numb
  * disabling those fallbacks can produce output that differs from full parsing.
  */
 export function chunkedParse(md: MarkdownIt, src: string, env: Record<string, unknown> = {}, opts?: ChunkedOptions): Token[] {
+  beginParseDiagnostics(env)
+
   const options = { ...DEFAULTS, ...(opts || {}) }
   const currentGlobalStateReason = detectGlobalMarkdownState(src)
 

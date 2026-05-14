@@ -3,7 +3,7 @@ import type { MarkdownIt } from '../index'
 import type { GlobalMarkdownStateReason } from '../parse/global_state'
 import { countLines } from '../common/utils'
 import { detectGlobalMarkdownState, finalizeKnownGlobalMarkdownState, getKnownGlobalMarkdownState, markKnownGlobalMarkdownState, resetKnownGlobalMarkdownState, runWithKnownGlobalMarkdownState } from '../parse/global_state'
-import { getParseDiagnostics, setUnboundedDiagnostics } from '../parse/strategy_diagnostics'
+import { beginParseDiagnostics, getParseDiagnostics, setUnboundedDiagnostics } from '../parse/strategy_diagnostics'
 import { hasUnsafeChunkBoundary, splitIntoChunkRanges } from './chunked'
 
 export interface UnboundedBufferOptions {
@@ -482,6 +482,8 @@ export function parseIterable(
   env: Record<string, unknown> = {},
   opts: UnboundedBufferOptions = {},
 ): Token[] {
+  beginParseDiagnostics(env)
+
   const buffer = new UnboundedBuffer(md, { mode: 'full', ...opts })
   for (const chunk of chunks) {
     buffer.feed(chunk)
@@ -502,6 +504,8 @@ export async function parseAsyncIterable(
   env: Record<string, unknown> = {},
   opts: UnboundedBufferOptions = {},
 ): Promise<Token[]> {
+  beginParseDiagnostics(env)
+
   const buffer = new UnboundedBuffer(md, { mode: 'full', ...opts })
   for await (const chunk of chunks) {
     buffer.feed(chunk)
@@ -523,6 +527,8 @@ export function parseIterableToSink(
   env: Record<string, unknown> = {},
   opts: Omit<UnboundedBufferOptions, 'retainTokens' | 'onChunkTokens'> = {},
 ): UnboundedBufferStats {
+  beginParseDiagnostics(env)
+
   const buffer = new UnboundedBuffer(md, {
     mode: 'full',
     ...opts,
@@ -550,6 +556,8 @@ export async function parseAsyncIterableToSink(
   env: Record<string, unknown> = {},
   opts: Omit<UnboundedBufferOptions, 'retainTokens' | 'onChunkTokens'> = {},
 ): Promise<UnboundedBufferStats> {
+  beginParseDiagnostics(env)
+
   const buffer = new UnboundedBuffer(md, {
     mode: 'full',
     ...opts,
@@ -615,6 +623,8 @@ export function parseStringUnbounded(
   env: Record<string, unknown> = {},
   opts: ParseStringUnboundedOptions = {},
 ): Token[] {
+  beginParseDiagnostics(env)
+
   const currentGlobalStateReason = detectGlobalMarkdownState(src)
   const previousGlobalStateReason = getKnownGlobalMarkdownState(env)
 

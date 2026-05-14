@@ -103,6 +103,13 @@ token.attrJoin('class', 'one')
 token.meta = { source: 'type-smoke' }
 token.children = inlineTokens
 
+function readDefaultMeta(defaultToken: Token) {
+  if (defaultToken.meta?.source) {
+    const source: string = defaultToken.meta.source
+    void source
+  }
+}
+
 const typedMetaToken = new Token<{ source: string }>('text', '', 0)
 typedMetaToken.meta = { source: 'type-smoke' }
 if (typedMetaToken.meta) {
@@ -128,6 +135,7 @@ void asyncHtml
 void iterableHtml
 void asyncIterableHtml
 void token
+void readDefaultMeta
 void mdWithNamespacedExperimentalOptions
 void typedMetaToken
 void streamBuffer

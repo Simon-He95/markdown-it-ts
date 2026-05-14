@@ -119,6 +119,12 @@ const html: string = patched.render('# typed', env)
 const tokens: Token[] = patched.parse('# typed', env)
 const renderer = new Renderer()
 const token = new Token('text', '', 0)
+function readDefaultMeta(defaultToken: Token) {
+  if (defaultToken.meta?.source) {
+    const source: string = defaultToken.meta.source
+    void source
+  }
+}
 const typedMetaToken = new Token<{ source: string }>('text', '', 0)
 typedMetaToken.meta = { source: 'package-type-smoke' }
 const core = new ParserCore()
@@ -141,6 +147,7 @@ void html
 void tokens
 void renderer
 void token
+void readDefaultMeta
 void typedMetaToken
 void core
 void coreToken

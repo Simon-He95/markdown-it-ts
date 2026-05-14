@@ -81,6 +81,10 @@ export function clearParseDiagnostics(env: Record<string, unknown> | undefined):
   delete (env as any)[MDTS_DIAGNOSTICS]
 }
 
+export function beginParseDiagnostics(env: Record<string, unknown> | undefined): void {
+  clearParseDiagnostics(env)
+}
+
 export function setStrategyDiagnostics(
   env: Record<string, unknown> | undefined,
   info: StrategyDiagnostics,
