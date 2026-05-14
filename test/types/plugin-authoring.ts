@@ -7,6 +7,7 @@ import MarkdownIt, {
 } from 'markdown-it-ts'
 import { ParserCore } from 'markdown-it-ts/core'
 import { chunkedParse, StreamBuffer } from 'markdown-it-ts/experimental'
+import type { StreamStats } from 'markdown-it-ts/experimental'
 import type { RendererRule } from 'markdown-it-ts/render/renderer'
 
 // @ts-expect-error Experimental helpers must stay out of the stable root entry.
@@ -73,6 +74,7 @@ token.children = inlineTokens
 
 const streamBuffer = new StreamBuffer(typedMd)
 streamBuffer.feed('# Title\n\n')
+const streamStats: StreamStats = typedMd.stream.stats()
 
 const chunkedTokens: Token[] = chunkedParse(typedMd, '# Title\n\nBody', env)
 const coreTokens: Token[] = new ParserCore().parse('# Core').tokens
@@ -87,5 +89,6 @@ void iterableHtml
 void asyncIterableHtml
 void token
 void streamBuffer
+void streamStats
 void chunkedTokens
 void coreTokens

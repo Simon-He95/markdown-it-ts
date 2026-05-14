@@ -40,6 +40,9 @@ import { ThrottledStreamParser } from 'markdown-it-ts'
 // @ts-expect-error ChunkedOptions must not be a root named export.
 import type { ChunkedOptions } from 'markdown-it-ts'
 
+// @ts-expect-error StreamStats must not be a root named export.
+import type { StreamStats } from 'markdown-it-ts'
+
 // @ts-expect-error EditableBufferStats must not be a root named export.
 import type { EditableBufferStats } from 'markdown-it-ts'
 

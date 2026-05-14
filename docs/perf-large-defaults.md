@@ -41,7 +41,7 @@ Default API note: for normal string inputs, keep using `md.parse(src)` / `md.ren
 
 - Fastest measured full parse: iterable-sink 18.57ms
 - Fastest measured incremental append: unbounded-auto 24.87ms
-- Default one-shot path: full-default 24.60ms (0.0% vs best default-eligible)
+- Default one-shot path: full-default 24.60ms (3.0% vs best default-eligible)
 - Default append path: stream-default 30.28ms (0.0% vs best default-eligible)
 - markdown-it append: 91.82ms
 - markdown-exit append: 94.42ms
@@ -75,7 +75,7 @@ Default API note: for normal string inputs, keep using `md.parse(src)` / `md.ren
 
 - Fastest measured full parse: iterable-sink 38.10ms
 - Fastest measured incremental append: unbounded-sink 40.65ms
-- Default one-shot path: full-default 52.39ms (0.0% vs best default-eligible)
+- Default one-shot path: full-default 52.39ms (13.0% vs best default-eligible)
 - Default append path: stream-default 64.05ms (0.0% vs best default-eligible)
 - markdown-it append: 171.34ms
 - markdown-exit append: 218.97ms
@@ -109,7 +109,7 @@ Default API note: for normal string inputs, keep using `md.parse(src)` / `md.ren
 
 - Fastest measured full parse: iterable-sink 190.04ms
 - Fastest measured incremental append: unbounded-sink 198.46ms
-- Default one-shot path: full-default 288.48ms (0.0% vs best default-eligible)
+- Default one-shot path: full-default 288.48ms (12.3% vs best default-eligible)
 - Default append path: stream-default 388.18ms (0.0% vs best default-eligible)
 - markdown-it append: 976.50ms
 - markdown-exit append: 1143.71ms
@@ -144,7 +144,7 @@ Default API note: for normal string inputs, keep using `md.parse(src)` / `md.ren
 - Fastest measured full parse: iterable-sink 785.01ms
 - Fastest measured incremental append: unbounded-sink 787.77ms
 - Default one-shot path: full-default 998.70ms (0.0% vs best default-eligible)
-- Default append path: stream-default 3920.46ms (0.0% vs best default-eligible)
+- Default append path: stream-default 3920.46ms (4.3% vs best default-eligible)
 - markdown-it append: 3969.76ms
 - markdown-exit append: 4807.05ms
 - remark append: skipped

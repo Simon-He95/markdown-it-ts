@@ -34,7 +34,6 @@ export { parse, parseInline } from './parse'
 export type { ParseSource, TextSource } from './parse/source'
 export { withRenderer } from './plugins/with-renderer'
 export type { RendererEnv, RendererOptions } from './render'
-export type { StreamStats } from './stream/parser'
 
 type QuotesOption = string | [string, string, string, string]
 

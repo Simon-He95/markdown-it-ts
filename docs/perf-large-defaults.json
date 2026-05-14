@@ -929,7 +929,7 @@
           "lastMode": "tail"
         }
       },
-      "defaultFullGapPct": 0,
+      "defaultFullGapPct": 0.029944103013845414,
       "defaultStreamGapPct": 0,
       "full": [
         {
@@ -1734,7 +1734,7 @@
           "lastMode": "tail"
         }
       },
-      "defaultFullGapPct": 0,
+      "defaultFullGapPct": 0.1304621675900023,
       "defaultStreamGapPct": 0,
       "full": [
         {
@@ -2510,7 +2510,7 @@
           "lastMode": "append"
         }
       },
-      "defaultFullGapPct": 0,
+      "defaultFullGapPct": 0.12321879471243302,
       "defaultStreamGapPct": 0,
       "full": [
         {
@@ -3343,7 +3343,7 @@
         }
       },
       "defaultFullGapPct": 0,
-      "defaultStreamGapPct": 0,
+      "defaultStreamGapPct": 0.04304664163549372,
       "full": [
         {
           "id": "full-default",
