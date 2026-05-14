@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import MarkdownIt, { StreamBuffer } from '../../src'
+import MarkdownIt from '../../src'
+import { StreamBuffer } from '../../src/experimental'
 
 function normalizeTokens(tokens: any[]): any[] {
   return tokens.map(token => ({

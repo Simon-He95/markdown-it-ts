@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import MarkdownIt, { PieceTable } from '../../src'
+import MarkdownIt from '../../src'
+import { PieceTable } from '../../src/experimental'
 
 describe('inline source views', () => {
   it('parses piece-table source views through ParserInline without flattening the full input', () => {

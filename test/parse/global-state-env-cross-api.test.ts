@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import markdownit, { chunkedParse } from '../../src/index'
+import markdownit from '../../src/index'
+import { chunkedParse } from '../../src/experimental'
 import { parse, parseInline } from '../../src/parse'
 import { parseStringUnbounded } from '../../src/stream/unbounded'
 

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import MarkdownIt, { PieceTable } from '../../src'
+import MarkdownIt from '../../src'
+import { PieceTable } from '../../src/experimental'
 
 describe('piece table', () => {
   it('supports append, insert, replace, delete, and line lookups without flattening by default', () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import MarkdownIt, { StreamBuffer } from '../../src'
+import MarkdownIt from '../../src'
+import { StreamBuffer } from '../../src/experimental'
 
 // This test demonstrates how feeding at safe boundaries enables append fast-path hits.
 // We reuse the same longDoc from the parser test.

@@ -1,5 +1,7 @@
 name: Upstream Tests (optional)
 on:
+  schedule:
+    - cron: '0 3 * * 1'
   workflow_dispatch:
     inputs:
       markdown-it-ref:

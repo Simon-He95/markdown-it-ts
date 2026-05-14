@@ -1,8 +1,12 @@
 import type { Token } from '../common/token'
 import type { MarkdownIt } from '../index'
 
-// A tiny helper that accumulates input and only calls stream.parse
-// at safe boundaries so the core stream fast-path can trigger.
+/**
+ * Accumulates input and calls stream.parse at safe block boundaries.
+ *
+ * @experimental This helper is intended for append-heavy editing flows and is
+ * not part of the markdown-it compatibility surface.
+ */
 export class StreamBuffer {
   private md: MarkdownIt
   private text = ''

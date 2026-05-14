@@ -1,6 +1,6 @@
 # markdown-it-ts
 
-一个 TypeScript-first、markdown-it 兼容的 Markdown 解析/渲染器，支持流式/增量解析与异步渲染。
+一个 TypeScript-first、兼容 markdown-it public API 的 Markdown 解析/渲染器，支持流式/增量解析与异步渲染。
 
 [English](./README.md) | 简体中文
 
@@ -31,6 +31,18 @@
 > ```
 
 一个在 [markdown-it](https://github.com/markdown-it/markdown-it) 基础上重构的 TypeScript 版本，采用更模块化的架构，支持 tree-shaking，并将 parse/render 职责解耦。
+
+## 兼容性边界
+
+`markdown-it-ts` 目标是兼容 markdown-it public API 中常见的 parser、renderer、plugin 用法。不支持 private `markdown-it/lib/...` 导入、依赖上游未文档化内部状态、直接 CommonJS `require('markdown-it-ts')`，也不支持 Node.js < 18。
+
+| 层级 | API 面 |
+| --- | --- |
+| 稳定目标 | `MarkdownIt()`、`parse`、`render`、`renderInline`、`renderAsync`、`renderer.rules`、`Token`、公开 ruler/plugin API |
+| 高级用法 | 已文档化的子路径导出，例如 `core`、renderer helper、common utilities |
+| 实验性 | `stream`、`chunkedParse`、`StreamBuffer`、`UnboundedBuffer`、`EditableBuffer`、`PieceTable`、iterable/sink parsing、通过 `markdown-it-ts/experimental` 或显式子路径使用的 chunk strategy recommender |
+
+`1.0.0` 的根入口会刻意保持精简。实验性大文本 API 仍可从 `markdown-it-ts/experimental` 或文档化子路径导入，但不属于稳定的 markdown-it 兼容面。
 
 ## 安装
 
@@ -63,7 +75,8 @@ const html = md.render(hugeMarkdown)
 只有当你的上游输入本来就是 chunk 流，而且你不想先 `join('')` 成一个超大字符串时，才需要显式使用下面这些高级入口：
 
 ```typescript
-import MarkdownIt, { UnboundedBuffer } from 'markdown-it-ts'
+import MarkdownIt from 'markdown-it-ts'
+import { UnboundedBuffer } from 'markdown-it-ts/experimental'
 
 const md = MarkdownIt()
 
@@ -137,13 +150,13 @@ const html = await md.renderAsync('# 你好，世界', {
 - **对比 markdown-exit**：两者都强调性能，但 markdown-it-ts 保留 markdown-it API/插件面、typed API 与 async render（`renderAsync`），并提供更丰富的调参组合（例如块级 fence 感知、混合模式 fallback）。在本仓库 5k~100k 字符 synthetic harness 中，markdown-it-ts 的 parse one-shot 延迟领先（见“Parse 排名”表）；流式路径对长文 append 的延迟也低于每次汇总重解析。
 - **对比 remark**：remark 生态非常适合 AST 转换，真实项目通常还会叠加 unified/rehype 阶段。这里的数字只比较本仓库 Markdown → HTML harness；markdown-it-ts 直接输出 HTML、保留 markdown-it renderer 语义，并兼容异步高亮、Token 后处理等常见需求。
 - **对比 micromark**：micromark 是面向 CommonMark 的参考实现，目标和 API 都不同。markdown-it-ts 以 markdown-it 的插件 API 与 renderer 语义兼容为目标；下方数字只代表本仓库 harness 覆盖的特定 parse/render 场景。
-- **工程体验**：代码与类型全部开源且随发布同步，可以配合 `docs/stream-optimization.md` 的推荐参数、`recommend*Strategy` API 与 `StreamBuffer`、`chunkedParse` 等工具函数，快速搭建自适应流式管线；CI 中的基准脚本 (`perf:generate`, `perf:update-readme`) 也能确保团队持续看到最新对比数据，减少性能回退的顾虑。
+- **工程体验**：代码与类型全部开源且随发布同步，可以配合 `docs/stream-optimization.md`、`markdown-it-ts/experimental` 以及 `recommend*Strategy`、`StreamBuffer`、`chunkedParse` 等显式子路径工具，快速搭建自适应流式管线；CI 中的基准脚本 (`perf:generate`, `perf:update-readme`) 也能确保团队持续看到最新对比数据，减少性能回退的顾虑。
 - **生态/兼容**：继承 markdown-it 的 ruler、Token、插件管线，迁移现有插件或自己写的 renderer 通常只需改 import；CommonMark fixture 和插件矩阵在 CI 中默认运行。
 - **生产准备**：内置 async render、基于 Token 的后处理钩子、流式缓冲区以及 chunked fallback 让它适用于 SSR、实时协作编辑器以及大 Markdown 文档的批量处理，配合 `docs/perf-report.md` / `docs/perf-history/*.json` 可以观察长期性能趋势。
 
 ## 性能说明（概览）
 
-- 目标：在本仓库 synthetic harness 的一次性解析（one-shot parse）下与上游 markdown-it 保持同级或更优的性能；在增量/编辑场景下提供可选的流式（stream）路径以降低重解析成本。
+- 目标：在本仓库 synthetic paragraph-heavy / append-heavy harness 下验证默认路径和流式路径的性能；真实项目请用自己的语料复现，不把这些数字理解成“所有 workload 都更快”。
 - 可复现：本仓库附带快速基准脚本与对比脚本，便于在本机环境复现与比较。
 
 本地复现基准：
@@ -365,7 +378,8 @@ pnpm run perf:update-readme
 `StreamBuffer` 会聚合字符输入，只在安全的块级边界调用解析，从而保证正确性并提升命中率：
 
 ```ts
-import markdownIt, { StreamBuffer } from 'markdown-it-ts'
+import markdownIt from 'markdown-it-ts'
+import { StreamBuffer } from 'markdown-it-ts/stream/buffer'
 
 const md = markdownIt({ stream: true })
 const buffer = new StreamBuffer(md)

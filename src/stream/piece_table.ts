@@ -50,6 +50,12 @@ export interface PieceTableStats {
   pieces: number
 }
 
+/**
+ * Piece-table source storage used by editable parsing.
+ *
+ * @experimental This supports the experimental editable-buffer APIs and is not
+ * part of the markdown-it compatibility surface.
+ */
 export class PieceTable {
   private original: string
   private add = ''
@@ -317,6 +323,12 @@ export class PieceTable {
   }
 }
 
+/**
+ * TextSource view over a PieceTable range.
+ *
+ * @experimental This supports the experimental editable-buffer APIs and is not
+ * part of the markdown-it compatibility surface.
+ */
 export class PieceTableSourceView implements TextSource {
   private readonly startOffset: number
   private readonly endOffset: number

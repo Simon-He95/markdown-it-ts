@@ -32,6 +32,18 @@ Quick links: [Docs index](./docs/README.md) · [Stream optimization](./docs/stre
 
 A TypeScript migration of [markdown-it](https://github.com/markdown-it/markdown-it) with modular architecture for tree-shaking and separate parse/render imports.
 
+## Compatibility Contract
+
+`markdown-it-ts` targets the markdown-it public API for common parser, renderer, and plugin usage. Private `markdown-it/lib/...` imports, undocumented upstream internal state assumptions, direct CommonJS `require('markdown-it-ts')`, and Node.js < 18 are unsupported.
+
+| Level | API surface |
+| --- | --- |
+| Stable target | `MarkdownIt()`, `parse`, `render`, `renderInline`, `renderAsync`, `renderer.rules`, `Token`, and public ruler/plugin APIs |
+| Advanced | Documented subpath exports such as `core`, renderer helpers, and common utilities |
+| Experimental | `stream`, `chunkedParse`, `StreamBuffer`, `UnboundedBuffer`, `EditableBuffer`, `PieceTable`, iterable/sink parsing, and chunk strategy recommenders via `markdown-it-ts/experimental` or explicit subpaths |
+
+The root entry is intentionally limited for `1.0.0`. Experimental large-input APIs are available from `markdown-it-ts/experimental` or documented subpaths, but are not part of the stable markdown-it compatibility surface.
+
 ## Migration Status: CI-backed compatibility baseline
 
 The core TypeScript port is complete. Compatibility is maintained against the markdown-it public API and common plugin patterns with the following goals:
@@ -122,7 +134,8 @@ Those default `parse` / `render` calls now auto-activate the internal large-inpu
 Use the explicit stream-oriented APIs only when your upstream input already arrives as chunks and you do not want to join it into one giant string first:
 
 ```typescript
-import MarkdownIt, { UnboundedBuffer } from 'markdown-it-ts'
+import MarkdownIt from 'markdown-it-ts'
+import { UnboundedBuffer } from 'markdown-it-ts/experimental'
 
 const md = MarkdownIt()
 
@@ -198,9 +211,9 @@ The main package entry already includes `render`, `renderAsync`, `renderInline`,
 - **Compared with markdown-exit**: both projects target speed, but markdown-it-ts keeps the markdown-it-style public API, offers typed APIs plus async rendering (`renderAsync`), and exposes tuning knobs for large-input and append-heavy workloads. Benchmark numbers below describe this repository's synthetic harness, not a promise that every workload is faster.
 - **Compared with remark**: remark’s strength is AST transforms, and many real workflows include additional unified/rehype stages. In this repository’s Markdown → HTML harness, markdown-it-ts produces HTML directly and keeps markdown-it renderer semantics while still supporting async highlighting or token post-processing.
 - **Compared with micromark**: micromark is a CommonMark-oriented reference implementation with different goals and APIs. markdown-it-ts targets markdown-it’s plugin API and renderer semantics; the numbers below compare only the specific parse/render scenarios measured by this repository’s harness.
-- **Developer experience**: Type definitions and tuning helpers ship in the package (`docs/stream-optimization.md`, `recommend*Strategy` APIs, `StreamBuffer`, `chunkedParse`, etc.), so teams can build adaptive streaming pipelines quickly. The repository’s benchmark scripts (`perf:generate`, `perf:update-readme`) keep comparison data up to date in CI, reducing the risk of unnoticed regressions.
+- **Developer experience**: Type definitions and tuning helpers ship in the package (`docs/stream-optimization.md`, `markdown-it-ts/experimental`, and documented subpaths for `recommend*Strategy`, `StreamBuffer`, `chunkedParse`, etc.), so teams can build adaptive streaming pipelines quickly. The repository’s benchmark scripts (`perf:generate`, `perf:update-readme`) keep comparison data up to date in CI, reducing the risk of unnoticed regressions.
 - **Migration compatibility**: markdown-it-ts preserves the ruler system, Token shape, renderer rules, and public plugin hooks used by common plugins. Plugins that depend on private markdown-it file paths, CommonJS-only loading assumptions, or undocumented internal state require validation.
-- **0.x readiness**: async render, Token-level post-processing, streaming buffers, and chunked fallbacks are covered by CI and package smoke tests, but the package is still versioned `0.x`; treat the public API as stabilizing until `1.0.0`.
+- **1.0 readiness**: the root API is limited to the stable markdown-it compatibility surface, while streaming buffers, chunked fallbacks, and editable-buffer helpers remain available through experimental or explicit subpath imports.
 
 ### Customization
 
@@ -397,7 +410,11 @@ Adaptive chunk sizing
 If you want to display or persist the suggested chunk settings without enabling auto-tune, you can query them directly:
 
 ```ts
-import markdownIt, { recommendFullChunkStrategy, recommendStreamChunkStrategy } from 'markdown-it-ts'
+import markdownIt from 'markdown-it-ts'
+import {
+  recommendFullChunkStrategy,
+  recommendStreamChunkStrategy,
+} from 'markdown-it-ts/support/chunk_recommend'
 
 const size = 50_000
 
@@ -484,7 +501,7 @@ pnpm run test:original:network   # also sets RUN_NETWORK=1
 
 ## Performance summary
 
-markdown-it-ts is optimized for fast parser throughput while preserving the markdown-it public API and common plugin model.
+markdown-it-ts is optimized for fast parser throughput while preserving the markdown-it public API and common plugin model. The numbers below describe this repository's synthetic paragraph-heavy and append-heavy harnesses; validate on your own corpus before making performance claims.
 
 In the latest local benchmark snapshot from this repository’s synthetic harness, one-shot parsing is roughly at parity with or faster than upstream markdown-it on the measured large-document sizes:
 

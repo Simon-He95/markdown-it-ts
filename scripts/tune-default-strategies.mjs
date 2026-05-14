@@ -3,7 +3,8 @@
 
 import { performance } from 'node:perf_hooks'
 import { writeFileSync } from 'node:fs'
-import MarkdownIt, { UnboundedBuffer } from '../dist/index.js'
+import MarkdownIt from '../dist/index.js'
+import { UnboundedBuffer } from '../dist/experimental.js'
 import MarkdownItOriginal from 'markdown-it'
 import { createMarkdownExit as createMarkdownExitFactory } from 'markdown-exit'
 import { parse as micromarkParse, preprocess as micromarkPreprocess, postprocess as micromarkPostprocess } from 'micromark'

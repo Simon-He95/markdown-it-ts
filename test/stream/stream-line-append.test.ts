@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import MarkdownIt, { StreamBuffer } from '../../src'
+import MarkdownIt from '../../src'
+import { StreamBuffer } from '../../src/experimental'
 
 describe('stream parser (line-by-line append)', () => {
   it('matches baseline when appending line-by-line', () => {
