@@ -122,6 +122,28 @@ describe('EditableBuffer correctness fallback', () => {
     expect(html).not.toContain('https://old.example')
   })
 
+  it('clears stale editable diagnostics when reusing env for non-fallback operations', () => {
+    const md = markdownit()
+    const buffer = new EditableBuffer(md, '[x][ref]\n\nplain\n')
+    const env: Record<string, unknown> = {}
+
+    buffer.parse()
+    buffer.append('\n[ref]: https://example.com\n', env)
+
+    expect(getParseDiagnostics(env)?.editable).toMatchObject({
+      fallback: true,
+      fallbackReason: 'reference-definition',
+    })
+
+    buffer.reset('alpha\n\nbeta\n')
+    buffer.parse(env)
+    expect(getParseDiagnostics(env)?.editable).toBeUndefined()
+
+    const start = buffer.toString().indexOf('beta')
+    buffer.replace(start, start + 'beta'.length, 'beta updated', env)
+    expect(getParseDiagnostics(env)?.editable).toBeUndefined()
+  })
+
   it('restores user-provided env.references after clearing mdts-owned global state', () => {
     const md = markdownit()
     const env: Record<string, any> = {

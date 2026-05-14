@@ -53,21 +53,26 @@ function getDiagnosticsStore(
   if (!env)
     return undefined
 
-  const existing = (env as any)[MDTS_DIAGNOSTICS]
-  if (existing && typeof existing === 'object')
-    return existing as ParseDiagnostics
+  try {
+    const existing = (env as any)[MDTS_DIAGNOSTICS]
+    if (existing && typeof existing === 'object')
+      return existing as ParseDiagnostics
 
-  if (!create)
+    if (!create)
+      return undefined
+
+    const diagnostics: ParseDiagnostics = {}
+    Object.defineProperty(env, MDTS_DIAGNOSTICS, {
+      value: diagnostics,
+      enumerable: false,
+      configurable: true,
+      writable: true,
+    })
+    return diagnostics
+  }
+  catch {
     return undefined
-
-  const diagnostics: ParseDiagnostics = {}
-  Object.defineProperty(env, MDTS_DIAGNOSTICS, {
-    value: diagnostics,
-    enumerable: false,
-    configurable: true,
-    writable: true,
-  })
-  return diagnostics
+  }
 }
 
 export function getParseDiagnostics(env: Record<string, unknown> | undefined): ParseDiagnostics | undefined {
@@ -78,7 +83,10 @@ export function clearParseDiagnostics(env: Record<string, unknown> | undefined):
   if (!env)
     return
 
-  delete (env as any)[MDTS_DIAGNOSTICS]
+  try {
+    delete (env as any)[MDTS_DIAGNOSTICS]
+  }
+  catch {}
 }
 
 export function beginParseDiagnostics(env: Record<string, unknown> | undefined): void {

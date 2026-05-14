@@ -2,7 +2,7 @@ import type { Token } from '../common/token'
 import type { MarkdownIt } from '../index'
 import type { GlobalMarkdownStateReason } from '../parse/global_state'
 import { detectGlobalMarkdownState, detectGlobalMarkdownStateFromChunks, getKnownGlobalMarkdownState, resetKnownGlobalMarkdownState, runWithKnownGlobalMarkdownState } from '../parse/global_state'
-import { setEditableDiagnostics } from '../parse/strategy_diagnostics'
+import { beginParseDiagnostics, setEditableDiagnostics } from '../parse/strategy_diagnostics'
 import { PieceTable } from './piece_table'
 
 interface SegmentAnchor {
@@ -147,6 +147,7 @@ export class EditableBuffer {
   }
 
   parse(env: Record<string, unknown> = {}): Token[] {
+    beginParseDiagnostics(env)
     return this.fullParse(env)
   }
 
@@ -163,6 +164,8 @@ export class EditableBuffer {
   }
 
   replace(start: number, end: number, text: string, env: Record<string, unknown> = {}): Token[] {
+    beginParseDiagnostics(env)
+
     const beforeLength = this.source.length
     const clampedStart = Math.max(0, Math.min(start, beforeLength))
     const clampedEnd = Math.max(clampedStart, Math.min(end, beforeLength))

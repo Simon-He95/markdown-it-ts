@@ -65,6 +65,12 @@ describe('default strategy selection', () => {
     expect(getParseDiagnostics(env)?.unbounded).toBeUndefined()
   })
 
+  it('does not throw when diagnostics cannot be written to env', () => {
+    const md = MarkdownIt()
+
+    expect(() => md.parse('hello', Object.freeze({}) as any)).not.toThrow()
+  })
+
   it('accepts experimental options through a namespaced option bag', () => {
     const md = MarkdownIt({
       experimental: {

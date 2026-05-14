@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import markdownit from '../../src/index'
-import { chunkedParse } from '../../src/experimental'
+import { chunkedParse, getParseDiagnostics } from '../../src/experimental'
 
 const blocks = [
   '# Heading',
@@ -83,7 +83,10 @@ describe('chunk equivalence fuzz', () => {
       maxChunkLines: 4,
     })
 
+    const diagnostics = getParseDiagnostics(env)
     expect(tokenShape(chunkedTokens)).toEqual(tokenShape(md.parse(src)))
+    expect(diagnostics?.chunk?.fallback).not.toBe(true)
+    expect(diagnostics?.chunk?.count).toBeGreaterThan(1)
   })
 
   for (const seed of [1, 7, 23, 42]) {
@@ -97,8 +100,11 @@ describe('chunk equivalence fuzz', () => {
         maxChunkLines: 4,
       })
 
+      const diagnostics = getParseDiagnostics(env)
       expect(md.renderer.render(chunkedTokens, md.options, env)).toBe(md.render(src))
       expect(md.renderIterable(splitAtPattern(src, seed))).toBe(md.render(src))
+      expect(diagnostics?.chunk?.fallback).not.toBe(true)
+      expect(diagnostics?.chunk?.count).toBeGreaterThan(1)
     })
   }
 })
