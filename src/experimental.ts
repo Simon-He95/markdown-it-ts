@@ -46,3 +46,16 @@ export {
   recommendFullChunkStrategy,
   recommendStreamChunkStrategy,
 } from './support/chunk_recommend'
+
+export { CachedStreamParser } from './stream/cached_parser'
+export type { CachedStreamStats } from './stream/cached_parser'
+
+export {
+  ChunkTable,
+  cloneTokens,
+  computeSourceHash,
+  detectHardBoundaries,
+  shiftTokenLines as shiftTokenLinesCached,
+  splitIntoSafeChunkRanges,
+} from './stream/chunk_cache'
+export type { CachedChunk, HardBoundary, SafeChunkRange } from './stream/chunk_cache'
