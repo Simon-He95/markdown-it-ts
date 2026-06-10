@@ -530,11 +530,11 @@ markdown-it-ts is optimized for fast parser throughput while preserving the mark
 In the latest local benchmark snapshot from this repository’s synthetic harness, one-shot parsing is roughly at parity with or faster than upstream markdown-it on the measured large-document sizes:
 
 <!-- perf-auto:one-examples:start -->
-- 5,000 chars: 0.1448ms vs 0.2630ms → ~1.8× faster, ~45% less time
-- 20,000 chars: 0.5903ms vs 0.6548ms → ~1.1× faster, ~10% less time
-- 100,000 chars: 3.7770ms vs 4.6536ms → ~1.2× faster, ~19% less time
-- 500,000 chars: 24.26ms vs 24.78ms → ~1× faster, ~2% less time
-- 1,000,000 chars: 47.06ms vs 59.67ms → ~1.3× faster, ~21% less time
+- 5,000 chars: 0.1815ms vs 0.1847ms → ~1× faster, ~2% less time
+- 20,000 chars: 0.7075ms vs 0.7303ms → ~1× faster, ~3% less time
+- 100,000 chars: 5.6879ms vs 10.47ms → ~1.8× faster, ~46% less time
+- 500,000 chars: 25.66ms vs 60.81ms → ~2.4× faster, ~58% less time
+- 1,000,000 chars: 65.28ms vs 93.65ms → ~1.4× faster, ~30% less time
 <!-- perf-auto:one-examples:end -->
 
 For append-heavy editor or streaming workloads, enable the stream parser or use `StreamBuffer` / `UnboundedBuffer`. These paths are designed to avoid reparsing stable historical text when the input shape is safe for incremental parsing.
