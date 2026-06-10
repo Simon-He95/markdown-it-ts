@@ -173,12 +173,17 @@ function makeScenarios() {
   function s3() { return MarkdownIt({ stream: true, streamChunkedFallback: true, streamChunkSizeChars: 10_000, streamChunkSizeLines: 200, streamChunkFenceAware: true }) }
   function s4() { return MarkdownIt({ stream: false, fullChunkedFallback: true, fullChunkThresholdChars: 20_000, fullChunkThresholdLines: 400, fullChunkSizeChars: 10_000, fullChunkSizeLines: 200, fullChunkFenceAware: true }) }
   function s5() { return MarkdownIt({ stream: false }) }
+  function s6() { return MarkdownIt({ stream: true, streamChunkCache: true }) }
   return [
     { id: 'S1', label: 'stream ON, cache OFF, chunk ON', make: s1, type: 'stream-no-cache-chunk' },
     { id: 'S2', label: 'stream ON, cache ON, chunk OFF', make: s2, type: 'stream-cache' },
     { id: 'S3', label: 'stream ON, cache ON, chunk ON', make: s3, type: 'stream-hybrid' },
     { id: 'S4', label: 'stream OFF, chunk ON', make: s4, type: 'full-chunk' },
     { id: 'S5', label: 'stream OFF, chunk OFF', make: s5, type: 'full-plain' },
+    // S6 (streamChunkCache) is excluded from the standard matrix because
+    // its per-chunk cache is designed for multi-edit/repeated-parse workloads
+    // not captured by the 1+5 append methodology. See scripts/perf-chunk-cache.mjs
+    // for a targeted benchmark.
     { id: 'M1', label: 'markdown-it (baseline)', make: () => MarkdownItOriginal(), type: 'md-original' },
     { id: 'E1', label: 'markdown-exit', make: () => createMarkdownExitFactory(), type: 'md-exit' },
     // Parse-only using micromark's preprocess + parse + postprocess pipeline (no HTML compile).

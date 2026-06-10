@@ -38,6 +38,9 @@ export interface StreamStats {
   fullParses: number
   resets: number
   chunkedParses?: number
+  chunkHits?: number
+  chunkMisses?: number
+  appendedChunks?: number
   lastMode: 'idle' | 'cache' | 'append' | 'tail' | 'full' | 'reset' | 'chunked'
 }
 

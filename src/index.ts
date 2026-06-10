@@ -17,6 +17,7 @@ import zeroPreset from './presets/zero'
 import Renderer from './render/renderer'
 import { chunkedParse } from './stream/chunked'
 import { StreamParser } from './stream/parser'
+import { CachedStreamParser } from './stream/cached_parser'
 import {
   getAutoUnboundedDecision,
   parseAsyncIterable as parseAsyncIterableSource,
@@ -65,6 +66,7 @@ export interface MarkdownItExperimentalOptions {
   autoUnbounded?: boolean
   autoUnboundedThresholdChars?: number
   autoUnboundedThresholdLines?: number
+  streamChunkCache?: boolean
 }
 
 export interface MarkdownItOptions {
@@ -133,6 +135,8 @@ export interface MarkdownItOptions {
   autoUnboundedThresholdChars?: number
   /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.autoUnboundedThresholdLines instead. */
   autoUnboundedThresholdLines?: number
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamChunkCache instead. */
+  streamChunkCache?: boolean
 }
 
 interface PresetComponentRules {
@@ -430,7 +434,13 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
   }
 
   let streamParser: StreamParser | null = null
+  let cachedStreamParser: CachedStreamParser | null = null
   const getStreamParser = () => {
+    if (opts.streamChunkCache) {
+      if (!cachedStreamParser)
+        cachedStreamParser = new CachedStreamParser(core)
+      return cachedStreamParser
+    }
     if (!streamParser)
       streamParser = new StreamParser(core)
     return streamParser
@@ -746,22 +756,27 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
     parse(src: string, env?: Record<string, unknown>) {
       if (!md.stream.enabled)
         return md.parse(src, env ?? {})
-      return getStreamParser().parse(src, env, md)
+      const sp = getStreamParser()
+      // CachedStreamParser.parse signature matches StreamParser.parse
+      return sp.parse(src, env, md)
     },
     reset() {
       getStreamParser().reset()
     },
     peek() {
-      return streamParser ? streamParser.peek() : []
+      const sp = streamParser || cachedStreamParser
+      return sp ? sp.peek() : []
     },
     stats() {
-      return streamParser
-        ? streamParser.getStats()
+      const sp = streamParser || cachedStreamParser
+      return sp
+        ? sp.getStats()
         : { total: 0, cacheHits: 0, appendHits: 0, unboundedAppendHits: 0, tailHits: 0, fullParses: 0, resets: 0, chunkedParses: 0, lastMode: 'idle' }
     },
     resetStats() {
-      if (streamParser)
-        streamParser.resetStats()
+      const sp = streamParser || cachedStreamParser
+      if (sp)
+        sp.resetStats()
     },
   }
 

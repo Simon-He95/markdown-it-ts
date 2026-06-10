@@ -24,23 +24,31 @@ import {
 
 export interface CachedStreamStats {
   total: number
-  cacheHits: number       // entire source matched
-  chunkHits: number       // individual chunk cache hits
-  chunkMisses: number     // chunks that needed re-parsing
-  fullParses: number      // full-document fallback
-  chunkedParses: number   // multi-chunk parse without cache hits
-  appendedChunks: number  // new chunks from append
-  lastMode: 'idle' | 'cache' | 'append' | 'chunked' | 'full'
+  cacheHits: number
+  appendHits: number        // aliased for compatibility
+  unboundedAppendHits?: number
+  tailHits: number           // aliased
+  fullParses: number
+  resets: number
+  chunkedParses: number
+  chunkHits: number          // specific to CachedStreamParser
+  chunkMisses: number        // specific to CachedStreamParser
+  appendedChunks: number     // specific to CachedStreamParser
+  lastMode: 'idle' | 'cache' | 'append' | 'tail' | 'full' | 'reset' | 'chunked'
 }
 
 function makeEmptyStats(): CachedStreamStats {
   return {
     total: 0,
     cacheHits: 0,
+    appendHits: 0,
+    unboundedAppendHits: 0,
+    tailHits: 0,
+    fullParses: 0,
+    resets: 0,
+    chunkedParses: 0,
     chunkHits: 0,
     chunkMisses: 0,
-    fullParses: 0,
-    chunkedParses: 0,
     appendedChunks: 0,
     lastMode: 'idle',
   }
@@ -146,6 +154,12 @@ export class CachedStreamParser {
     return { ...this.stats }
   }
 
+  resetStats(): void {
+    const { resets } = this.stats
+    this.stats = makeEmptyStats()
+    this.stats.total = resets // preserve reset count? No, resetStats resets everything.
+  }
+
   // ---- Private ----
 
   private handleAppend(
@@ -206,7 +220,7 @@ export class CachedStreamParser {
         startLine: cachedLineCount,
         lineCount: countLines(appended),
         sourceHash: computeSourceHash(src, this.lastSrc.length, src.length),
-        tokens: cloneTokens(appendedTokens),
+        tokens: appendedTokens,
       })
       this.stats.appendedChunks++
     }
@@ -254,19 +268,15 @@ export class CachedStreamParser {
     // Invalidate old chunks in the re-parsed region.
     this.table.invalidateRange(anchorSrcOffset, src.length)
 
-    // Cache new chunks for the re-parsed tail.
-    const tailBoundaries = detectHardBoundaries(tailSrc)
-    const tailRanges = splitIntoSafeChunkRanges(tailSrc, tailBoundaries, { minChars: 500 })
-    for (const range of tailRanges) {
-      const globalStart = anchorSrcOffset + range.start
-      const globalEnd = anchorSrcOffset + range.end
+    // Cache the new trailing segment as a single chunk.
+    if (tailTokens.length > 0) {
       this.table.store({
-        startOffset: globalStart,
-        endOffset: globalEnd,
-        startLine: anchorLine + range.startLine,
-        lineCount: range.lineCount,
-        sourceHash: computeSourceHash(src, globalStart, globalEnd),
-        tokens: cloneTokens(tailState.tokens),
+        startOffset: anchorSrcOffset,
+        endOffset: src.length,
+        startLine: anchorLine,
+        lineCount: countLines(tailSrc),
+        sourceHash: computeSourceHash(src, anchorSrcOffset, src.length),
+        tokens: tailTokens,
       })
     }
     this.stats.appendedChunks++
@@ -322,7 +332,7 @@ export class CachedStreamParser {
 
     // Find hard boundaries and split into safe ranges.
     const boundaries = detectHardBoundaries(src)
-    const ranges = splitIntoSafeChunkRanges(src, boundaries, { minChars: 500 })
+    const ranges = splitIntoSafeChunkRanges(src, boundaries, { minChars: 2000 })
 
     // If no boundaries were found (or document is one big chunk), do a full parse.
     if (ranges.length <= 1) {
@@ -368,14 +378,15 @@ export class CachedStreamParser {
         hasCacheMisses = true
         this.stats.chunkMisses++
 
-        // Store in cache (local line numbers)
+        // Store in cache (local line numbers). Tokens are stored by
+        // reference; cloning happens at retrieval time.
         this.table.store({
           startOffset: range.start,
           endOffset: range.end,
           startLine: range.startLine,
           lineCount: range.lineCount,
           sourceHash: computeSourceHash(src, range.start, range.end),
-          tokens: cloneTokens(state.tokens),
+          tokens: state.tokens,
         })
 
         // Limit table size: evict oldest chunks instead of clearing all.

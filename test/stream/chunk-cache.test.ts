@@ -227,10 +227,10 @@ describe('CachedStreamParser', () => {
     const md = markdownit()
     const parser = makeParser(md)
 
-    // Use a large enough document (>500 chars) with blank lines so chunking activates.
+    // Use a large enough document (>2000 chars for minChars) with blank lines so chunking activates.
     let src1 = ''
-    for (let i = 0; i < 30; i++) {
-      src1 += `Line ${i} with some content to fill space.\n\n`
+    for (let i = 0; i < 60; i++) {
+      src1 += `Line ${i} with some longer content to fill space for minChars.\n\n`
     }
 
     const src2 = src1 + 'appended line at the end.\n'
@@ -258,8 +258,8 @@ describe('CachedStreamParser', () => {
 
     // Start with a baseline that's large enough and has hard boundaries.
     let src = ''
-    for (let i = 0; i < 40; i++) {
-      src += `Baseline paragraph ${i} with extra filler text.\n\n`
+    for (let i = 0; i < 60; i++) {
+      src += `Baseline paragraph ${i} with extra filler text for padding.\n\n`
     }
 
     // First parse establishes the baseline.
@@ -351,8 +351,8 @@ describe('CachedStreamParser', () => {
 
     // Build a large document with clear paragraph boundaries
     let src = ''
-    for (let i = 0; i < 50; i++) {
-      src += `Paragraph ${i} with some text to make it longer.\n\n`
+    for (let i = 0; i < 60; i++) {
+      src += `Paragraph ${i} with some longer text content to make it fill space more quickly.\n\n`
     }
 
     const tokens = parser.parse(src, {}, md)
@@ -366,15 +366,15 @@ describe('CachedStreamParser', () => {
     const parser = makeParser(md)
 
     let src = ''
-    for (let i = 0; i < 50; i++) {
-      src += `Paragraph ${i} with some text to make it longer.\n\n`
+    for (let i = 0; i < 100; i++) {
+      src += `Paragraph ${i} with some extra longer filler text to reach minChars.\n\n`
     }
 
     parser.parse(src, {}, md)
     const stats1 = parser.getStats()
 
-    // Modify one paragraph in the middle
-    const modified = src.replace('Paragraph 25 with some text', 'Modified paragraph text')
+    // Modify one paragraph with same-length replacement to keep offsets stable
+    const modified = src.replace('Paragraph 25 with some', 'ModifiedP 25 with some')
     parser.parse(modified, {}, md)
     const stats2 = parser.getStats()
 
