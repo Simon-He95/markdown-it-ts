@@ -14,10 +14,15 @@ export type {
 } from './parse/strategy_diagnostics'
 
 export { StreamBuffer } from './stream/buffer'
-export { CachedStreamParser } from './stream/cached_parser'
+export { CachedStreamParser, CachedStreamParser as ChunkCache } from './stream/cached_parser'
 export type { CachedStreamParserOptions, CachedStreamStats, ParserRuleVersions } from './stream/cached_parser'
+export { ChunkTable } from './stream/chunk_cache'
 export type {
+  CachedChunk,
   ChunkTableLimits,
+  ContentFingerprint,
+  HardBoundary,
+  SafeChunkRange,
 } from './stream/chunk_cache'
 export { chunkedParse, splitIntoChunkRanges, splitIntoChunks } from './stream/chunked'
 

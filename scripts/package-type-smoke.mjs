@@ -24,6 +24,8 @@ import {
   Token as CoreToken,
 } from 'markdown-it-ts/core'
 import {
+  ChunkCache,
+  ChunkTable,
   chunkedParse,
   EditableBuffer,
   PieceTable,
@@ -41,8 +43,13 @@ import { StreamBuffer as StreamBufferSubpath } from 'markdown-it-ts/stream/buffe
 import { chunkedParse as chunkedParseSubpath } from 'markdown-it-ts/stream/chunked'
 import {
   CachedStreamParser,
+  ChunkCache as ChunkCacheSubpath,
   type CachedStreamStats,
 } from 'markdown-it-ts/stream/cached'
+import {
+  ChunkTable as ChunkTableSubpath,
+  computeContentFingerprint,
+} from 'markdown-it-ts/stream/chunk-table'
 import {
   DebouncedStreamParser,
   ThrottledStreamParser,
@@ -136,7 +143,24 @@ const coreToken = new CoreToken('text', '', 0)
 const streamBuffer = new StreamBuffer(typedMd)
 const streamStats: StreamStats = typedMd.stream.stats()
 const cachedStreamParser = new CachedStreamParser(typedMd.core)
+const chunkCache = new ChunkCache(typedMd.core)
+const chunkCacheSubpath = new ChunkCacheSubpath(typedMd.core)
 const cachedStreamStats: CachedStreamStats = cachedStreamParser.getStats()
+const chunkTable = new ChunkTable()
+const chunkTableSubpath = new ChunkTableSubpath()
+const chunkTableSource = 'typed chunk'
+chunkTable.store({
+  startOffset: 0,
+  endOffset: chunkTableSource.length,
+  startLine: 0,
+  lineCount: 1,
+  sourceText: chunkTableSource,
+  fingerprint: computeContentFingerprint(chunkTableSource, 0, chunkTableSource.length),
+  tokens: [],
+  generation: 0,
+  charLength: chunkTableSource.length,
+  tokenWeight: 0,
+})
 const chunkedTokens: Token[] = chunkedParse(typedMd, '# Title\\n\\nBody', env)
 const diagnostics = getParseDiagnostics(env)
 const iterableTokens: Token[] = parseIterable(typedMd, ['# A\\n', '\\nB'], env)
@@ -160,7 +184,11 @@ void coreToken
 void streamBuffer
 void streamStats
 void cachedStreamParser
+void chunkCache
+void chunkCacheSubpath
 void cachedStreamStats
+void chunkTable
+void chunkTableSubpath
 void chunkedTokens
 void diagnostics
 void namespacedOptionsMd

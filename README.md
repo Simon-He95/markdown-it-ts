@@ -362,6 +362,7 @@ import Renderer from 'markdown-it-ts/render/renderer'
 import { StreamBuffer } from 'markdown-it-ts/stream/buffer'
 import { chunkedParse } from 'markdown-it-ts/stream/chunked'
 import { CachedStreamParser } from 'markdown-it-ts/stream/cached'
+import { ChunkTable } from 'markdown-it-ts/stream/chunk-table'
 import { DebouncedStreamParser, ThrottledStreamParser } from 'markdown-it-ts/stream/debounced'
 ```
 
