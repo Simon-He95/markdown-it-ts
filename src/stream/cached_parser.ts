@@ -221,6 +221,8 @@ export class CachedStreamParser {
 
     // 2. Global state → full fallback (reference, footnote, abbreviation definitions)
     if (globalStateReason) {
+      this.table.invalidateAll()
+      this.observedTableEvictions = 0
       const tokens = this.fullParse(src, workingEnv, md, globalStateReason)
       this.stats.fullParses++
       this.stats.lastMode = 'full'

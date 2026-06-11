@@ -253,6 +253,7 @@ export class StreamParser {
     const currentGlobalStateReason = detectGlobalMarkdownState(src)
     const nextGlobalStateReason = cachedGlobalStateReason || currentGlobalStateReason
     if (nextGlobalStateReason) {
+      this.chunkCacheProvider?.()?.invalidate()
       const fallbackEnv = envProvided ?? cached.env
       resetKnownGlobalMarkdownState(fallbackEnv)
       const parsed = this.parseFullDocument(src, fallbackEnv, md)
@@ -841,6 +842,21 @@ export class StreamParser {
   ): { tokens: Token[], lineCount: number } | null {
     if (!md.options?.streamChunkCache || src.length < this.MIN_CHUNK_CACHE_CHARS)
       return null
+
+    const skipCacheChars = md.options?.streamSkipCacheAboveChars ?? this.DEFAULT_SKIP_CACHE_CHARS
+    if (src.length >= skipCacheChars) {
+      this.setChunkCacheFallbackDiagnostics(env, 'skip-cache-large')
+      return null
+    }
+
+    const skipCacheLines = md.options?.streamSkipCacheAboveLines ?? this.DEFAULT_SKIP_CACHE_LINES
+    if (skipCacheLines !== undefined) {
+      const lineCount = knownLineCount ?? countLines(src)
+      if (lineCount >= skipCacheLines) {
+        this.setChunkCacheFallbackDiagnostics(env, 'skip-cache-large')
+        return null
+      }
+    }
 
     const parser = this.chunkCacheProvider?.()
     if (!parser) {

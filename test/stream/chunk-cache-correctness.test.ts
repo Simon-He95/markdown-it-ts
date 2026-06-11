@@ -774,6 +774,24 @@ describe('Global markdown state fallback (P0-3)', () => {
     })
   })
 
+  it('clears cached chunks when global state forces full fallback', () => {
+    const md = markdownit()
+    const parser = makeParser(md)
+    const env: Record<string, unknown> = {}
+
+    parser.parse(largeDoc(220), env, md)
+    expect((parser as any).table.size).toBeGreaterThan(0)
+
+    parser.parse(`[ref]: /url\n\n${largeDoc(20)}Text with [ref][]\n\n`, env, md)
+
+    expect((parser as any).table.size).toBe(0)
+    expect(getParseDiagnostics(env)?.chunkCache).toMatchObject({
+      path: 'fallback-full',
+      fallbackReason: 'reference-definition',
+      tableSize: 0,
+    })
+  })
+
   it('falls back to full parse when reference definition is added to previously clean doc', () => {
     const md = markdownit({ stream: true, experimental: { streamChunkCache: true } })
     const cleanSrc = 'Just some text.\n\nMore text.\n'
@@ -1214,6 +1232,33 @@ describe('Dirty range expansion (P0-7)', () => {
 // ---------------------------------------------------------------------------
 
 describe('ChunkTable memory limits (P0-9)', () => {
+  it('skips stream chunk cache above stream skip-cache thresholds', () => {
+    const base = largeDoc(120)
+    const md = markdownit({
+      stream: true,
+      experimental: {
+        streamChunkCache: true,
+        streamSkipCacheAboveChars: base.length + 1,
+      },
+    })
+    const env: Record<string, unknown> = {}
+
+    md.stream.parse(base, env)
+    md.stream.resetStats()
+
+    const modified = `prepended paragraph\n\n${base}`
+    const tokens = md.stream.parse(modified, env)
+    const html = md.renderer.render(tokens, md.options, env)
+
+    expect(html).toBe(renderBaseline(modified, md.options))
+    expect(md.stream.stats().lastMode).toBe('full')
+    expect(getParseDiagnostics(env)?.chunkCache).toMatchObject({
+      path: 'fallback-full',
+      fallback: true,
+      fallbackReason: 'skip-cache-large',
+    })
+  })
+
   it('evicts least-recently-used chunks when maxChunks exceeded', () => {
     const table = new ChunkTable({ maxChunks: 3 })
 

@@ -46,6 +46,7 @@ export type ChunkCacheFallbackReason
     | 'plugin-used'
     | 'rule-version-change'
     | 'small-document'
+    | 'skip-cache-large'
     | 'unsafe-boundary'
 
 export interface ChunkCacheDiagnostics {
