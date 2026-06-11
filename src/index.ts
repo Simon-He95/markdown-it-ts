@@ -74,7 +74,7 @@ export interface MarkdownItExperimentalOptions {
   streamChunkCacheMinChunkChars?: number
   /** Maximum number of cached chunks before oldest entries are evicted. Default: 256. */
   streamChunkCacheMaxChunks?: number
-  /** Maximum total characters across cached chunk entries before eviction. Default: 2,000,000. */
+  /** Maximum total characters across cached chunk entries before eviction. Default: 1,000,000. */
   streamChunkCacheMaxTotalChars?: number
   /** Maximum total token weight across cached chunk entries before eviction. Default: 100,000. */
   streamChunkCacheMaxTotalTokenWeight?: number

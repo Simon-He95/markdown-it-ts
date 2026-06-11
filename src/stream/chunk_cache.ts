@@ -103,7 +103,7 @@ export interface SafeChunkRange {
 export interface ChunkTableLimits {
   /** Maximum number of chunks. Default: 256. */
   maxChunks?: number
-  /** Maximum total characters across cached chunk entries. Default: 2,000,000. */
+  /** Maximum total characters across cached chunk entries. Default: 1,000,000. */
   maxTotalChars?: number
   /** Maximum total estimated token weight across cached chunk entries. Default: 100,000. */
   maxTotalTokenWeight?: number
@@ -111,9 +111,10 @@ export interface ChunkTableLimits {
 
 const DEFAULT_CHUNK_TABLE_LIMITS: Required<ChunkTableLimits> = {
   maxChunks: 256,
-  maxTotalChars: 2_000_000,
+  maxTotalChars: 1_000_000,
   maxTotalTokenWeight: 100_000,
 }
+const MAX_CONTENT_BUCKET_ENTRIES = 8
 
 // ---------------------------------------------------------------------------
 // ChunkTable
@@ -397,6 +398,16 @@ export class ChunkTable {
     const bucket = this.contentMap.get(key)
     if (bucket) {
       bucket.push(chunk)
+      while (bucket.length > MAX_CONTENT_BUCKET_ENTRIES) {
+        const oldest = bucket.shift()!
+        this.map.delete(offsetKey(oldest.startOffset, oldest.endOffset))
+        const idx = this.list.indexOf(oldest)
+        if (idx !== -1)
+          this.list.splice(idx, 1)
+        this.totalChars -= oldest.charLength
+        this.totalTokenWeightValue -= oldest.tokenWeight
+        this.evictionCount++
+      }
     }
     else {
       this.contentMap.set(key, [chunk])

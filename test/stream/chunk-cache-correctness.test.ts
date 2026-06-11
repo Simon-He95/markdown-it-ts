@@ -381,6 +381,52 @@ describe('Cache invalidation (P0-1)', () => {
     expect(md.stream.stats().lastMode).toBe('chunked')
   })
 
+  it('switches streamChunkCache off and back on through md.set()', () => {
+    const md = markdownit({
+      stream: true,
+      experimental: {
+        streamChunkCache: true,
+        streamChunkCacheMinChunkChars: 1,
+      },
+    })
+    const src = largeDoc(200)
+    const enabledEnv: Record<string, unknown> = {}
+
+    md.stream.parse(src, enabledEnv)
+    expect(getParseDiagnostics(enabledEnv)?.chunkCache?.path).toBe('chunk-cache')
+
+    md.set({ experimental: { streamChunkCache: false } })
+    const disabledEnv: Record<string, unknown> = {}
+    md.stream.parse(`${src}append after disabling chunk cache.\n\n`, disabledEnv)
+    expect(getParseDiagnostics(disabledEnv)?.chunkCache).toBeUndefined()
+
+    md.set({ streamChunkCache: true })
+    const reenabledEnv: Record<string, unknown> = {}
+    md.stream.parse(src, reenabledEnv)
+    expect(getParseDiagnostics(reenabledEnv)?.chunkCache?.path).toBe('chunk-cache')
+  })
+
+  it('applies streamChunkCache limit changes through md.set()', () => {
+    const md = markdownit({
+      stream: true,
+      experimental: {
+        streamChunkCache: true,
+        streamChunkCacheMinChunkChars: 1,
+        streamChunkCacheMaxChunks: 64,
+      },
+    })
+    const src = largeDoc(220)
+    const env: Record<string, unknown> = {}
+
+    md.stream.parse(src, env)
+    md.set({ experimental: { streamChunkCacheMaxChunks: 2 } })
+
+    const nextEnv: Record<string, unknown> = {}
+    md.stream.parse(src.replace('Paragraph 150 with some', 'ModifiedP 150 with some'), nextEnv)
+
+    expect(getParseDiagnostics(nextEnv)?.chunkCache?.tableSize).toBeLessThanOrEqual(2)
+  })
+
   it('exposes chunk cache diagnostics through parse diagnostics', () => {
     const md = markdownit({ stream: true, experimental: { streamChunkCache: true } })
     const src = largeDoc(220)
@@ -433,6 +479,34 @@ describe('Cache invalidation (P0-1)', () => {
     const info = getParseDiagnostics(env)?.chunkCache
     expect(info?.contentLookupCandidates).toBeGreaterThan(0)
     expect(info?.contentLookupComparisons).toBeGreaterThan(0)
+  })
+
+  it('falls back when dirty range exceeds chunk cache cost limits', () => {
+    const md = markdownit({
+      stream: true,
+      experimental: {
+        streamChunkCache: true,
+        streamChunkCacheMinChunkChars: 1,
+      },
+    })
+    const prefix = largeDoc(60)
+    const middle = largeDoc(180)
+    const suffix = largeDoc(60)
+    const src = `${prefix}${middle}${suffix}`
+    const modified = `${prefix}${middle.replaceAll('Paragraph', 'Changed paragraph')}${suffix}`
+    const env: Record<string, unknown> = {}
+
+    md.stream.parse(src, env)
+    const tokens = md.stream.parse(modified, env)
+    const html = md.renderer.render(tokens, md.options, env)
+
+    expect(html).toBe(renderBaseline(modified, md.options))
+    expect(md.stream.stats().lastMode).toBe('full')
+    expect(getParseDiagnostics(env)?.chunkCache).toMatchObject({
+      path: 'fallback-full',
+      fallback: true,
+      fallbackReason: 'chunk-cache-cost-limit',
+    })
   })
 
   it('coalesces short hard-boundary blocks by default', () => {
@@ -1321,6 +1395,33 @@ describe('ChunkTable memory limits (P0-9)', () => {
     }
 
     expect(table.totalCharCount).toBeLessThanOrEqual(200)
+  })
+
+  it('caps content lookup buckets for repeated chunks', () => {
+    const table = new ChunkTable({ maxChunks: 100 })
+    const content = 'repeated chunk content with stable text'
+    const fingerprint = computeContentFingerprint(content, 0, content.length)
+
+    for (let i = 0; i < 20; i++) {
+      table.store({
+        startOffset: 100 + i * 100,
+        endOffset: 100 + i * 100 + content.length,
+        startLine: i * 2,
+        lineCount: 2,
+        sourceText: content,
+        fingerprint,
+        tokens: [],
+        generation: table.currentGeneration,
+        charLength: content.length,
+        tokenWeight: 0,
+      })
+    }
+
+    const hit = table.lookup({ start: 0, end: content.length, startLine: 0, lineCount: 2 }, content)
+
+    expect(hit).not.toBeNull()
+    expect(table.size).toBeLessThanOrEqual(8)
+    expect(table.contentLookupCandidates).toBeLessThanOrEqual(8)
   })
 
   it('accounts for recursive inline token weight when enforcing maxTotalTokenWeight', () => {

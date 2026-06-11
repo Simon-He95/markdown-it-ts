@@ -43,6 +43,7 @@ export type ChunkCacheFallbackReason
   = | GlobalMarkdownStateReason
     | 'disabled'
     | 'no-safe-boundaries'
+    | 'chunk-cache-cost-limit'
     | 'plugin-used'
     | 'rule-version-change'
     | 'small-document'

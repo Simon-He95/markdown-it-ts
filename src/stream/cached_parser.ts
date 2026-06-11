@@ -133,6 +133,9 @@ export class CachedStreamParser {
   // Minimum chars for a document to use chunking.
   private readonly MIN_CHUNK_CHARS = 500
   private readonly DEFAULT_SAFE_CHUNK_CHARS = 4096
+  private readonly MAX_CONTENT_LOOKUP_CANDIDATES_PER_PARSE = 1024
+  private readonly MAX_CONTENT_LOOKUP_COMPARISONS_PER_PARSE = 256
+  private readonly MAX_DIRTY_RANGE_RATIO = 0.25
 
   // Whether any plugin has been registered (env-sensitive).
   private pluginUsed = false
@@ -606,12 +609,15 @@ export class CachedStreamParser {
     // ---- Middle edit: identify dirty chunks ----
     // We compare each range against the cache. If a chunk content has changed
     // (fingerprint mismatch), it and its neighbors are marked dirty.
+    const hadCachedChunks = this.table.size > 0
     const contentLookupCandidatesBefore = this.table.contentLookupCandidates
     const contentLookupComparisonsBefore = this.table.contentLookupComparisons
     const dirtyIndices = this.findDirtyIndices(ranges, src)
 
     // Expand dirty set to include neighbors (P0-7: prevent boundary artifacts).
     const expandedDirty = expandDirtyRange(dirtyIndices, ranges.length, 1, 1)
+    const contentLookupCandidates = this.table.contentLookupCandidates - contentLookupCandidatesBefore
+    const contentLookupComparisons = this.table.contentLookupComparisons - contentLookupComparisonsBefore
 
     // Reconstruct from cached + newly parsed chunks.
     const out: Token[] = []
@@ -629,6 +635,23 @@ export class CachedStreamParser {
       const range = ranges[idx]
       if (range)
         dirtyRangeChars += range.end - range.start
+    }
+
+    if (hadCachedChunks && this.shouldUseFullParseForCost(src.length, dirtyRangeChars, expandedDirty.size, contentLookupCandidates, contentLookupComparisons)) {
+      this.stats.contentLookupCandidates += contentLookupCandidates
+      this.stats.contentLookupComparisons += contentLookupComparisons
+      this.table.invalidateAll()
+      this.observedTableEvictions = 0
+      const tokens = this.fullParse(src, env, md, null)
+      this.stats.fullParses++
+      this.stats.lastMode = 'full'
+      setStrategyDiagnostics(env, {
+        area: 'stream',
+        path: 'stream-full',
+        reason: 'chunk-cache-cost-limit',
+      })
+      this.setChunkCacheDiagnostics(env, 'chunk-cache-cost-limit')
+      return tokens
     }
 
     for (let i = 0; i < ranges.length; i++) {
@@ -760,6 +783,18 @@ export class CachedStreamParser {
 
     this.setChunkCacheDiagnostics(env)
     return out
+  }
+
+  private shouldUseFullParseForCost(
+    sourceLength: number,
+    dirtyRangeChars: number,
+    dirtyChunkCount: number,
+    contentLookupCandidates: number,
+    contentLookupComparisons: number,
+  ): boolean {
+    return contentLookupCandidates > this.MAX_CONTENT_LOOKUP_CANDIDATES_PER_PARSE
+      || contentLookupComparisons > this.MAX_CONTENT_LOOKUP_COMPARISONS_PER_PARSE
+      || (dirtyChunkCount > 8 && dirtyRangeChars > sourceLength * this.MAX_DIRTY_RANGE_RATIO)
   }
 
   private setChunkCacheDiagnostics(env: Record<string, unknown>, fallbackReason?: ChunkCacheFallbackReason): void {
