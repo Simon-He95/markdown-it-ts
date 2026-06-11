@@ -45,11 +45,9 @@
 
 Same-source 可以直接命中完整 token cache。中间编辑仍会扫描并切分当前文档；只有 hard boundary 和精确内容比较都保持安全时，才会跳过未变 chunk 的重新解析。
 
-注册插件或直接修改 parser ruler 后，per-chunk cache 会清空并停用；普通 `StreamParser` 的 same-source、append、tail reparse 路径仍然可以继续工作。低层 chunk cache API 只通过 `markdown-it-ts/experimental` 暴露，不提供 `markdown-it-ts/stream/cached_parser` 或 `markdown-it-ts/stream/chunk_cache` 子路径入口。
+注册插件或直接修改 parser ruler 后，per-chunk cache 会清空并停用；普通 `StreamParser` 的 same-source、append、tail reparse 路径仍然可以继续工作。`CachedStreamParser` 通过 `markdown-it-ts/experimental` 和 `markdown-it-ts/stream/cached` 暴露；低层 `ChunkTable` / token materialization helper 不作为 package public API 暴露，也不提供 `markdown-it-ts/stream/cached_parser` 或 `markdown-it-ts/stream/chunk_cache` 子路径入口。
 
-`shiftTokenLinesCached` 是低层 mutating helper，会原地修改传入 token 及其 children 的 `token.map`。除非调用方拥有这组 token，否则先用 `cloneTokens()`，或直接使用会 clone + shift 的 `materializeCachedTokens()`。
-
-默认上限是 `256` 个 chunk、`2_000_000` 个 chunk source chars、`100_000` 个 cached tokens。可以按运行环境调低：
+默认上限是 `256` 个 chunk、`2_000_000` 个 chunk source chars、`100_000` 个 cached token weight。token weight 会递归统计 inline children、attrs 和 content 字符串，避免 inline-heavy 文档低估缓存占用。可以按运行环境调低：
 
 ```ts
 const md = MarkdownIt({
@@ -58,10 +56,13 @@ const md = MarkdownIt({
     streamChunkCache: true,
     streamChunkCacheMaxChunks: 128,
     streamChunkCacheMaxTotalChars: 500_000,
+    // recursive token weight, not just top-level token count
     streamChunkCacheMaxTotalTokens: 25_000,
   },
 })
 ```
+
+Bundle 成本需要显式接受：同步 `md.stream.parse()` opt-in 路径会让 `CachedStreamParser` 从根入口可达。当前构建输出为 `dist/index.js` 92.73 kB / gzip 18.81 kB；直接子路径 `markdown-it-ts/stream/cached` 对应 `dist/stream/cached.js` 34.88 kB / gzip 8.86 kB。修改 chunk cache internals 后用 `pnpm run build` 重新核对。
 
 ## chunked / streaming 正确性说明
 
@@ -154,7 +155,7 @@ import { getParseDiagnostics } from 'markdown-it-ts/experimental'
 默认策略决策会写入：
 
 - `getParseDiagnostics(env)?.strategy`
-- `getParseDiagnostics(env)?.chunkCache`，当 `experimental.streamChunkCache` 被实际尝试时，包含 chunk hit/miss、append chunk 数、invalidations、table size、cached chars/tokens，以及枚举化的 fallback 原因（`ChunkCacheFallbackReason`）。
+- `getParseDiagnostics(env)?.chunkCache`，当 `experimental.streamChunkCache` 被实际尝试时，包含 chunk hit/miss、append chunk 数、invalidations、table size、cached chars、cached token weight、last reparsed chars/chunks，以及枚举化的 fallback 原因（`ChunkCacheFallbackReason`）。
 
 常见路径包括：
 

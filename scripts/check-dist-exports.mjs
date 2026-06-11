@@ -19,6 +19,8 @@ const requiredFiles = [
   'dist/stream/buffer.d.ts',
   'dist/stream/chunked.js',
   'dist/stream/chunked.d.ts',
+  'dist/stream/cached.js',
+  'dist/stream/cached.d.ts',
   'dist/stream/debounced.js',
   'dist/stream/debounced.d.ts',
   'dist/support/chunk_recommend.js',

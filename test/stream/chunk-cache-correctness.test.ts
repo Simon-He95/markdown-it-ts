@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
+import { CachedStreamParser } from '../../src/stream/cached'
 import {
   ChunkTable,
-  CachedStreamParser,
   computeContentFingerprint,
   detectHardBoundaries,
-  getParseDiagnostics,
   materializeCachedTokens,
-} from '../../src/experimental'
+} from '../../src/stream/chunk_cache'
+import { getParseDiagnostics } from '../../src/experimental'
 import markdownit, { type MarkdownIt, type MarkdownItOptions } from '../../src/index'
 import { ParserCore } from '../../src/parse/parser_core'
 import { Token } from '../../src/common/token'
@@ -215,7 +215,7 @@ describe('Cache invalidation (P0-1)', () => {
     expect(md.stream.stats().lastMode).toBe('chunked')
   })
 
-  it('re-enables direct chunk cache after rule-version invalidation', () => {
+  it('falls back after direct rule-version changes unless marked safe', () => {
     const md = markdownit()
     const parser = makeParser(md)
     const src = largeDoc(300)
@@ -223,6 +223,26 @@ describe('Cache invalidation (P0-1)', () => {
 
     parser.parse(src, env, md)
     md.disable('table')
+    parser.parse(src, env, md)
+    parser.resetStats()
+
+    const modified = src.replace('Paragraph 150 with some', 'ModifiedP 150 with some')
+    const tokens = parser.parse(modified, env, md)
+    const html = md.renderer.render(tokens, md.options, env)
+
+    expect(html).toBe(renderFull(modified, md))
+    expect(parser.getStats().lastMode).toBe('full')
+  })
+
+  it('re-enables direct chunk cache after explicit safe rule invalidation', () => {
+    const md = markdownit()
+    const parser = makeParser(md)
+    const src = largeDoc(300)
+    const env: Record<string, unknown> = {}
+
+    parser.parse(src, env, md)
+    md.disable('table')
+    parser.noteSafeRuleChange(md)
     parser.parse(src, env, md)
     parser.resetStats()
 
@@ -322,6 +342,8 @@ describe('Cache invalidation (P0-1)', () => {
     expect(next?.hits).toBeGreaterThan(0)
     expect(next?.misses).toBeGreaterThan(0)
     expect(next?.tableSize).toBeGreaterThan(0)
+    expect(next?.lastReparsedChars).toBeGreaterThan(0)
+    expect(next?.lastReparsedChunks).toBeGreaterThan(0)
     expect(next?.hits).toBe(md.stream.stats().chunkHits)
   })
 
@@ -356,6 +378,26 @@ describe('Cache invalidation (P0-1)', () => {
     expect(env1.collectCount).toBeDefined()
     expect(env2.collectCount).toBeDefined()
     expect(md.stream.stats().lastMode).toBe('full')
+  })
+
+  it('direct CachedStreamParser falls back after a custom rule is pushed over existing chunks', () => {
+    const md = markdownit()
+    const parser = makeParser(md)
+    const src = largeDoc(240)
+    const env1: Record<string, any> = {}
+    const env2: Record<string, any> = {}
+
+    parser.parse(src, env1, md)
+    md.core.ruler.push('collect_after_cache', (state) => {
+      state.env.collectCount = (state.env.collectCount || 0) + 1
+    })
+
+    const modified = src.replace('Paragraph 120 with some', 'ModifiedP 120 with some')
+    parser.parse(modified, env2, md)
+
+    expect(env2.collectCount).toBeDefined()
+    expect(parser.getStats().lastMode).toBe('full')
+    expect(parser.getStats().chunkHits).toBe(0)
   })
 
   it('does not hide direct ruler env side effects behind a later safe rule change', () => {
@@ -722,7 +764,7 @@ describe('Content fingerprint (P0-5)', () => {
       tokens: [],
       generation: table.currentGeneration,
       charLength: fp.length,
-      tokenCount: 0,
+      tokenWeight: 0,
     })
 
     // Lookup with shorter content
@@ -747,7 +789,7 @@ describe('Content fingerprint (P0-5)', () => {
       tokens: [],
       generation: table.currentGeneration,
       charLength: fp.length,
-      tokenCount: 0,
+      tokenWeight: 0,
     })
 
     // Hash might not collide, but fingerprint check covers all factors.
@@ -770,7 +812,7 @@ describe('Content fingerprint (P0-5)', () => {
       tokens: [],
       generation: table.currentGeneration,
       charLength: fp.length,
-      tokenCount: 0,
+      tokenWeight: 0,
     })
 
     expect(table.lookup({ start: 0, end: src2.length, startLine: 0, lineCount: 1 }, src2)).toBeNull()
@@ -789,7 +831,7 @@ describe('Content fingerprint (P0-5)', () => {
       tokens: [],
       generation: table.currentGeneration,
       charLength: fp.length,
-      tokenCount: 0,
+      tokenWeight: 0,
     })
 
     // Bump generation
@@ -941,7 +983,7 @@ describe('ChunkTable memory limits (P0-9)', () => {
         tokens: [],
         generation: table.currentGeneration,
         charLength: content.length,
-        tokenCount: 0,
+        tokenWeight: 0,
       })
     }
 
@@ -963,11 +1005,31 @@ describe('ChunkTable memory limits (P0-9)', () => {
         tokens: [],
         generation: table.currentGeneration,
         charLength: content.length,
-        tokenCount: 0,
+        tokenWeight: 0,
       })
     }
 
     expect(table.totalCharCount).toBeLessThanOrEqual(200)
+  })
+
+  it('accounts for recursive inline token weight when enforcing maxTotalTokens', () => {
+    const md = markdownit({ linkify: true })
+    const typedMd = md as any
+    const parser = new CachedStreamParser(typedMd.core as ParserCore, { maxTotalTokens: 80 }, {
+      core: typedMd.core.ruler.version,
+      block: typedMd.block.ruler.version,
+      inline: typedMd.inline.ruler.version,
+      inline2: typedMd.inline.ruler2.version,
+    })
+    let src = ''
+    for (let i = 0; i < 160; i++) {
+      src += `Paragraph ${i} with [a link](https://example.com/${i}) and **strong text** repeated for weight.\n\n`
+    }
+    const env: Record<string, unknown> = {}
+
+    parser.parse(src, env, md)
+
+    expect(getParseDiagnostics(env)?.chunkCache?.totalCachedTokenWeight).toBeLessThanOrEqual(80)
   })
 })
 
@@ -1137,7 +1199,7 @@ describe('materializeCachedTokens', () => {
       tokens: [original],
       generation: 0,
       charLength: fp.length,
-      tokenCount: 2, // paragraph_open + inline
+      tokenWeight: 2, // paragraph_open + inline
     }
 
     const materialized = materializeCachedTokens(cached, 10)

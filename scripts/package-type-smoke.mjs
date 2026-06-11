@@ -40,6 +40,10 @@ import Renderer, { type RendererRule } from 'markdown-it-ts/render/renderer'
 import { StreamBuffer as StreamBufferSubpath } from 'markdown-it-ts/stream/buffer'
 import { chunkedParse as chunkedParseSubpath } from 'markdown-it-ts/stream/chunked'
 import {
+  CachedStreamParser,
+  type CachedStreamStats,
+} from 'markdown-it-ts/stream/cached'
+import {
   DebouncedStreamParser,
   ThrottledStreamParser,
 } from 'markdown-it-ts/stream/debounced'
@@ -131,6 +135,8 @@ const core = new ParserCore()
 const coreToken = new CoreToken('text', '', 0)
 const streamBuffer = new StreamBuffer(typedMd)
 const streamStats: StreamStats = typedMd.stream.stats()
+const cachedStreamParser = new CachedStreamParser(typedMd.core)
+const cachedStreamStats: CachedStreamStats = cachedStreamParser.getStats()
 const chunkedTokens: Token[] = chunkedParse(typedMd, '# Title\\n\\nBody', env)
 const diagnostics = getParseDiagnostics(env)
 const iterableTokens: Token[] = parseIterable(typedMd, ['# A\\n', '\\nB'], env)
@@ -153,6 +159,8 @@ void core
 void coreToken
 void streamBuffer
 void streamStats
+void cachedStreamParser
+void cachedStreamStats
 void chunkedTokens
 void diagnostics
 void namespacedOptionsMd

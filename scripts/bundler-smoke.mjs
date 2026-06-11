@@ -25,6 +25,7 @@ import { withRenderer } from 'markdown-it-ts/plugins/with-renderer'
 import { Renderer } from 'markdown-it-ts/render/renderer'
 import { StreamBuffer } from 'markdown-it-ts/stream/buffer'
 import { chunkedParse } from 'markdown-it-ts/stream/chunked'
+import { CachedStreamParser } from 'markdown-it-ts/stream/cached'
 import { chunkedParse as experimentalChunkedParse, UnboundedBuffer } from 'markdown-it-ts/experimental'
 
 const md = withRenderer(MarkdownIt({ stream: true }))
@@ -33,6 +34,7 @@ const renderer = new Renderer()
 const token = new Token('text', '', 0)
 const stream = new StreamBuffer(md)
 stream.feed('# bundled\\n\\n')
+const cached = new CachedStreamParser(md.core)
 const chunked = chunkedParse(md, '# bundled\\n\\nbody')
 const experimental = experimentalChunkedParse(md, '# bundled\\n\\nbody')
 const buffer = new UnboundedBuffer(md)
@@ -44,7 +46,7 @@ if (html !== '<h1>bundled</h1>\\n')
 if (escapeHtml('<>&"') !== '&lt;&gt;&amp;&quot;')
   throw new Error('unexpected escapeHtml output')
 
-if (typeof renderer.render !== 'function' || token.type !== 'text' || chunked.length === 0 || experimental.length === 0)
+if (typeof renderer.render !== 'function' || token.type !== 'text' || typeof cached.parse !== 'function' || chunked.length === 0 || experimental.length === 0)
   throw new Error('bundled exports are not usable')
 `)
 

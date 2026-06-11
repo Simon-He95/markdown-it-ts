@@ -78,8 +78,8 @@ export interface CachedChunk {
   generation: number
   /** Character length of the original source slice (fingerprint.length). */
   charLength: number
-  /** Number of tokens in this chunk (for memory tracking). */
-  tokenCount: number
+  /** Estimated recursive token/object weight for memory tracking. */
+  tokenWeight: number
 }
 
 export interface HardBoundary {
@@ -105,7 +105,7 @@ export interface ChunkTableLimits {
   maxChunks?: number
   /** Maximum total characters across all cached chunks. Default: 2,000,000. */
   maxTotalChars?: number
-  /** Maximum total tokens across all cached chunks. Default: 100,000. */
+  /** Maximum total estimated token weight across all cached chunks. Default: 100,000. */
   maxTotalTokens?: number
 }
 
@@ -132,7 +132,7 @@ export class ChunkTable {
 
   /** Memory tracking. */
   private totalChars = 0
-  private totalTokens = 0
+  private totalTokenWeightValue = 0
   private limits: Required<ChunkTableLimits>
 
   constructor(limits?: ChunkTableLimits) {
@@ -177,7 +177,7 @@ export class ChunkTable {
 
     // Track memory.
     this.totalChars += chunk.charLength
-    this.totalTokens += chunk.tokenCount
+    this.totalTokenWeightValue += chunk.tokenWeight
 
     this.map.set(key, chunk)
     this.addToContentIndex(chunk)
@@ -217,7 +217,7 @@ export class ChunkTable {
       this.map.delete(key)
       this.removeFromContentIndex(chunk)
       this.totalChars -= chunk.charLength
-      this.totalTokens -= chunk.tokenCount
+      this.totalTokenWeightValue -= chunk.tokenWeight
     }
   }
 
@@ -231,7 +231,7 @@ export class ChunkTable {
     this.contentMap.clear()
     this.list.length = 0
     this.totalChars = 0
-    this.totalTokens = 0
+    this.totalTokenWeightValue = 0
   }
 
   clear(): void {
@@ -239,7 +239,7 @@ export class ChunkTable {
     this.contentMap.clear()
     this.list.length = 0
     this.totalChars = 0
-    this.totalTokens = 0
+    this.totalTokenWeightValue = 0
     // Do NOT reset generation — that would make newly stored chunks
     // incompatible with the rest of the system. clear() is for reset;
     // invalidateAll() is for generation bump.
@@ -271,8 +271,8 @@ export class ChunkTable {
     return this.totalChars
   }
 
-  get totalTokenCount(): number {
-    return this.totalTokens
+  get totalTokenWeight(): number {
+    return this.totalTokenWeightValue
   }
 
   getChunks(): readonly CachedChunk[] {
@@ -285,7 +285,7 @@ export class ChunkTable {
     this.map.delete(key)
     this.removeFromContentIndex(chunk)
     this.totalChars -= chunk.charLength
-    this.totalTokens -= chunk.tokenCount
+    this.totalTokenWeightValue -= chunk.tokenWeight
     // Remove from sorted list.
     const idx = this.list.indexOf(chunk)
     if (idx !== -1)
@@ -296,7 +296,7 @@ export class ChunkTable {
     while (
       this.list.length > this.limits.maxChunks
       || this.totalChars > this.limits.maxTotalChars
-      || this.totalTokens > this.limits.maxTotalTokens
+      || this.totalTokenWeightValue > this.limits.maxTotalTokens
     ) {
       if (this.list.length === 0)
         break
@@ -565,6 +565,28 @@ export function expandDirtyRange(
 // ---------------------------------------------------------------------------
 // Token utilities
 // ---------------------------------------------------------------------------
+
+export function estimateTokenWeight(tokens: Token[]): number {
+  let weight = 0
+  const stack: Token[] = []
+  for (let i = tokens.length - 1; i >= 0; i--) stack.push(tokens[i])
+
+  while (stack.length) {
+    const token = stack.pop()!
+    weight += 1
+    if (token.content)
+      weight += Math.ceil(token.content.length / 32)
+    if (token.attrs)
+      weight += token.attrs.length
+    if (token.children) {
+      for (let i = token.children.length - 1; i >= 0; i--) {
+        stack.push(token.children[i])
+      }
+    }
+  }
+
+  return weight
+}
 
 export function shiftTokenLines(tokens: Token[], offset: number): void {
   if (offset === 0)

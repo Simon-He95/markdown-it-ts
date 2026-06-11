@@ -2,7 +2,8 @@
 // Run: node scripts/perf-chunk-cache.mjs
 import { performance } from 'node:perf_hooks'
 import MarkdownIt from '../dist/index.js'
-import { CachedStreamParser, chunkedParse } from '../dist/experimental.js'
+import { chunkedParse, getParseDiagnostics } from '../dist/experimental.js'
+import { CachedStreamParser } from '../dist/stream/cached.js'
 
 const TRUST_CORE_RULES = { assumeCoreRulesOnly: true }
 
@@ -13,6 +14,21 @@ function pct(a, b) {
   if (a === 0 && b === 0) return 'same'
   if (a === 0) return '∞'
   return `${((a / b - 1) * 100).toFixed(1)}%`
+}
+function cacheSummary(env, stats) {
+  const chunkCache = getParseDiagnostics(env)?.chunkCache
+  if (!chunkCache)
+    return 'chunkCache=n/a'
+  return [
+    `hits=${stats.chunkHits}`,
+    `misses=${stats.chunkMisses}`,
+    `table=${chunkCache.tableSize}`,
+    `cachedChars=${chunkCache.totalCachedChars}`,
+    `cachedTokenWeight=${chunkCache.totalCachedTokenWeight}`,
+    `lastReparsedChars=${chunkCache.lastReparsedChars}`,
+    `lastReparsedChunks=${chunkCache.lastReparsedChunks}`,
+    chunkCache.fallbackReason ? `fallback=${chunkCache.fallbackReason}` : null,
+  ].filter(Boolean).join(' ')
 }
 
 function measure(label, fn, iters = 100) {
@@ -48,6 +64,25 @@ function makeDoc(paragraphs, template = null) {
     s += `## Section ${i}\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod.\n\n`
   }
   return s
+}
+
+function makeWorstCaseList(items) {
+  let s = ''
+  for (let i = 0; i < items; i++) {
+    s += `- very long list item ${i} with enough inline text, **emphasis**, [link](https://example.com/${i}), and code span content to stress chunkability without blank hard boundaries\n`
+  }
+  return s
+}
+
+function runRepeatedMiddleEdits(label, src, parse, edits = 100) {
+  const paragraphs = Math.max(1, (src.match(/## Section /g) || []).length)
+  const positions = [10, Math.floor(paragraphs / 2), Math.max(0, paragraphs - 10)]
+  return measure(label, () => {
+    for (let i = 0; i < edits; i++) {
+      const pos = positions[i % positions.length]
+      parse(src.replace(`## Section ${pos}`, `## Section ${pos} edit ${i}`))
+    }
+  }, 5)
 }
 
 // ---- test sizes ----
@@ -135,14 +170,36 @@ for (const scenario of SCENARIOS) {
     // Modify middle 20% of the source
     const editStart = (src.length * 0.4) | 0
     const editEnd = (src.length * 0.6) | 0
-    const edited = src.slice(0, editStart) + 'EDITED CONTENT HERE\n\n' + src.slice(editEnd)
+    let editId = 0
 
     measure('cached: middle edit', () => {
+      const edited = src.slice(0, editStart) + `EDITED CONTENT HERE ${editId++}\n\n` + src.slice(editEnd)
       parser.parse(edited, {}, mdC)
     }, 10)
   }
 
-  // 7. CachedStreamParser: same-source identity cache hit
+  // 7. Repeated middle edits: compare the workload chunk cache is meant for.
+  {
+    const mdFull = MarkdownIt()
+    runRepeatedMiddleEdits('full: 100 middle edits', src, next => mdFull.parse(next, {}), 2)
+  }
+
+  {
+    const mdS = MarkdownIt({ stream: true })
+    mdS.stream.parse(src, {})
+    runRepeatedMiddleEdits('stream: 100 middle edits', src, next => mdS.stream.parse(next, {}), 2)
+  }
+
+  {
+    const mdC = MarkdownIt()
+    const parser = new CachedStreamParser(mdC.core, undefined, undefined, TRUST_CORE_RULES)
+    const env = {}
+    parser.parse(src, env, mdC)
+    runRepeatedMiddleEdits('cached: 100 middle edits', src, next => parser.parse(next, env, mdC), 2)
+    console.log(`  ${cacheSummary(env, parser.getStats())}`)
+  }
+
+  // 8. CachedStreamParser: same-source identity cache hit
   {
     const mdC = MarkdownIt()
     const parser = new CachedStreamParser(mdC.core, undefined, undefined, TRUST_CORE_RULES)
@@ -150,12 +207,32 @@ for (const scenario of SCENARIOS) {
     measure('cached: identity cache', () => parser.parse(src, {}, mdC), 20)
   }
 
-  // 8. Vanilla chunkedParse for comparison
+  // 9. Vanilla chunkedParse for comparison
   {
     const mdC = MarkdownIt()
     measure('chunkedParse (one-shot)', () => chunkedParse(mdC, src, {}), 20)
   }
 
+  console.log()
+}
+
+// ---- worst-case chunkability ----
+console.log('--- Worst-case chunkability: long list without hard boundaries ---')
+{
+  const src = makeWorstCaseList(3500)
+  console.log(`  doc: ${src.length} chars, ~${src.split('\n').length} lines`)
+  const md = MarkdownIt()
+  measure('full parse (one-shot)', () => md.parse(src, {}), 10)
+
+  const mdC = MarkdownIt()
+  const parser = new CachedStreamParser(mdC.core, undefined, undefined, TRUST_CORE_RULES)
+  const env = {}
+  parser.parse(src, env, mdC)
+  let editId = 0
+  measure('cached: middle edit', () => {
+    parser.parse(src.replace('very long list item 1750', `edited long list item ${editId++}`), env, mdC)
+  }, 10)
+  console.log(`  ${cacheSummary(env, parser.getStats())}`)
   console.log()
 }
 

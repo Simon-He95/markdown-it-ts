@@ -361,6 +361,7 @@ import { withRenderer } from 'markdown-it-ts/plugins/with-renderer'
 import Renderer from 'markdown-it-ts/render/renderer'
 import { StreamBuffer } from 'markdown-it-ts/stream/buffer'
 import { chunkedParse } from 'markdown-it-ts/stream/chunked'
+import { CachedStreamParser } from 'markdown-it-ts/stream/cached'
 import { DebouncedStreamParser, ThrottledStreamParser } from 'markdown-it-ts/stream/debounced'
 ```
 
@@ -398,6 +399,7 @@ const md = markdownIt({
   streamChunkCache: true,
   streamChunkCacheMaxChunks: 128,
   streamChunkCacheMaxTotalChars: 500_000,
+  // recursive token weight, including inline children, attrs, and content strings
   streamChunkCacheMaxTotalTokens: 25_000,
   // optional tuning
   // By default, chunk size is adaptive to doc size (streamChunkAdaptive: true)

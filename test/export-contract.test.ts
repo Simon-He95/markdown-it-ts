@@ -16,11 +16,21 @@ describe('root export contract', () => {
     `)
   })
 
-  it('keeps low-level chunk cache APIs behind the experimental entry', () => {
+  it('exposes cached stream parser without exposing low-level chunk cache internals', () => {
     const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
 
     expect(pkg.exports).toHaveProperty('./experimental')
+    expect(pkg.exports).toHaveProperty('./stream/cached')
     expect(pkg.exports).not.toHaveProperty('./stream/cached_parser')
     expect(pkg.exports).not.toHaveProperty('./stream/chunk_cache')
+  })
+
+  it('keeps mutable chunk cache internals out of the experimental entry', async () => {
+    const experimental = await import('../src/experimental')
+
+    expect(experimental).toHaveProperty('CachedStreamParser')
+    expect(experimental).not.toHaveProperty('ChunkTable')
+    expect(experimental).not.toHaveProperty('cloneTokens')
+    expect(experimental).not.toHaveProperty('materializeCachedTokens')
   })
 })

@@ -16,26 +16,8 @@ export type {
 export { StreamBuffer } from './stream/buffer'
 export { CachedStreamParser } from './stream/cached_parser'
 export type { CachedStreamParserOptions, CachedStreamStats, ParserRuleVersions } from './stream/cached_parser'
-
-/** @experimental Low-level cache internals. Subject to change without semver guarantees. */
-export {
-  ChunkTable,
-  cloneTokens,
-  computeContentFingerprint,
-  computeSourceHash,
-  detectHardBoundaries,
-  expandDirtyRange,
-  materializeCachedTokens,
-  shiftTokenLines as shiftTokenLinesCached,
-  splitIntoSafeChunkRanges,
-} from './stream/chunk_cache'
-
 export type {
-  CachedChunk,
   ChunkTableLimits,
-  ContentFingerprint,
-  HardBoundary,
-  SafeChunkRange,
 } from './stream/chunk_cache'
 export { chunkedParse, splitIntoChunkRanges, splitIntoChunks } from './stream/chunked'
 

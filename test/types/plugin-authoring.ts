@@ -8,6 +8,7 @@ import MarkdownIt, {
 } from 'markdown-it-ts'
 import { ParserCore } from 'markdown-it-ts/core'
 import { chunkedParse, StreamBuffer } from 'markdown-it-ts/experimental'
+import { CachedStreamParser, type CachedStreamStats } from 'markdown-it-ts/stream/cached'
 import type { StreamStats } from 'markdown-it-ts/experimental'
 import type { RendererRule } from 'markdown-it-ts/render/renderer'
 
@@ -123,6 +124,8 @@ const streamBuffer = new StreamBuffer(typedMd)
 streamBuffer.feed('# Title\n\n')
 const streamStats: StreamStats = typedMd.stream.stats()
 const streamInvalidations: number | undefined = typedMd.stream.stats().invalidations
+const cachedStreamParser = new CachedStreamParser(typedMd.core)
+const cachedStreamStats: CachedStreamStats = cachedStreamParser.getStats()
 
 const chunkedTokens: Token[] = chunkedParse(typedMd, '# Title\n\nBody', env)
 const coreTokens: Token[] = new ParserCore().parse('# Core').tokens
@@ -142,5 +145,7 @@ void typedMetaToken
 void streamBuffer
 void streamStats
 void streamInvalidations
+void cachedStreamParser
+void cachedStreamStats
 void chunkedTokens
 void coreTokens

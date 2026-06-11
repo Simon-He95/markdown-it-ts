@@ -56,7 +56,9 @@ export interface ChunkCacheDiagnostics {
   invalidations: number
   tableSize: number
   totalCachedChars: number
-  totalCachedTokens: number
+  totalCachedTokenWeight: number
+  lastReparsedChars: number
+  lastReparsedChunks: number
   fallback?: boolean
   fallbackReason?: ChunkCacheFallbackReason
 }

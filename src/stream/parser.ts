@@ -51,6 +51,8 @@ export interface StreamStats {
   chunkMisses?: number
   appendedChunks?: number
   invalidations?: number
+  lastReparsedChars?: number
+  lastReparsedChunks?: number
   lastMode: 'idle' | 'cache' | 'append' | 'tail' | 'full' | 'reset' | 'chunked'
 }
 
@@ -865,6 +867,8 @@ export class StreamParser {
     this.stats.chunkMisses = chunkStats.chunkMisses
     this.stats.appendedChunks = chunkStats.appendedChunks
     this.stats.invalidations = chunkStats.invalidations
+    this.stats.lastReparsedChars = chunkStats.lastReparsedChars
+    this.stats.lastReparsedChunks = chunkStats.lastReparsedChunks
   }
 
   private parseFullDocument(

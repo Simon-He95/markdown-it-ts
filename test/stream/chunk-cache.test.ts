@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
+import { CachedStreamParser } from '../../src/stream/cached'
 import {
   ChunkTable,
   computeSourceHash,
   computeContentFingerprint,
   detectHardBoundaries,
   splitIntoSafeChunkRanges,
-  CachedStreamParser,
-} from '../../src/experimental'
+} from '../../src/stream/chunk_cache'
 import markdownit from '../../src/index'
 import { ParserCore } from '../../src/parse/parser_core'
 
@@ -180,7 +180,7 @@ describe('ChunkTable', () => {
       tokens,
       generation: 0,
       charLength: src.length,
-      tokenCount: 1,
+      tokenWeight: 1,
     })
 
     const hit = table.lookup({ start: 0, end: src.length, startLine: 0, lineCount: 1 }, src)
@@ -205,7 +205,7 @@ describe('ChunkTable', () => {
       tokens,
       generation: 0,
       charLength: end - start,
-      tokenCount: 1,
+      tokenWeight: 1,
     })
 
     const inserted = 'inserted\n\n'
@@ -237,7 +237,7 @@ describe('ChunkTable', () => {
       tokens: [],
       generation: 0,
       charLength: src.length,
-      tokenCount: 0,
+      tokenWeight: 0,
     })
 
     const modified = 'changed!'
@@ -249,8 +249,8 @@ describe('ChunkTable', () => {
     const table = new ChunkTable()
     const fp1 = computeContentFingerprint('aaaaaaaaaa', 0, 10)
     const fp2 = computeContentFingerprint('bbbbbbbbbb', 0, 10)
-    table.store({ startOffset: 0, endOffset: 10, startLine: 0, lineCount: 1, sourceText: 'aaaaaaaaaa', fingerprint: fp1, tokens: [], generation: 0, charLength: 10, tokenCount: 0 })
-    table.store({ startOffset: 20, endOffset: 30, startLine: 2, lineCount: 1, sourceText: 'bbbbbbbbbb', fingerprint: fp2, tokens: [], generation: 0, charLength: 10, tokenCount: 0 })
+    table.store({ startOffset: 0, endOffset: 10, startLine: 0, lineCount: 1, sourceText: 'aaaaaaaaaa', fingerprint: fp1, tokens: [], generation: 0, charLength: 10, tokenWeight: 0 })
+    table.store({ startOffset: 20, endOffset: 30, startLine: 2, lineCount: 1, sourceText: 'bbbbbbbbbb', fingerprint: fp2, tokens: [], generation: 0, charLength: 10, tokenWeight: 0 })
 
     table.invalidateRange(5, 25)
     expect(table.size).toBe(0)
@@ -259,7 +259,7 @@ describe('ChunkTable', () => {
   it('clears all chunks', () => {
     const table = new ChunkTable()
     const fp = computeContentFingerprint('aaaaaaaaaa', 0, 10)
-    table.store({ startOffset: 0, endOffset: 10, startLine: 0, lineCount: 1, sourceText: 'aaaaaaaaaa', fingerprint: fp, tokens: [], generation: 0, charLength: 10, tokenCount: 0 })
+    table.store({ startOffset: 0, endOffset: 10, startLine: 0, lineCount: 1, sourceText: 'aaaaaaaaaa', fingerprint: fp, tokens: [], generation: 0, charLength: 10, tokenWeight: 0 })
     table.clear()
     expect(table.size).toBe(0)
   })
@@ -268,7 +268,7 @@ describe('ChunkTable', () => {
     const table = new ChunkTable()
     const src = 'aaaaaaaaaa'
     const fp = computeContentFingerprint(src, 0, src.length)
-    table.store({ startOffset: 0, endOffset: src.length, startLine: 0, lineCount: 1, sourceText: src, fingerprint: fp, tokens: [], generation: 0, charLength: src.length, tokenCount: 0 })
+    table.store({ startOffset: 0, endOffset: src.length, startLine: 0, lineCount: 1, sourceText: src, fingerprint: fp, tokens: [], generation: 0, charLength: src.length, tokenWeight: 0 })
 
     ;(table.getChunks() as any).length = 0
 
@@ -297,7 +297,7 @@ describe('ChunkTable', () => {
         tokens: [],
         generation: 0,
         charLength: end - start,
-        tokenCount: 0,
+        tokenWeight: 0,
       })
     }
 
@@ -314,7 +314,7 @@ describe('ChunkTable', () => {
       tokens: [],
       generation: 0,
       charLength: end - start,
-      tokenCount: 0,
+      tokenWeight: 0,
     })
 
     expect(table.lookup({ start: ranges[0][0], end: ranges[0][1], startLine: 0, lineCount: 2 }, src)).not.toBeNull()

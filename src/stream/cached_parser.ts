@@ -16,6 +16,7 @@ import {
   cloneTokens,
   computeContentFingerprint,
   detectHardBoundaries,
+  estimateTokenWeight,
   expandDirtyRange,
   materializeCachedTokens,
   shiftTokenLines,
@@ -50,6 +51,8 @@ export interface CachedStreamStats {
   chunkMisses: number // specific to CachedStreamParser
   appendedChunks: number // specific to CachedStreamParser
   invalidations: number // number of times the cache was invalidated
+  lastReparsedChars: number
+  lastReparsedChunks: number
   lastMode: 'idle' | 'cache' | 'append' | 'tail' | 'full' | 'reset' | 'chunked'
 }
 
@@ -67,6 +70,8 @@ function makeEmptyStats(): CachedStreamStats {
     chunkMisses: 0,
     appendedChunks: 0,
     invalidations: 0,
+    lastReparsedChars: 0,
+    lastReparsedChunks: 0,
     lastMode: 'idle',
   }
 }
@@ -124,6 +129,8 @@ export class CachedStreamParser {
   // Whether the parser has been invalidated (will be reset on next parse).
   private invalidated = false
 
+  private unsafeRuleChange = false
+
   // Stored limits used to create/recreate the ChunkTable.
   private tableLimits: ChunkTableLimits | undefined
 
@@ -161,6 +168,19 @@ export class CachedStreamParser {
 
     const globalStateReason = detectGlobalMarkdownState(src)
 
+    if (this.unsafeRuleChange) {
+      const tokens = this.fullParse(src, workingEnv, md, globalStateReason)
+      this.stats.fullParses++
+      this.stats.lastMode = 'full'
+      setStrategyDiagnostics(workingEnv, {
+        area: 'stream',
+        path: 'stream-full',
+        reason: 'rule-version-change',
+      })
+      this.setChunkCacheDiagnostics(workingEnv, 'rule-version-change')
+      return tokens
+    }
+
     // 1. Same source → full cache hit
     if (
       cached
@@ -171,6 +191,8 @@ export class CachedStreamParser {
     ) {
       this.stats.cacheHits++
       this.stats.lastMode = 'cache'
+      this.stats.lastReparsedChars = 0
+      this.stats.lastReparsedChunks = 0
       setStrategyDiagnostics(workingEnv, { area: 'stream', path: 'stream-cache', reason: 'same-source' })
       this.setChunkCacheDiagnostics(workingEnv)
       return cached.tokens
@@ -277,6 +299,7 @@ export class CachedStreamParser {
   }
 
   noteSafeRuleChange(md: MarkdownIt): void {
+    this.unsafeRuleChange = false
     this.ruleVersions = this.readRuleVersions(md)
     this.invalidate()
   }
@@ -308,6 +331,7 @@ export class CachedStreamParser {
       || next.inline !== previous.inline
       || next.inline2 !== previous.inline2
     ) {
+      this.unsafeRuleChange = true
       if (!this.invalidated)
         this.invalidate()
       this.ruleVersions = next
@@ -400,6 +424,8 @@ export class CachedStreamParser {
     this.lastTokens = newTokens
     this.stats.appendedChunks += storedChunks
     this.stats.appendHits++
+    this.stats.lastReparsedChars = tailSrc.length
+    this.stats.lastReparsedChunks = tailRanges.length
 
     this.fullCache = { src, tokens: newTokens, env, globalStateReason: null }
     this.lastSrc = src
@@ -518,6 +544,8 @@ export class CachedStreamParser {
     let lineOffset = 0
     let hasCacheHits = false
     let hasCacheMisses = false
+    let reparsedChars = 0
+    let reparsedChunks = 0
 
     for (let i = 0; i < ranges.length; i++) {
       const range = ranges[i]
@@ -549,6 +577,8 @@ export class CachedStreamParser {
           appendTokens(out, materialized)
           hasCacheMisses = true
           this.stats.chunkMisses++
+          reparsedChars += range.end - range.start
+          reparsedChunks++
 
           // Store with LOCAL coordinates, not shifted.
           this.storeChunk(
@@ -575,6 +605,8 @@ export class CachedStreamParser {
         appendTokens(out, materialized)
         hasCacheMisses = true
         this.stats.chunkMisses++
+        reparsedChars += range.end - range.start
+        reparsedChunks++
 
         // Store with LOCAL coordinates.
         this.storeChunk(
@@ -596,6 +628,8 @@ export class CachedStreamParser {
     this.fullCache = { src, tokens: out, env, globalStateReason: null }
     this.lastSrc = src
     this.lastTokens = out
+    this.stats.lastReparsedChars = reparsedChars
+    this.stats.lastReparsedChunks = reparsedChunks
 
     if (hasCacheHits && !hasCacheMisses) {
       this.stats.lastMode = 'chunked'
@@ -638,7 +672,9 @@ export class CachedStreamParser {
       invalidations: this.stats.invalidations,
       tableSize: this.table.size,
       totalCachedChars: this.table.totalCharCount,
-      totalCachedTokens: this.table.totalTokenCount,
+      totalCachedTokenWeight: this.table.totalTokenWeight,
+      lastReparsedChars: this.stats.lastReparsedChars,
+      lastReparsedChunks: this.stats.lastReparsedChunks,
       ...(fallbackReason ? { fallback: true, fallbackReason } : {}),
     })
   }
@@ -676,7 +712,7 @@ export class CachedStreamParser {
     table = this.table,
   ): void {
     const fingerprint = computeContentFingerprint(src, startOffset, endOffset)
-    const tokenCount = countAllTokens(tokens)
+    const tokenWeight = estimateTokenWeight(tokens)
 
     table.store({
       startOffset,
@@ -688,7 +724,7 @@ export class CachedStreamParser {
       tokens,
       generation: 0, // will be overwritten by ChunkTable.store()
       charLength: fingerprint.length,
-      tokenCount,
+      tokenWeight,
     })
   }
 
@@ -704,26 +740,10 @@ export class CachedStreamParser {
     this.fullCache = { src, tokens, env, globalStateReason }
     this.lastSrc = src
     this.lastTokens = tokens
+    this.stats.lastReparsedChars = src.length
+    this.stats.lastReparsedChunks = src.length > 0 ? 1 : 0
     return tokens
   }
-}
-
-/**
- * Recursively count all tokens including children.
- */
-function countAllTokens(tokens: Token[]): number {
-  let count = 0
-  const stack = [...tokens]
-  while (stack.length) {
-    const t = stack.pop()!
-    count++
-    if (t.children && t.children.length > 0) {
-      for (let i = t.children.length - 1; i >= 0; i--) {
-        stack.push(t.children[i])
-      }
-    }
-  }
-  return count
 }
 
 export default CachedStreamParser
