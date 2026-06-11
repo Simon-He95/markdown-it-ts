@@ -140,6 +140,7 @@ describe('ChunkTable', () => {
       endOffset: src.length,
       startLine: 0,
       lineCount: 1,
+      sourceText: src,
       fingerprint: computeContentFingerprint(src, 0, src.length),
       tokens,
       generation: 0,
@@ -160,6 +161,7 @@ describe('ChunkTable', () => {
       endOffset: src.length,
       startLine: 0,
       lineCount: 1,
+      sourceText: src,
       fingerprint: computeContentFingerprint(src, 0, src.length),
       tokens: [],
       generation: 0,
@@ -176,8 +178,8 @@ describe('ChunkTable', () => {
     const table = new ChunkTable()
     const fp1 = computeContentFingerprint('aaaaaaaaaa', 0, 10)
     const fp2 = computeContentFingerprint('bbbbbbbbbb', 0, 10)
-    table.store({ startOffset: 0, endOffset: 10, startLine: 0, lineCount: 1, fingerprint: fp1, tokens: [], generation: 0, charLength: 10, tokenCount: 0 })
-    table.store({ startOffset: 20, endOffset: 30, startLine: 2, lineCount: 1, fingerprint: fp2, tokens: [], generation: 0, charLength: 10, tokenCount: 0 })
+    table.store({ startOffset: 0, endOffset: 10, startLine: 0, lineCount: 1, sourceText: 'aaaaaaaaaa', fingerprint: fp1, tokens: [], generation: 0, charLength: 10, tokenCount: 0 })
+    table.store({ startOffset: 20, endOffset: 30, startLine: 2, lineCount: 1, sourceText: 'bbbbbbbbbb', fingerprint: fp2, tokens: [], generation: 0, charLength: 10, tokenCount: 0 })
 
     table.invalidateRange(5, 25)
     expect(table.size).toBe(0)
@@ -186,9 +188,20 @@ describe('ChunkTable', () => {
   it('clears all chunks', () => {
     const table = new ChunkTable()
     const fp = computeContentFingerprint('aaaaaaaaaa', 0, 10)
-    table.store({ startOffset: 0, endOffset: 10, startLine: 0, lineCount: 1, fingerprint: fp, tokens: [], generation: 0, charLength: 10, tokenCount: 0 })
+    table.store({ startOffset: 0, endOffset: 10, startLine: 0, lineCount: 1, sourceText: 'aaaaaaaaaa', fingerprint: fp, tokens: [], generation: 0, charLength: 10, tokenCount: 0 })
     table.clear()
     expect(table.size).toBe(0)
+  })
+
+  it('returns a copy from getChunks', () => {
+    const table = new ChunkTable()
+    const src = 'aaaaaaaaaa'
+    const fp = computeContentFingerprint(src, 0, src.length)
+    table.store({ startOffset: 0, endOffset: src.length, startLine: 0, lineCount: 1, sourceText: src, fingerprint: fp, tokens: [], generation: 0, charLength: src.length, tokenCount: 0 })
+
+    ;(table.getChunks() as any).length = 0
+
+    expect(table.size).toBe(1)
   })
 
   it('evicts least-recently-used chunks when maxChunks is exceeded', () => {
@@ -208,6 +221,7 @@ describe('ChunkTable', () => {
         endOffset: end,
         startLine: i * 2,
         lineCount: 2,
+        sourceText: src.slice(start, end),
         fingerprint: computeContentFingerprint(src, start, end),
         tokens: [],
         generation: 0,
@@ -224,6 +238,7 @@ describe('ChunkTable', () => {
       endOffset: end,
       startLine: 6,
       lineCount: 2,
+      sourceText: src.slice(start, end),
       fingerprint: computeContentFingerprint(src, start, end),
       tokens: [],
       generation: 0,

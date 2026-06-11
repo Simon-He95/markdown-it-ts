@@ -109,6 +109,20 @@ describe('Cache invalidation (P0-1)', () => {
 
     expect(md.stream.stats().lastMode).toBe('chunked')
   })
+
+  it('invalidates cache after direct ruler changes', () => {
+    const md = markdownit({ stream: true, experimental: { streamChunkCache: true } })
+    const src = '| a | b |\n| --- | --- |\n| c | d |\n'
+
+    const before = md.renderer.render(md.stream.parse(src, {}), md.options, {})
+    expect(before).toContain('<table>')
+
+    md.block.ruler.disable(['table'])
+
+    const after = md.renderer.render(md.stream.parse(src, {}), md.options, {})
+    expect(after).not.toContain('<table>')
+    expect(md.stream.stats().invalidations).toBeGreaterThan(0)
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -195,6 +209,23 @@ describe('Line map correctness (P0-2)', () => {
         expect(token.map[0]).toBeLessThan(chunk.lineCount)
         expect(token.map[1]).toBeLessThanOrEqual(chunk.lineCount)
       }
+    }
+  })
+
+  it('stores correct lineCount for final chunk without trailing newline', () => {
+    const md = markdownit()
+    const parser = makeParser(md)
+    const src = `${largeDoc(120)}final paragraph without trailing newline`
+
+    parser.parse(src, {}, md)
+    const chunks = (parser as any).table.getChunks()
+    const last = chunks[chunks.length - 1]
+
+    expect(last.sourceText).toContain('final paragraph without trailing newline')
+    expect(last.lineCount).toBeGreaterThanOrEqual(1)
+    for (const token of last.tokens) {
+      if (token.map)
+        expect(token.map[1]).toBeLessThanOrEqual(last.lineCount)
     }
   })
 })
@@ -328,6 +359,7 @@ describe('Content fingerprint (P0-5)', () => {
     table.store({
       startOffset: 0, endOffset: src.length,
       startLine: 0, lineCount: 1,
+      sourceText: src,
       fingerprint: fp,
       tokens: [],
       generation: table.currentGeneration,
@@ -352,6 +384,7 @@ describe('Content fingerprint (P0-5)', () => {
     table.store({
       startOffset: 0, endOffset: src1.length,
       startLine: 0, lineCount: 1,
+      sourceText: src1,
       fingerprint: fp,
       tokens: [],
       generation: table.currentGeneration,
@@ -365,6 +398,26 @@ describe('Content fingerprint (P0-5)', () => {
     expect(hit).toBeNull()
   })
 
+  it('rejects matching fingerprint metadata without exact source match', () => {
+    const table = new ChunkTable()
+    const src1 = 'same length original'
+    const src2 = 'same length modified'
+    const fp = computeContentFingerprint(src2, 0, src2.length)
+
+    table.store({
+      startOffset: 0, endOffset: src2.length,
+      startLine: 0, lineCount: 1,
+      sourceText: src1,
+      fingerprint: fp,
+      tokens: [],
+      generation: table.currentGeneration,
+      charLength: fp.length,
+      tokenCount: 0,
+    })
+
+    expect(table.lookup(0, src2, src2.length)).toBeNull()
+  })
+
   it('generation mismatch invalidates chunk', () => {
     const table = new ChunkTable()
     const src = 'hello'
@@ -373,6 +426,7 @@ describe('Content fingerprint (P0-5)', () => {
     table.store({
       startOffset: 0, endOffset: src.length,
       startLine: 0, lineCount: 1,
+      sourceText: src,
       fingerprint: fp,
       tokens: [],
       generation: table.currentGeneration,
@@ -509,6 +563,7 @@ describe('ChunkTable memory limits (P0-9)', () => {
         endOffset: i * 100 + content.length,
         startLine: i * 2,
         lineCount: 2,
+        sourceText: content,
         fingerprint: computeContentFingerprint(content, 0, content.length),
         tokens: [],
         generation: table.currentGeneration,
@@ -530,6 +585,7 @@ describe('ChunkTable memory limits (P0-9)', () => {
         endOffset: i * 100 + content.length,
         startLine: i * 2,
         lineCount: 2,
+        sourceText: content,
         fingerprint: computeContentFingerprint(content, 0, content.length),
         tokens: [],
         generation: table.currentGeneration,
@@ -677,6 +733,7 @@ describe('materializeCachedTokens', () => {
       endOffset: src.length,
       startLine: 0,
       lineCount: 1,
+      sourceText: src,
       fingerprint: fp,
       tokens: [original],
       generation: 0,

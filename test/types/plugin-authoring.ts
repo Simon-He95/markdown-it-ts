@@ -122,6 +122,7 @@ typedMetaToken.meta = { other: 'field' }
 const streamBuffer = new StreamBuffer(typedMd)
 streamBuffer.feed('# Title\n\n')
 const streamStats: StreamStats = typedMd.stream.stats()
+const streamInvalidations: number | undefined = typedMd.stream.stats().invalidations
 
 const chunkedTokens: Token[] = chunkedParse(typedMd, '# Title\n\nBody', env)
 const coreTokens: Token[] = new ParserCore().parse('# Core').tokens
@@ -140,5 +141,6 @@ void mdWithNamespacedExperimentalOptions
 void typedMetaToken
 void streamBuffer
 void streamStats
+void streamInvalidations
 void chunkedTokens
 void coreTokens

@@ -2,6 +2,7 @@ import type { Token as TokenType } from './common/token'
 import type { ParserBlock } from './parse/parser_block'
 import type { ParserInline } from './parse/parser_inline'
 import type { RendererOptions } from './render/renderer'
+import type { CachedStreamStats } from './stream/cached_parser'
 import type { StreamStats } from './stream/parser'
 import type { UnboundedBufferStats, UnboundedChunkInfo } from './stream/unbounded'
 import LinkifyIt from 'linkify-it'
@@ -37,6 +38,7 @@ export { withRenderer } from './plugins/with-renderer'
 export type { RendererEnv, RendererOptions } from './render'
 
 type QuotesOption = string | [string, string, string, string]
+type MarkdownItStreamStats = StreamStats & Partial<CachedStreamStats>
 
 export interface MarkdownItExperimentalOptions {
   stream?: boolean
@@ -187,7 +189,7 @@ export interface MarkdownIt {
     parse: (src: string, env?: Record<string, unknown>) => TokenType[]
     reset: () => void
     peek: () => TokenType[]
-    stats: () => StreamStats
+    stats: () => MarkdownItStreamStats
     resetStats: () => void
   }
   set: (options: MarkdownItOptions) => this

@@ -20,6 +20,13 @@ import {
   splitIntoSafeChunkRanges,
 } from './chunk_cache'
 
+interface ParserRuleVersions {
+  core: number
+  block: number
+  inline: number
+  inline2: number
+}
+
 // ---------------------------------------------------------------------------
 // Stats
 // ---------------------------------------------------------------------------
@@ -66,7 +73,7 @@ function makeEmptyStats(): CachedStreamStats {
 // stabilises and only the tail grows.
 //
 // Key behaviours:
-//   - Same source without global env state → instant cache hit (O(1)).
+//   - Same source without global env state → instant full-source cache hit.
 //   - Append (src.startsWith(cachedSrc)) → reuses cached prefix chunks,
 //     parses the cached tail plus appended segment.
 //   - Non-append edit → finds hard boundaries, reuses unchanged chunks,
@@ -75,8 +82,7 @@ function makeEmptyStats(): CachedStreamStats {
 //   - Plugin usage disables chunk caching (conservative env safety).
 //
 // Cache safety notes:
-//   - Content fingerprint (hash + length + first/last chars) reduces
-//     accidental false positives.
+//   - Cached sourceText is compared exactly before reusing chunk tokens.
 //   - Generation-based invalidation ensures stale chunks are evicted after
 //     md.set(), md.enable(), md.disable(), or md.use().
 //   - Cached tokens retain chunk-local line maps; materialization clones
@@ -114,6 +120,8 @@ export class CachedStreamParser {
   // Stored limits used to create/recreate the ChunkTable.
   private tableLimits: ChunkTableLimits | undefined
 
+  private ruleVersions: ParserRuleVersions | null = null
+
   constructor(core: ParserCore, limits?: ChunkTableLimits) {
     this.core = core
     this.tableLimits = limits
@@ -123,6 +131,8 @@ export class CachedStreamParser {
   // ---- Public API ----
 
   parse(src: string, env: Record<string, unknown> | undefined, md: MarkdownIt): Token[] {
+    this.ensureRuleVersions(md)
+
     // If invalidated (e.g. by md.set/enable/disable/use), reset internal state.
     if (this.invalidated) {
       this.doReset()
@@ -262,6 +272,36 @@ export class CachedStreamParser {
   }
 
   // ---- Private ----
+
+  private ensureRuleVersions(md: MarkdownIt): void {
+    const next = this.readRuleVersions(md)
+    const previous = this.ruleVersions
+
+    if (!previous) {
+      this.ruleVersions = next
+      return
+    }
+
+    if (
+      next.core !== previous.core
+      || next.block !== previous.block
+      || next.inline !== previous.inline
+      || next.inline2 !== previous.inline2
+    ) {
+      if (!this.invalidated)
+        this.invalidate()
+      this.ruleVersions = next
+    }
+  }
+
+  private readRuleVersions(md: MarkdownIt): ParserRuleVersions {
+    return {
+      core: md.core.ruler.version,
+      block: md.block.ruler.version,
+      inline: md.inline.ruler.version,
+      inline2: md.inline.ruler2.version,
+    }
+  }
 
   private doReset(): void {
     // Recreate the ChunkTable so any stale limits from a previous
@@ -601,6 +641,7 @@ export class CachedStreamParser {
       startLine,
       lineCount,
       fingerprint,
+      sourceText: src.slice(startOffset, endOffset),
       tokens,
       generation: 0, // will be overwritten by ChunkTable.store()
       charLength: fingerprint.length,

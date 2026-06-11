@@ -18,9 +18,9 @@ export function computeSourceHash(src: string, start: number, end: number): numb
 }
 
 // ---------------------------------------------------------------------------
-// Content fingerprint: probabilistic cache lookup verification.
-// It combines a 32-bit hash, length, and edge slices to reduce accidental
-// false positives without storing the full chunk content.
+// Content fingerprint metadata.
+// Exact sourceText comparison below is the correctness check; this metadata is
+// kept for callers that need a cheap content summary.
 // ---------------------------------------------------------------------------
 
 const FINGERPRINT_FIRST = 16
@@ -56,21 +56,6 @@ export function computeContentFingerprint(src: string, start: number, end: numbe
   }
 }
 
-function fingerprintsMatch(a: ContentFingerprint, src: string, start: number, end: number): boolean {
-  const len = end - start
-  if (a.length !== len)
-    return false
-  const bHash = fnv1a32(src, start, end)
-  if (a.hash !== bHash)
-    return false
-  // Verify first/last chars for extra safety
-  if (a.first !== extractFirstChars(src, start, end, FINGERPRINT_FIRST))
-    return false
-  if (a.last !== extractLastChars(src, start, end, FINGERPRINT_LAST))
-    return false
-  return true
-}
-
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -80,7 +65,9 @@ export interface CachedChunk {
   endOffset: number
   startLine: number
   lineCount: number
-  /** Content fingerprint for cache lookup verification. */
+  /** Original source slice for deterministic cache lookup verification. */
+  sourceText: string
+  /** Content fingerprint metadata for callers that need a compact summary. */
   fingerprint: ContentFingerprint
   /**
    * Tokens stored with chunk-local line coordinates (line 0 = chunk start).
@@ -153,7 +140,7 @@ export class ChunkTable {
   }
 
   /**
-   * Look up a cached chunk by offset range. Verifies content fingerprint
+   * Look up a cached chunk by offset range. Verifies exact source content
    * and generation. Returns null if not found, content changed, or generation
    * mismatch.
    */
@@ -169,8 +156,10 @@ export class ChunkTable {
       return null
     }
 
-    // Content fingerprint verification (multi-factor, not just hash).
-    if (!fingerprintsMatch(cached.fingerprint, src, startOffset, endOffset)) {
+    if (
+      cached.sourceText.length !== endOffset - startOffset
+      || cached.sourceText !== src.slice(startOffset, endOffset)
+    ) {
       this.evict(cached, key)
       return null
     }
@@ -199,9 +188,22 @@ export class ChunkTable {
     this.map.set(key, chunk)
 
     // Insert in sorted order.
-    let i = 0
-    while (i < this.list.length && this.list[i].startOffset < chunk.startOffset) i++
-    this.list.splice(i, 0, chunk)
+    const last = this.list[this.list.length - 1]
+    if (!last || chunk.startOffset >= last.startOffset) {
+      this.list.push(chunk)
+    }
+    else {
+      let lo = 0
+      let hi = this.list.length
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1
+        if (this.list[mid].startOffset < chunk.startOffset)
+          lo = mid + 1
+        else
+          hi = mid
+      }
+      this.list.splice(lo, 0, chunk)
+    }
 
     // Enforce limits.
     this.enforceLimits()
@@ -278,7 +280,7 @@ export class ChunkTable {
   }
 
   getChunks(): readonly CachedChunk[] {
-    return this.list
+    return this.list.slice()
   }
 
   // ---- Private ----
@@ -372,7 +374,7 @@ export function splitIntoSafeChunkRanges(
 
   if (boundaries.length === 0) {
     if (src.length > 0) {
-      ranges.push({ start: 0, end: src.length, startLine: 0, lineCount: countLines(src) })
+      ranges.push({ start: 0, end: src.length, startLine: 0, lineCount: countLineSpan(src) })
     }
     return ranges
   }
@@ -388,7 +390,7 @@ export function splitIntoSafeChunkRanges(
         start: prevOffset,
         end: b.offset,
         startLine: prevLine,
-        lineCount: countLines(seg),
+        lineCount: countLineSpan(seg),
       })
     }
     prevOffset = b.offset
@@ -402,13 +404,19 @@ export function splitIntoSafeChunkRanges(
       start: prevOffset,
       end: src.length,
       startLine: prevLine,
-      lineCount: countLines(seg),
+      lineCount: countLineSpan(seg),
     })
   }
 
   // Merge undersized ranges
   ranges = mergeSmallRanges(ranges, minChars)
   return ranges
+}
+
+function countLineSpan(src: string): number {
+  if (src.length === 0)
+    return 0
+  return countLines(src) + (src.charCodeAt(src.length - 1) === 0x0A ? 0 : 1)
 }
 
 // ---------------------------------------------------------------------------
