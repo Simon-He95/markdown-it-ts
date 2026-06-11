@@ -1,6 +1,6 @@
 # markdown-it-ts
 
-A TypeScript-first Markdown parser and renderer compatible with the markdown-it public API for common plugin patterns, with streaming/incremental parsing and async render.
+A TypeScript-first Markdown parser and renderer compatible with the markdown-it public API for common plugin patterns, with experimental streaming/incremental helpers and async render.
 
 English | [简体中文](./README.zh-CN.md)
 
@@ -40,7 +40,7 @@ A TypeScript migration of [markdown-it](https://github.com/markdown-it/markdown-
 | --- | --- |
 | Stable target | `MarkdownIt()`, `parse`, `render`, `renderInline`, `renderAsync`, `renderer.rules`, `Token`, and public ruler/plugin APIs |
 | Advanced | Root `withRenderer`, documented subpath exports such as `core`, renderer helpers, and common utilities |
-| Experimental | `stream`, `chunkedParse`, `StreamBuffer`, `UnboundedBuffer`, `EditableBuffer`, `PieceTable`, iterable/sink parsing, and chunk strategy recommenders via `markdown-it-ts/experimental`; selected helpers also have explicit subpaths such as `markdown-it-ts/stream/buffer`, `markdown-it-ts/stream/chunked`, `markdown-it-ts/stream/debounced`, and `markdown-it-ts/support/chunk_recommend` |
+| Experimental | `stream`, `chunkedParse`, `StreamBuffer`, `UnboundedBuffer`, `EditableBuffer`, `PieceTable`, `CachedStreamParser`, `ChunkTable`, iterable/sink parsing, and chunk strategy recommenders via `markdown-it-ts/experimental`; selected helpers also have explicit subpaths such as `markdown-it-ts/stream/buffer`, `markdown-it-ts/stream/chunked`, `markdown-it-ts/stream/cached`, `markdown-it-ts/stream/chunk-table`, `markdown-it-ts/stream/debounced`, and `markdown-it-ts/support/chunk_recommend` |
 
 The root entry no longer exposes experimental helpers as top-level named exports. Some large-input helpers remain available as experimental instance methods for compatibility, but they are not part of the stable markdown-it compatibility contract.
 
@@ -183,7 +183,7 @@ md.parseIterableToSink(fileChunks, (tokens, info) => {
 })
 ```
 
-For arbitrary in-place edits, use `EditableBuffer`. It stores the source in a piece table and reparses only from an anchor before the affected block instead of flattening and reparsing the whole document every time. Internally, both the full parse and the localized reparse paths now hand a `PieceTableSourceView` straight to `md.core.parseSource(...)`, so the selected range no longer needs to be materialized as one giant intermediate string first.
+For arbitrary in-place edits, use `EditableBuffer`. It stores the source in a piece table and reparses from an anchor before the affected block instead of flattening and reparsing the whole document every time. This is anchor-based suffix reparsing, not per-chunk token memoization; edits near the start of the document or documents with global markdown state can still approach or fall back to a full parse. Internally, both the full parse and the localized reparse paths now hand a `PieceTableSourceView` straight to `md.core.parseSource(...)`, so the selected range no longer needs to be materialized as one giant intermediate string first.
 
 ### Correctness notes for chunked and streaming parsing
 
@@ -392,24 +392,26 @@ Quick start:
 import markdownIt from 'markdown-it-ts'
 
 const md = markdownIt({
-  stream: true, // enable stream mode
-  streamChunkedFallback: true, // use chunked on first large parse or large non-append edits
-  // optional per-chunk cache for repeated long-document edits; off by default
-  // This improves repeated edit throughput, not memory use; avoid enabling it for one-shot large document display/restores.
-  // Treat returned stream tokens as immutable; mutating them can affect same-source cache hits.
-  // It is disabled after .use() or custom parser-rule changes to preserve plugin/env behavior.
-  // Runtime linkify mutations invalidate the stream caches.
-  streamChunkCache: true,
-  streamChunkCacheMaxChunks: 128,
-  streamChunkCacheMaxTotalChars: 500_000,
-  // recursive token weight, including inline children, attrs, and content strings
-  streamChunkCacheMaxTotalTokenWeight: 25_000,
-  // optional tuning
-  // By default, chunk size is adaptive to doc size (streamChunkAdaptive: true)
-  // You can pin fixed sizes by setting streamChunkAdaptive: false
-  streamChunkSizeChars: 10_000,
-  streamChunkSizeLines: 200,
-  streamChunkFenceAware: true,
+  experimental: {
+    stream: true, // enable stream mode
+    streamChunkedFallback: true, // use chunked on first large parse or large non-append edits
+    // optional per-chunk cache for repeated long-document edits; off by default
+    // This improves repeated edit throughput, not memory use; avoid enabling it for one-shot large document display/restores.
+    // Treat returned stream tokens as immutable; mutating them can affect same-source cache hits.
+    // It is disabled after .use() or custom parser-rule changes to preserve plugin/env behavior.
+    // Runtime linkify mutations invalidate the stream caches.
+    streamChunkCache: true,
+    streamChunkCacheMaxChunks: 128,
+    streamChunkCacheMaxTotalChars: 500_000,
+    // recursive token weight, including inline children, attrs, and content strings
+    streamChunkCacheMaxTotalTokenWeight: 25_000,
+    // optional tuning
+    // By default, chunk size is adaptive to doc size (streamChunkAdaptive: true)
+    // You can pin fixed sizes by setting streamChunkAdaptive: false
+    streamChunkSizeChars: 10_000,
+    streamChunkSizeLines: 200,
+    streamChunkFenceAware: true,
+  },
 })
 
 let src = '# Title\n\nHello'
@@ -549,7 +551,7 @@ In the latest local benchmark snapshot from this repository’s synthetic harnes
 - 1,000,000 chars: 52.57ms vs 52.76ms → ~1× faster, ~0% less time
 <!-- perf-auto:one-examples:end -->
 
-For append-heavy editor or streaming workloads, enable the stream parser or use `StreamBuffer` / `UnboundedBuffer`. These paths are designed to avoid reparsing stable historical text when the input shape is safe for incremental parsing.
+For append-heavy editor or streaming workloads, enable the experimental stream parser or use `StreamBuffer` / `UnboundedBuffer`. These paths are designed to avoid reparsing stable historical text when the input shape is safe for incremental parsing.
 
 Benchmark results are workload-, CPU-, and Node-version-dependent. `docs/perf-latest.json` records the Node version, platform, CPU, generated time, benchmark version, and commit for each generated snapshot. Reproduce locally with:
 

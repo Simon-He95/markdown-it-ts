@@ -3,7 +3,7 @@
   "type": "module",
   "version": "1.0.0",
   "packageManager": "pnpm@9.15.9",
-  "description": "TypeScript-first Markdown parser and renderer compatible with the markdown-it public API, with streaming, chunked parsing, and async render.",
+  "description": "TypeScript-first Markdown parser and renderer compatible with the markdown-it public API, with async render and experimental streaming/chunked helpers.",
   "author": "Simon He",
   "license": "MIT",
   "homepage": "https://github.com/Simon-He95/markdown-it-ts#readme",

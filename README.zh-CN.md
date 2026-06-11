@@ -1,6 +1,6 @@
 # markdown-it-ts
 
-一个 TypeScript-first、兼容 markdown-it public API 的 Markdown 解析/渲染器，支持流式/增量解析与异步渲染。
+一个 TypeScript-first、兼容 markdown-it public API 的 Markdown 解析/渲染器，支持实验性的流式/增量解析 helper 与异步渲染。
 
 [English](./README.md) | 简体中文
 
@@ -40,7 +40,7 @@
 | --- | --- |
 | 稳定目标 | `MarkdownIt()`、`parse`、`render`、`renderInline`、`renderAsync`、`renderer.rules`、`Token`、公开 ruler/plugin API |
 | 高级用法 | Root `withRenderer`，以及已文档化的子路径导出，例如 `core`、renderer helper、common utilities |
-| 实验性 | `stream`、`chunkedParse`、`StreamBuffer`、`UnboundedBuffer`、`EditableBuffer`、`PieceTable`、iterable/sink parsing、chunk strategy recommender 通过 `markdown-it-ts/experimental` 使用；部分 helper 也有显式子路径，例如 `markdown-it-ts/stream/buffer`、`markdown-it-ts/stream/chunked`、`markdown-it-ts/stream/debounced`、`markdown-it-ts/support/chunk_recommend` |
+| 实验性 | `stream`、`chunkedParse`、`StreamBuffer`、`UnboundedBuffer`、`EditableBuffer`、`PieceTable`、`CachedStreamParser`、`ChunkTable`、iterable/sink parsing、chunk strategy recommender 通过 `markdown-it-ts/experimental` 使用；部分 helper 也有显式子路径，例如 `markdown-it-ts/stream/buffer`、`markdown-it-ts/stream/chunked`、`markdown-it-ts/stream/cached`、`markdown-it-ts/stream/chunk-table`、`markdown-it-ts/stream/debounced`、`markdown-it-ts/support/chunk_recommend` |
 
 根入口不再以顶层 named export 暴露实验性 helper。部分高级实例方法和选项仍保留给既有的大输入集成使用，并会在类型声明中标记为 experimental。
 
@@ -124,7 +124,7 @@ md.parseIterableToSink(fileChunks, (tokens, info) => {
 })
 ```
 
-如果是任意位置的中间编辑，可以用 `EditableBuffer`。它内部用 piece-table 保存源码，并从受影响块之前的锚点开始重解析，而不是每次都把整篇文本重新摊平成一个大字符串再 full parse。现在 full parse 和局部重解析都会直接把 `PieceTableSourceView` 交给 `md.core.parseSource(...)`，因此被解析的区间也不需要先物化成一个超大的中间字符串。
+如果是任意位置的中间编辑，可以用 `EditableBuffer`。它内部用 piece-table 保存源码，并从受影响块之前的锚点开始重解析，而不是每次都把整篇文本重新摊平成一个大字符串再 full parse。这是基于锚点的后缀重解析，不是 per-chunk token memo；靠近文档开头的编辑，或包含全局 Markdown 状态的文档，仍可能接近或退回 full parse。现在 full parse 和局部重解析都会直接把 `PieceTableSourceView` 交给 `md.core.parseSource(...)`，因此被解析的区间也不需要先物化成一个超大的中间字符串。
 
 ### chunked / streaming 正确性说明
 
@@ -170,13 +170,13 @@ const html = await md.renderAsync('# 你好，世界', {
 
 ## 为什么推荐用 markdown-it-ts 渲染？
 
-- **对比 markdown-it**：沿用相同 API/插件生态，但我们用 TypeScript 重写了解析器与渲染器，拆分为可 tree-shaking 的模块并加入流式/分块能力。普通 `parse` / `render` 调用方式保持不变，超大但有限的字符串会自动启用内部大文本优化；如果是编辑器输入，还可以额外启用 `stream`、`streamChunkedFallback` 等策略，仅重算新增内容，而不是每次重跑整篇文档。
+- **对比 markdown-it**：沿用相同 API/插件生态，但我们用 TypeScript 重写了解析器与渲染器，拆分为可 tree-shaking 的模块并加入实验性的流式/分块能力。普通 `parse` / `render` 调用方式保持不变，超大但有限的字符串会在无插件、无 parser ruler 修改时自动启用内部大文本优化；如果是编辑器输入，还可以额外启用 `experimental.stream`、`experimental.streamChunkedFallback` 等策略，在安全输入形态下减少重复解析。
 - **对比 markdown-exit**：两者都强调性能，但 markdown-it-ts 保留 markdown-it API/插件面、typed API 与 async render（`renderAsync`），并提供更丰富的调参组合（例如块级 fence 感知、混合模式 fallback）。在本仓库 5k~100k 字符 synthetic harness 中，markdown-it-ts 的 parse one-shot 延迟领先（见“Parse 排名”表）；流式路径对长文 append 的延迟也低于每次汇总重解析。
 - **对比 remark**：remark 生态非常适合 AST 转换，真实项目通常还会叠加 unified/rehype 阶段。这里的数字只比较本仓库 Markdown → HTML harness；markdown-it-ts 直接输出 HTML、保留 markdown-it renderer 语义，并兼容异步高亮、Token 后处理等常见需求。
 - **对比 micromark**：micromark 是面向 CommonMark 的参考实现，目标和 API 都不同。markdown-it-ts 以 markdown-it 的插件 API 与 renderer 语义兼容为目标；下方数字只代表本仓库 harness 覆盖的特定 parse/render 场景。
 - **工程体验**：代码与类型全部开源且随发布同步，可以配合 `docs/stream-optimization.md`、`markdown-it-ts/experimental` 以及 `recommend*Strategy`、`StreamBuffer`、`chunkedParse` 等已开放显式子路径工具，快速搭建自适应流式管线；CI 中的基准脚本 (`perf:generate`, `perf:update-readme`) 也能确保团队持续看到最新对比数据，减少性能回退的顾虑。
 - **生态/兼容**：继承 markdown-it 的 ruler、Token、插件管线，迁移现有插件或自己写的 renderer 通常只需改 import；CommonMark fixture 和插件矩阵在 CI 中默认运行。
-- **生产准备**：内置 async render、基于 Token 的后处理钩子、流式缓冲区以及 chunked fallback 让它适用于 SSR、实时协作编辑器以及大 Markdown 文档的批量处理，配合 `docs/perf-report.md` / `docs/perf-history/*.json` 可以观察长期性能趋势。
+- **生产集成**：稳定入口内置 async render 与基于 Token 的后处理钩子；实验性的流式缓冲区和 chunked fallback 可用于 SSR、实时协作编辑器以及大 Markdown 文档的批量处理，但应结合 `docs/stream-optimization.md` 的正确性边界和自己的语料验证后启用。
 
 ## 性能说明（概览）
 
@@ -405,7 +405,7 @@ pnpm run perf:update-readme
 import markdownIt from 'markdown-it-ts'
 import { StreamBuffer } from 'markdown-it-ts/stream/buffer'
 
-const md = markdownIt({ stream: true })
+const md = markdownIt({ experimental: { stream: true } })
 const buffer = new StreamBuffer(md)
 
 buffer.feed('Hello')
