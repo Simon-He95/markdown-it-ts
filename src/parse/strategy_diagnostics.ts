@@ -1,3 +1,5 @@
+import type { GlobalMarkdownStateReason } from './global_state'
+
 export interface StrategyDiagnostics {
   area: 'parse' | 'stream'
   path: string
@@ -37,6 +39,16 @@ export interface EditableDiagnostics {
   fallbackReason?: string
 }
 
+export type ChunkCacheFallbackReason
+  = | GlobalMarkdownStateReason
+    | 'disabled'
+    | 'global-state'
+    | 'no-safe-boundaries'
+    | 'plugin-used'
+    | 'rule-version-change'
+    | 'small-document'
+    | 'unsafe-boundary'
+
 export interface ChunkCacheDiagnostics {
   hits: number
   misses: number
@@ -46,7 +58,7 @@ export interface ChunkCacheDiagnostics {
   totalCachedChars: number
   totalCachedTokens: number
   fallback?: boolean
-  fallbackReason?: string
+  fallbackReason?: ChunkCacheFallbackReason
 }
 
 export interface ParseDiagnostics {

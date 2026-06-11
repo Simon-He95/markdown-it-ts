@@ -127,6 +127,49 @@ describe('Cache invalidation (P0-1)', () => {
     expect(html).not.toContain('(c)')
   })
 
+  it('invalidates cache after md.set({ maxNesting: ... })', () => {
+    const md = markdownit({ stream: true, experimental: { streamChunkCache: true } })
+    const src = `${largeDoc(120)}[\`foo\`]()\n\n${largeDoc(80)}`
+
+    md.stream.parse(src, {})
+    md.set({ maxNesting: 1 })
+
+    const tokens = md.stream.parse(src, {})
+    const html = md.renderer.render(tokens, md.options, {})
+
+    expect(html).toBe(renderBaseline(src, md.options))
+    expect(html).toContain('<a href="">`foo`</a>')
+  })
+
+  it('invalidates cache after md.set({ quotes: ... })', () => {
+    const md = markdownit({ stream: true, typographer: true, experimental: { streamChunkCache: true } })
+    const src = `${largeDoc(120)}She said "hello" and 'bye'.\n\n${largeDoc(80)}`
+
+    md.stream.parse(src, {})
+    md.set({ quotes: ['[[', ']]', '{', '}'] })
+
+    const tokens = md.stream.parse(src, {})
+    const html = md.renderer.render(tokens, md.options, {})
+
+    expect(html).toBe(renderBaseline(src, md.options))
+    expect(html).toContain('[[hello]]')
+    expect(html).toContain('{bye}')
+  })
+
+  it('uses current render options after md.set({ langPrefix: ... })', () => {
+    const md = markdownit({ stream: true, experimental: { streamChunkCache: true } })
+    const src = `${largeDoc(120)}\`\`\`ts\nconst x = 1\n\`\`\`\n\n${largeDoc(80)}`
+
+    md.stream.parse(src, {})
+    md.set({ langPrefix: 'lang-' })
+
+    const tokens = md.stream.parse(src, {})
+    const html = md.renderer.render(tokens, md.options, {})
+
+    expect(html).toBe(renderBaseline(src, md.options))
+    expect(html).toContain('class="lang-ts"')
+  })
+
   it('invalidates cache after md.enable()', () => {
     const md = markdownit({ stream: true, experimental: { streamChunkCache: true } })
     const src = largeDoc(200)
@@ -409,6 +452,28 @@ describe('Line map correctness (P0-2)', () => {
     expect(t2).not.toBe(t1)
   })
 
+  it('keeps duplicate shifted chunk line maps aligned with full parse', () => {
+    const md = markdownit()
+    const parser = makeParser(md)
+    const duplicate = 'same paragraph with enough filler text to form a repeated chunk.\n\n'
+    const src = `${largeDoc(80)}${duplicate}${duplicate}${largeDoc(80)}`
+
+    parser.parse(src, {}, md)
+
+    const shifted = `inserted before repeated paragraphs.\n\n${src}`
+    const tokens = parser.parse(shifted, {}, md)
+    const expected = md.parse(shifted, {})
+    const collect = (items: TokenType[]) => items.filter(t => t.type === 'inline' && t.content === duplicate.trim())
+    const actualDuplicates = collect(tokens)
+    const expectedDuplicates = collect(expected)
+
+    expect(actualDuplicates.length).toBe(2)
+    expect(expectedDuplicates.length).toBe(2)
+    expect(actualDuplicates.map(t => t.map)).toEqual(expectedDuplicates.map(t => t.map))
+    expect(actualDuplicates[0]).not.toBe(actualDuplicates[1])
+    expect(md.renderer.render(tokens, md.options, {})).toBe(render(shifted))
+  })
+
   it('handles edit before cached chunk and shifts downstream line maps correctly', () => {
     const md = markdownit()
     const parser = makeParser(md)
@@ -533,6 +598,21 @@ describe('Global markdown state fallback (P0-3)', () => {
     md.stream.parse(srcWithRef, {})
     const stats = md.stream.stats()
     expect(stats.lastMode).toBe('full')
+  })
+
+  it('falls back when an appended reference definition affects earlier text', () => {
+    const md = markdownit({ stream: true, experimental: { streamChunkCache: true } })
+    const cleanSrc = `[foo][x]\n\n${largeDoc(120)}`
+    const withRef = `${cleanSrc}[x]: https://example.com\n`
+
+    md.stream.parse(cleanSrc, {})
+
+    const tokens = md.stream.parse(withRef, {})
+    const html = md.renderer.render(tokens, md.options, {})
+
+    expect(html).toBe(renderBaseline(withRef, md.options))
+    expect(html).toContain('<a href="https://example.com">foo</a>')
+    expect(md.stream.stats().lastMode).toBe('full')
   })
 
   it('handles footnote definition', () => {
@@ -823,6 +903,21 @@ describe('Dirty range expansion (P0-7)', () => {
     // Middle chunk + its neighbors become dirty, but far-away chunks are clean.
     // With 200 paragraphs and many chunks, at least some should be cache hits.
     expect(stats.chunkHits).toBeGreaterThan(0)
+  })
+
+  it('keeps table body edits equivalent to full parse', () => {
+    const md = markdownit()
+    const parser = makeParser(md)
+    const src = `${largeDoc(80)}| a | b |\n| - | - |\n| 1 | 2 |\n| 3 | 4 |\n\n${largeDoc(80)}`
+
+    parser.parse(src, {}, md)
+
+    const modified = src.replace('| 3 | 4 |', '| 30 | 40 |')
+    const tokens = parser.parse(modified, {}, md)
+    const html = md.renderer.render(tokens, md.options, {})
+
+    expect(html).toBe(render(modified))
+    expect(parser.getStats().chunkHits).toBeGreaterThan(0)
   })
 })
 

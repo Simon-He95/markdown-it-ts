@@ -117,6 +117,18 @@ describe('detectHardBoundaries', () => {
       }
     }
   })
+
+  it('treats HTML block type 6/7 blank terminators as hard boundaries', () => {
+    const cases = [
+      ['type6', '<div>\ninside\n\noutside\n'],
+      ['type7', '<custom-tag data-x="1">\ninside\n\noutside\n'],
+    ] as const
+
+    for (const [, src] of cases) {
+      const blankEnd = src.indexOf('\n\n') + 2
+      expect(detectHardBoundaries(src).some(boundary => boundary.offset === blankEnd)).toBe(true)
+    }
+  })
 })
 
 // ---------------------------------------------------------------------------

@@ -2,6 +2,7 @@ import type { Token } from '../common/token'
 import type { MarkdownIt } from '../index'
 import type { GlobalMarkdownStateReason } from '../parse/global_state'
 import type { ParserCore } from '../parse/parser_core'
+import type { ChunkCacheFallbackReason } from '../parse/strategy_diagnostics'
 import type { ChunkTableLimits, SafeChunkRange } from './chunk_cache'
 import { detectGlobalMarkdownState, getKnownGlobalMarkdownState, resetKnownGlobalMarkdownState, runWithKnownGlobalMarkdownState } from '../parse/global_state'
 import {
@@ -480,8 +481,8 @@ export class CachedStreamParser {
       const tokens = this.fullParse(src, env, md, null)
       this.stats.fullParses++
       this.stats.lastMode = 'full'
-      setStrategyDiagnostics(env, { area: 'stream', path: 'stream-full', reason: 'small-doc' })
-      this.setChunkCacheDiagnostics(env, 'small-doc')
+      setStrategyDiagnostics(env, { area: 'stream', path: 'stream-full', reason: 'small-document' })
+      this.setChunkCacheDiagnostics(env, 'small-document')
       return tokens
     }
 
@@ -629,7 +630,7 @@ export class CachedStreamParser {
     return out
   }
 
-  private setChunkCacheDiagnostics(env: Record<string, unknown>, fallbackReason?: string): void {
+  private setChunkCacheDiagnostics(env: Record<string, unknown>, fallbackReason?: ChunkCacheFallbackReason): void {
     setChunkCacheDiagnostics(env, {
       hits: this.stats.chunkHits,
       misses: this.stats.chunkMisses,

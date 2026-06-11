@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 describe('root export contract', () => {
@@ -13,5 +14,13 @@ describe('root export contract', () => {
         "withRenderer",
       ]
     `)
+  })
+
+  it('keeps low-level chunk cache APIs behind the experimental entry', () => {
+    const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+
+    expect(pkg.exports).toHaveProperty('./experimental')
+    expect(pkg.exports).not.toHaveProperty('./stream/cached_parser')
+    expect(pkg.exports).not.toHaveProperty('./stream/chunk_cache')
   })
 })

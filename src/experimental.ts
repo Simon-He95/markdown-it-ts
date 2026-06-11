@@ -5,6 +5,7 @@ export {
 } from './parse/strategy_diagnostics'
 export type {
   ChunkCacheDiagnostics,
+  ChunkCacheFallbackReason,
   ChunkDiagnostics,
   EditableDiagnostics,
   ParseDiagnostics,

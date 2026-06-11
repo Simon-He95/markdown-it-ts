@@ -394,6 +394,7 @@ const md = markdownIt({
   streamChunkedFallback: true, // use chunked on first large parse or large non-append edits
   // optional per-chunk cache for repeated long-document edits; off by default
   // This improves repeated edit throughput, not memory use; avoid enabling it for one-shot large document display/restores.
+  // It is disabled after .use() or custom parser-rule changes to preserve plugin/env behavior.
   streamChunkCache: true,
   streamChunkCacheMaxChunks: 128,
   streamChunkCacheMaxTotalChars: 500_000,
