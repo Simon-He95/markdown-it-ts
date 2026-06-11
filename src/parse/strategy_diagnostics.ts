@@ -55,6 +55,8 @@ export interface ChunkCacheDiagnostics {
   hits: number
   misses: number
   evictions: number
+  contentLookupCandidates: number
+  contentLookupComparisons: number
   appendedChunks: number
   invalidations: number
   tableSize: number

@@ -57,7 +57,7 @@ const md = MarkdownIt({
     streamChunkCacheMaxChunks: 128,
     streamChunkCacheMaxTotalChars: 500_000,
     // recursive token weight, not just top-level token count
-    streamChunkCacheMaxTotalTokens: 25_000,
+    streamChunkCacheMaxTotalTokenWeight: 25_000,
   },
 })
 ```

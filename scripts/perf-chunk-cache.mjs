@@ -50,6 +50,8 @@ function cacheSummary(env, stats) {
     `lastReparsedChars=${chunkCache.lastReparsedChars}`,
     `lastReparsedChunks=${chunkCache.lastReparsedChunks}`,
     `shiftedTokens=${chunkCache.shiftedTokenCount}`,
+    `contentLookupCandidates=${chunkCache.contentLookupCandidates}`,
+    `contentLookupComparisons=${chunkCache.contentLookupComparisons}`,
     `evictions=${chunkCache.evictions}`,
     chunkCache.fallbackReason ? `fallback=${chunkCache.fallbackReason}` : null,
   ].filter(Boolean).join(' ')
@@ -113,6 +115,22 @@ function makeWorstCaseList(items) {
   return s
 }
 
+function makeLargeGuardDoc(targetChars) {
+  const filler = 'x'.repeat(70_000)
+  let s = ''
+  let i = 0
+  while (s.length < targetChars) {
+    s += `Guard block ${i}\n${filler}\n\n`
+    i++
+  }
+  return s
+}
+
+function findMiddleBoundary(src) {
+  const pos = src.indexOf('\n\n', src.length >> 1)
+  return pos === -1 ? (src.length >> 1) : pos + 2
+}
+
 function runRepeatedMiddleEdits(label, src, parse, edits = 100, iters = 5) {
   const paragraphs = Math.max(1, (src.match(/## Section /g) || []).length)
   const positions = [10, Math.floor(paragraphs / 2), Math.max(0, paragraphs - 10)]
@@ -122,6 +140,39 @@ function runRepeatedMiddleEdits(label, src, parse, edits = 100, iters = 5) {
       parse(src.replace(`## Section ${pos}`, `## Section ${pos} edit ${i}`))
     }
   }, iters)
+}
+
+function runLargeMiddleInsertGuard(targetChars) {
+  const mdC = MarkdownIt({ experimental: { streamChunkCacheMinChunkChars: 64_000 } })
+  const parser = new CachedStreamParser(mdC.core, undefined, undefined, TRUST_CORE_RULES)
+  const env = {}
+  const src = makeLargeGuardDoc(targetChars)
+  const insertAt = findMiddleBoundary(src)
+  parser.parse(src, env, mdC)
+  parser.parse(
+    `${src.slice(0, insertAt)}Large middle insert guard paragraph.\n\n${src.slice(insertAt)}`,
+    env,
+    mdC,
+  )
+
+  const stats = parser.getStats()
+  const chunkCache = getParseDiagnostics(env)?.chunkCache
+  const failures = []
+  if (!chunkCache)
+    failures.push('missing chunk cache diagnostics')
+  else {
+    if (chunkCache.fallbackReason)
+      failures.push(`fallbackReason=${chunkCache.fallbackReason}`)
+    if (chunkCache.tableSize <= 0)
+      failures.push(`tableSize=${chunkCache.tableSize}`)
+  }
+  if (stats.lastReusedChars <= stats.lastReparsedChars)
+    failures.push(`lastReusedChars=${stats.lastReusedChars} lastReparsedChars=${stats.lastReparsedChars}`)
+
+  if (failures.length > 0)
+    throw new Error(`large middle insert chunk-cache guard failed: ${failures.join(', ')}`)
+
+  console.log(`  cached: large middle insert guard (${src.length} chars) ✓ ${cacheSummary(env, stats)}`)
 }
 
 // ---- test sizes ----
@@ -255,6 +306,9 @@ for (const scenario of SCENARIOS) {
   else {
     console.log('  cached: direct details skipped (set MDTS_CHUNK_CACHE_DEEP=1)')
   }
+
+  if (!runDirectCachedDetails && src.length >= 500_000)
+    runLargeMiddleInsertGuard(src.length)
 
   // 7. Repeated middle edits: compare the workload chunk cache is meant for.
   {

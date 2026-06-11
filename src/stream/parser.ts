@@ -52,6 +52,8 @@ export interface StreamStats {
   chunkMisses?: number
   appendedChunks?: number
   chunkEvictions?: number
+  contentLookupCandidates?: number
+  contentLookupComparisons?: number
   invalidations?: number
   lastReparsedChars?: number
   lastReparsedChunks?: number
@@ -898,6 +900,8 @@ export class StreamParser {
     this.stats.chunkMisses = chunkStats.chunkMisses
     this.stats.appendedChunks = chunkStats.appendedChunks
     this.stats.chunkEvictions = chunkStats.chunkEvictions
+    this.stats.contentLookupCandidates = chunkStats.contentLookupCandidates
+    this.stats.contentLookupComparisons = chunkStats.contentLookupComparisons
     this.stats.invalidations = chunkStats.invalidations
     this.stats.lastReparsedChars = chunkStats.lastReparsedChars
     this.stats.lastReparsedChunks = chunkStats.lastReparsedChunks
@@ -916,6 +920,8 @@ export class StreamParser {
       hits: this.stats.chunkHits ?? 0,
       misses: this.stats.chunkMisses ?? 0,
       evictions: this.stats.chunkEvictions ?? 0,
+      contentLookupCandidates: this.stats.contentLookupCandidates ?? 0,
+      contentLookupComparisons: this.stats.contentLookupComparisons ?? 0,
       appendedChunks: this.stats.appendedChunks ?? 0,
       invalidations: this.stats.invalidations ?? 0,
       tableSize: 0,

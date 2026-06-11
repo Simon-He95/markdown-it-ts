@@ -85,6 +85,7 @@ const mdWithNamespacedExperimentalOptions = MarkdownIt({
   experimental: {
     fullChunkedFallback: true,
     streamChunkCacheMinChunkChars: 4096,
+    streamChunkCacheMaxTotalTokenWeight: 25_000,
   } satisfies MarkdownItExperimentalOptions,
 })
 const typedMd: MarkdownItInstance = md

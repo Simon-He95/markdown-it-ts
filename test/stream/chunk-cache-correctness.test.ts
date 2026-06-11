@@ -416,6 +416,25 @@ describe('Cache invalidation (P0-1)', () => {
     expect(next?.shiftedTokenCount).toBe(md.stream.stats().lastShiftedTokenCount)
   })
 
+  it('reports content lookup costs when shifted chunks are reused', () => {
+    const md = markdownit({
+      stream: true,
+      experimental: {
+        streamChunkCache: true,
+        streamChunkCacheMinChunkChars: 1,
+      },
+    })
+    const src = largeDoc(220)
+    const env: Record<string, unknown> = {}
+
+    md.stream.parse(src, env)
+    md.stream.parse(`Inserted paragraph before cached chunks.\n\n${src}`, env)
+
+    const info = getParseDiagnostics(env)?.chunkCache
+    expect(info?.contentLookupCandidates).toBeGreaterThan(0)
+    expect(info?.contentLookupComparisons).toBeGreaterThan(0)
+  })
+
   it('coalesces short hard-boundary blocks by default', () => {
     const md = markdownit()
     const parser = makeParser(md)
@@ -1304,10 +1323,10 @@ describe('ChunkTable memory limits (P0-9)', () => {
     expect(table.totalCharCount).toBeLessThanOrEqual(200)
   })
 
-  it('accounts for recursive inline token weight when enforcing maxTotalTokens', () => {
+  it('accounts for recursive inline token weight when enforcing maxTotalTokenWeight', () => {
     const md = markdownit({ linkify: true })
     const typedMd = md as any
-    const parser = new CachedStreamParser(typedMd.core as ParserCore, { maxTotalTokens: 80 }, {
+    const parser = new CachedStreamParser(typedMd.core as ParserCore, { maxTotalTokenWeight: 80 }, {
       core: typedMd.core.ruler.version,
       block: typedMd.block.ruler.version,
       inline: typedMd.inline.ruler.version,
@@ -1451,16 +1470,19 @@ describe('streamChunkCache integration with StreamParser append paths', () => {
       const md = markdownit({ stream: true, experimental: { streamChunkCache: true } })
       const src = largeDoc(120)
       const next = src + append
+      const final = `${next}Final appended paragraph.\n\n`
       const env = {}
 
       md.stream.parse(src, env)
-      const tokens = md.stream.parse(next, env)
+      md.stream.parse(next, env)
+      const tokens = md.stream.parse(final, env)
       const html = md.renderer.render(tokens, md.options, env)
       const stats = md.stream.stats()
 
-      expect(html).toBe(renderBaseline(next, md.options))
-      expect(stats.lastMode).toBe('append')
+      expect(html).toBe(renderBaseline(final, md.options))
+      expect(['append', 'tail']).toContain(stats.lastMode)
       expect(stats.appendHits).toBeGreaterThan(0)
+      expect(getParseDiagnostics(env)?.chunkCache).toBeUndefined()
     })
   }
 })

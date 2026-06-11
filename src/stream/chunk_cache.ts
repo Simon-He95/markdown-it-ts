@@ -106,13 +106,13 @@ export interface ChunkTableLimits {
   /** Maximum total characters across cached chunk entries. Default: 2,000,000. */
   maxTotalChars?: number
   /** Maximum total estimated token weight across cached chunk entries. Default: 100,000. */
-  maxTotalTokens?: number
+  maxTotalTokenWeight?: number
 }
 
 const DEFAULT_CHUNK_TABLE_LIMITS: Required<ChunkTableLimits> = {
   maxChunks: 256,
   maxTotalChars: 2_000_000,
-  maxTotalTokens: 100_000,
+  maxTotalTokenWeight: 100_000,
 }
 
 // ---------------------------------------------------------------------------
@@ -135,6 +135,8 @@ export class ChunkTable {
   private totalTokenWeightValue = 0
   private limits: Required<ChunkTableLimits>
   private evictionCount = 0
+  private contentLookupCandidatesValue = 0
+  private contentLookupComparisonsValue = 0
 
   constructor(limits?: ChunkTableLimits) {
     this.limits = { ...DEFAULT_CHUNK_TABLE_LIMITS }
@@ -234,6 +236,8 @@ export class ChunkTable {
     this.totalChars = 0
     this.totalTokenWeightValue = 0
     this.evictionCount = 0
+    this.contentLookupCandidatesValue = 0
+    this.contentLookupComparisonsValue = 0
   }
 
   clear(): void {
@@ -243,6 +247,8 @@ export class ChunkTable {
     this.totalChars = 0
     this.totalTokenWeightValue = 0
     this.evictionCount = 0
+    this.contentLookupCandidatesValue = 0
+    this.contentLookupComparisonsValue = 0
     // Do NOT reset generation — that would make newly stored chunks
     // incompatible with the rest of the system. clear() is for reset;
     // invalidateAll() is for generation bump.
@@ -256,7 +262,7 @@ export class ChunkTable {
     this.limits = {
       maxChunks: limits.maxChunks ?? this.limits.maxChunks,
       maxTotalChars: limits.maxTotalChars ?? this.limits.maxTotalChars,
-      maxTotalTokens: limits.maxTotalTokens ?? this.limits.maxTotalTokens,
+      maxTotalTokenWeight: limits.maxTotalTokenWeight ?? this.limits.maxTotalTokenWeight,
     }
     this.enforceLimits()
   }
@@ -290,6 +296,14 @@ export class ChunkTable {
     return this.evictionCount
   }
 
+  get contentLookupCandidates(): number {
+    return this.contentLookupCandidatesValue
+  }
+
+  get contentLookupComparisons(): number {
+    return this.contentLookupComparisonsValue
+  }
+
   getChunks(): readonly CachedChunk[] {
     return this.list.slice()
   }
@@ -311,7 +325,7 @@ export class ChunkTable {
     while (
       this.list.length > this.limits.maxChunks
       || this.totalChars > this.limits.maxTotalChars
-      || this.totalTokenWeightValue > this.limits.maxTotalTokens
+      || this.totalTokenWeightValue > this.limits.maxTotalTokenWeight
     ) {
       if (this.list.length === 0)
         break
@@ -330,6 +344,7 @@ export class ChunkTable {
     if (!bucket)
       return null
 
+    this.contentLookupCandidatesValue += bucket.length
     for (let i = bucket.length - 1; i >= 0; i--) {
       const cached = bucket[i]
       const key = offsetKey(cached.startOffset, cached.endOffset)
@@ -337,11 +352,10 @@ export class ChunkTable {
         this.evict(cached, key)
         continue
       }
-      if (
-        cached.sourceText.length === range.end - range.start
-        && regionEquals(src, range.start, cached.sourceText)
-      ) {
-        return this.useAtCurrentRange(cached, range)
+      if (cached.sourceText.length === range.end - range.start) {
+        this.contentLookupComparisonsValue++
+        if (regionEquals(src, range.start, cached.sourceText))
+          return this.useAtCurrentRange(cached, range)
       }
     }
 

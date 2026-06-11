@@ -287,6 +287,8 @@ describe('ChunkTable', () => {
 
     expect(hit).not.toBeNull()
     expect(table.size).toBe(3)
+    expect(table.contentLookupCandidates).toBe(2)
+    expect(table.contentLookupComparisons).toBeGreaterThan(0)
     expect(table.getChunks().map(c => c.startOffset).sort((a, b) => a - b)).toEqual([
       0,
       inserted.length,

@@ -3,7 +3,7 @@ import type { ParserBlock } from './parse/parser_block'
 import type { ParserInline } from './parse/parser_inline'
 import type { ChunkCacheFallbackReason } from './parse/strategy_diagnostics'
 import type { RendererOptions } from './render/renderer'
-import type { CachedStreamStats } from './stream/cached_parser'
+import type { CachedStreamStats } from './stream/cached'
 import type { StreamStats } from './stream/parser'
 import type { UnboundedBufferStats, UnboundedChunkInfo } from './stream/unbounded'
 import LinkifyIt from 'linkify-it'
@@ -17,7 +17,7 @@ import commonmarkPreset from './presets/commonmark'
 import defaultPreset from './presets/default'
 import zeroPreset from './presets/zero'
 import Renderer from './render/renderer'
-import { CachedStreamParser } from './stream/cached_parser'
+import { CachedStreamParser } from './stream/cached'
 import { chunkedParse } from './stream/chunked'
 import { StreamParser } from './stream/parser'
 import {
@@ -77,7 +77,7 @@ export interface MarkdownItExperimentalOptions {
   /** Maximum total characters across cached chunk entries before eviction. Default: 2,000,000. */
   streamChunkCacheMaxTotalChars?: number
   /** Maximum total token weight across cached chunk entries before eviction. Default: 100,000. */
-  streamChunkCacheMaxTotalTokens?: number
+  streamChunkCacheMaxTotalTokenWeight?: number
 }
 
 export interface MarkdownItOptions {
@@ -154,8 +154,8 @@ export interface MarkdownItOptions {
   streamChunkCacheMaxChunks?: number
   /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamChunkCacheMaxTotalChars instead. */
   streamChunkCacheMaxTotalChars?: number
-  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamChunkCacheMaxTotalTokens instead. */
-  streamChunkCacheMaxTotalTokens?: number
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamChunkCacheMaxTotalTokenWeight instead. */
+  streamChunkCacheMaxTotalTokenWeight?: number
 }
 
 interface PresetComponentRules {
@@ -473,13 +473,13 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       const limits: Record<string, number | undefined> = {}
       const maxChunks = opts.streamChunkCacheMaxChunks
       const maxTotalChars = opts.streamChunkCacheMaxTotalChars
-      const maxTotalTokens = opts.streamChunkCacheMaxTotalTokens
+      const maxTotalTokenWeight = opts.streamChunkCacheMaxTotalTokenWeight
       if (maxChunks !== undefined)
         limits.maxChunks = maxChunks
       if (maxTotalChars !== undefined)
         limits.maxTotalChars = maxTotalChars
-      if (maxTotalTokens !== undefined)
-        limits.maxTotalTokens = maxTotalTokens
+      if (maxTotalTokenWeight !== undefined)
+        limits.maxTotalTokenWeight = maxTotalTokenWeight
       cachedStreamParser = new CachedStreamParser(core, limits, safeParserRuleVersions ?? undefined, {
         assumeCoreRulesOnly: true,
       })
@@ -625,16 +625,16 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
         // the next doReset() creates a table with the new values.
         const maxChunksChanged = hasOwnOption(newOpts, 'streamChunkCacheMaxChunks')
         const maxTotalCharsChanged = hasOwnOption(newOpts, 'streamChunkCacheMaxTotalChars')
-        const maxTotalTokensChanged = hasOwnOption(newOpts, 'streamChunkCacheMaxTotalTokens')
-        if (maxChunksChanged || maxTotalCharsChanged || maxTotalTokensChanged) {
+        const maxTotalTokenWeightChanged = hasOwnOption(newOpts, 'streamChunkCacheMaxTotalTokenWeight')
+        if (maxChunksChanged || maxTotalCharsChanged || maxTotalTokenWeightChanged) {
           const ro = resolvedNewOpts as Record<string, unknown>
           const limits: Record<string, number | undefined> = {}
           if (maxChunksChanged)
             limits.maxChunks = ro.streamChunkCacheMaxChunks as number | undefined
           if (maxTotalCharsChanged)
             limits.maxTotalChars = ro.streamChunkCacheMaxTotalChars as number | undefined
-          if (maxTotalTokensChanged)
-            limits.maxTotalTokens = ro.streamChunkCacheMaxTotalTokens as number | undefined
+          if (maxTotalTokenWeightChanged)
+            limits.maxTotalTokenWeight = ro.streamChunkCacheMaxTotalTokenWeight as number | undefined
           cachedStreamParser.reconfigureTable(limits)
         }
       }

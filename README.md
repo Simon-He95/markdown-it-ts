@@ -402,7 +402,7 @@ const md = markdownIt({
   streamChunkCacheMaxChunks: 128,
   streamChunkCacheMaxTotalChars: 500_000,
   // recursive token weight, including inline children, attrs, and content strings
-  streamChunkCacheMaxTotalTokens: 25_000,
+  streamChunkCacheMaxTotalTokenWeight: 25_000,
   // optional tuning
   // By default, chunk size is adaptive to doc size (streamChunkAdaptive: true)
   // You can pin fixed sizes by setting streamChunkAdaptive: false

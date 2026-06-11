@@ -14,16 +14,16 @@ export type {
 } from './parse/strategy_diagnostics'
 
 export { StreamBuffer } from './stream/buffer'
-export { CachedStreamParser } from './stream/cached_parser'
-export type { CachedStreamParserOptions, CachedStreamStats, ParserRuleVersions } from './stream/cached_parser'
-export { ChunkTable } from './stream/chunk_cache'
+export { CachedStreamParser } from './stream/cached'
+export type { CachedStreamParserOptions, CachedStreamStats, ParserRuleVersions } from './stream/cached'
+export { ChunkTable } from './stream/chunk-table'
 export type {
   CachedChunk,
   ChunkTableLimits,
   ContentFingerprint,
   HardBoundary,
   SafeChunkRange,
-} from './stream/chunk_cache'
+} from './stream/chunk-table'
 export { chunkedParse, splitIntoChunkRanges, splitIntoChunks } from './stream/chunked'
 
 export type { ChunkedOptions, ChunkRange } from './stream/chunked'

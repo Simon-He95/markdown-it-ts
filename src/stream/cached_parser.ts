@@ -51,6 +51,8 @@ export interface CachedStreamStats {
   chunkMisses: number // specific to CachedStreamParser
   appendedChunks: number // specific to CachedStreamParser
   chunkEvictions: number // capacity-triggered evictions in the chunk table
+  contentLookupCandidates: number
+  contentLookupComparisons: number
   invalidations: number // number of times the cache was invalidated
   lastReparsedChars: number
   lastReparsedChunks: number
@@ -74,6 +76,8 @@ function makeEmptyStats(): CachedStreamStats {
     chunkMisses: 0,
     appendedChunks: 0,
     chunkEvictions: 0,
+    contentLookupCandidates: 0,
+    contentLookupComparisons: 0,
     invalidations: 0,
     lastReparsedChars: 0,
     lastReparsedChunks: 0,
@@ -302,7 +306,7 @@ export class CachedStreamParser {
       ...this.tableLimits,
       ...(limits.maxChunks === undefined ? {} : { maxChunks: limits.maxChunks }),
       ...(limits.maxTotalChars === undefined ? {} : { maxTotalChars: limits.maxTotalChars }),
-      ...(limits.maxTotalTokens === undefined ? {} : { maxTotalTokens: limits.maxTotalTokens }),
+      ...(limits.maxTotalTokenWeight === undefined ? {} : { maxTotalTokenWeight: limits.maxTotalTokenWeight }),
     }
     if (!this.invalidated) {
       this.table.updateLimits(limits)
@@ -602,6 +606,8 @@ export class CachedStreamParser {
     // ---- Middle edit: identify dirty chunks ----
     // We compare each range against the cache. If a chunk content has changed
     // (fingerprint mismatch), it and its neighbors are marked dirty.
+    const contentLookupCandidatesBefore = this.table.contentLookupCandidates
+    const contentLookupComparisonsBefore = this.table.contentLookupComparisons
     const dirtyIndices = this.findDirtyIndices(ranges, src)
 
     // Expand dirty set to include neighbors (P0-7: prevent boundary artifacts).
@@ -709,6 +715,8 @@ export class CachedStreamParser {
     }
 
     // Update state
+    this.stats.contentLookupCandidates += this.table.contentLookupCandidates - contentLookupCandidatesBefore
+    this.stats.contentLookupComparisons += this.table.contentLookupComparisons - contentLookupComparisonsBefore
     this.table = nextTable
     this.observedTableEvictions = 0
     this.fullCache = { tokens: out, env, globalStateReason: null }
@@ -762,6 +770,8 @@ export class CachedStreamParser {
       hits: this.stats.chunkHits,
       misses: this.stats.chunkMisses,
       evictions: this.stats.chunkEvictions,
+      contentLookupCandidates: this.stats.contentLookupCandidates,
+      contentLookupComparisons: this.stats.contentLookupComparisons,
       appendedChunks: this.stats.appendedChunks,
       invalidations: this.stats.invalidations,
       tableSize: this.table.size,
