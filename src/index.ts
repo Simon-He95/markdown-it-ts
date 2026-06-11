@@ -435,6 +435,7 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
   let explicitFullChunkFallbackSetting = hasExplicitOption(preset?.options, userOptions, 'fullChunkedFallback')
   let explicitStreamChunkFallbackSetting = hasExplicitOption(preset?.options, userOptions, 'streamChunkedFallback')
   let usedPlugin = false
+  let unsafeParserRuleChange = false
   let initialParserRuleVersions: ParserRuleVersions | null = null
   let safeParserRuleVersions: ParserRuleVersions | null = null
   let markdownItInstance: MarkdownIt | null = null
@@ -463,10 +464,12 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
         limits.maxTotalChars = maxTotalChars
       if (maxTotalTokens !== undefined)
         limits.maxTotalTokens = maxTotalTokens
-      cachedStreamParser = new CachedStreamParser(core, limits)
+      cachedStreamParser = new CachedStreamParser(core, limits, safeParserRuleVersions ?? undefined)
+      if (!usedPlugin && safeParserRuleVersions && markdownItInstance && hasParserRuleChanges(markdownItInstance, safeParserRuleVersions))
+        unsafeParserRuleChange = true
       if (usedPlugin)
         cachedStreamParser.setPluginUsed(true)
-      else if (safeParserRuleVersions && markdownItInstance && hasParserRuleChanges(markdownItInstance, safeParserRuleVersions))
+      else if (unsafeParserRuleChange)
         cachedStreamParser.setUnsafeRuleChange()
     }
     return cachedStreamParser
@@ -487,7 +490,19 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       && !!initialParserRuleVersions
       && !hasParserRuleChanges(instance, initialParserRuleVersions)
   }
+  const detectUnsafeParserRuleChange = (instance: MarkdownIt) => {
+    if (safeParserRuleVersions && hasParserRuleChanges(instance, safeParserRuleVersions)) {
+      unsafeParserRuleChange = true
+      if (cachedStreamParser)
+        cachedStreamParser.setUnsafeRuleChange()
+    }
+  }
   const noteSafeParserRuleChange = (instance: MarkdownIt) => {
+    if (unsafeParserRuleChange) {
+      if (cachedStreamParser)
+        cachedStreamParser.setUnsafeRuleChange()
+      return
+    }
     safeParserRuleVersions = getParserRuleVersions(instance)
     if (cachedStreamParser)
       cachedStreamParser.noteSafeRuleChange(instance)
@@ -578,6 +593,7 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
         this.set(p.options)
       // Apply components (enableOnly rules) if present
       if (p.components) {
+        detectUnsafeParserRuleChange(this)
         const c = p.components
         if (c.core?.rules)
           this.core.ruler.enableOnly(c.core.rules)
@@ -598,6 +614,8 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       const names = Array.isArray(list) ? list : [list]
       const managers = [this.core?.ruler, this.block?.ruler, this.inline?.ruler, this.inline?.ruler2]
       const found = new Set<string>()
+
+      detectUnsafeParserRuleChange(this)
 
       for (const m of managers) {
         if (!m)
@@ -624,6 +642,8 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       const names = Array.isArray(list) ? list : [list]
       const managers = [this.core?.ruler, this.block?.ruler, this.inline?.ruler, this.inline?.ruler2]
       const found = new Set<string>()
+
+      detectUnsafeParserRuleChange(this)
 
       for (const m of managers) {
         if (!m)

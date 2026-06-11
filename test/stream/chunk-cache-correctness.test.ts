@@ -6,7 +6,7 @@ import {
   detectHardBoundaries,
   materializeCachedTokens,
 } from '../../src/experimental'
-import markdownit from '../../src/index'
+import markdownit, { type MarkdownIt, type MarkdownItOptions } from '../../src/index'
 import { ParserCore } from '../../src/parse/parser_core'
 import { Token } from '../../src/common/token'
 import type { Token as TokenType } from '../../src/common/token'
@@ -17,6 +17,30 @@ import type { Token as TokenType } from '../../src/common/token'
 
 function render(src: string, md = markdownit()) {
   return md.render(src)
+}
+
+function renderBaseline(src: string, options: MarkdownItOptions) {
+  return markdownit({
+    ...options,
+    stream: false,
+    streamChunkCache: false,
+    experimental: {
+      ...options.experimental,
+      stream: false,
+      streamChunkCache: false,
+    },
+  }).render(src)
+}
+
+function renderFull(src: string, md: MarkdownIt) {
+  const wasEnabled = md.stream.enabled
+  md.stream.enabled = false
+  try {
+    return md.render(src)
+  }
+  finally {
+    md.stream.enabled = wasEnabled
+  }
 }
 
 function makeParser(md = markdownit()) {
@@ -50,7 +74,7 @@ describe('Cache invalidation (P0-1)', () => {
     // Parse again — should still produce correct output
     const tokens = md.stream.parse(src, {})
     const html = md.renderer.render(tokens, md.options, {})
-    expect(html).toBe(render(src, md))
+    expect(html).toBe(renderBaseline(src, md.options))
     expect(html).toContain('<div>raw html</div>')
   })
 
@@ -64,7 +88,7 @@ describe('Cache invalidation (P0-1)', () => {
     const tokens = md.stream.parse(src, {})
     const html = md.renderer.render(tokens, md.options, {})
 
-    expect(html).toBe(render(src, md))
+    expect(html).toBe(renderBaseline(src, md.options))
     expect(html).toContain('<a href="https://example.com">https://example.com</a>')
   })
 
@@ -78,7 +102,7 @@ describe('Cache invalidation (P0-1)', () => {
     const tokens = md.stream.parse(src, {})
     const html = md.renderer.render(tokens, md.options, {})
 
-    expect(html).toBe(render(src, md))
+    expect(html).toBe(renderBaseline(src, md.options))
     expect(html).toContain('<br>')
   })
 
@@ -92,7 +116,7 @@ describe('Cache invalidation (P0-1)', () => {
     const tokens = md.stream.parse(src, {})
     const html = md.renderer.render(tokens, md.options, {})
 
-    expect(html).toBe(render(src, md))
+    expect(html).toBe(renderBaseline(src, md.options))
     expect(html).not.toContain('(c)')
   })
 
@@ -107,7 +131,7 @@ describe('Cache invalidation (P0-1)', () => {
 
     const tokens = md.stream.parse(src, {})
     const html = md.renderer.render(tokens, md.options, {})
-    expect(html).toBe(render(src, md))
+    expect(html).toBe(renderFull(src, md))
   })
 
   it('invalidates cache after md.disable()', () => {
@@ -120,7 +144,25 @@ describe('Cache invalidation (P0-1)', () => {
 
     const tokens = md.stream.parse(src, {})
     const html = md.renderer.render(tokens, md.options, {})
-    expect(html).toBe(render(src, md))
+    expect(html).toBe(renderFull(src, md))
+  })
+
+  it('continues using chunk cache after safe rule invalidation', () => {
+    const md = markdownit({ stream: true, experimental: { streamChunkCache: true } })
+    const src = largeDoc(300)
+    const env: Record<string, unknown> = {}
+
+    md.stream.parse(src, env)
+    md.disable('table')
+    md.stream.parse(src, env)
+    md.stream.resetStats()
+
+    const modified = src.replace('Paragraph 150 with some', 'ModifiedP 150 with some')
+    const tokens = md.stream.parse(modified, env)
+    const html = md.renderer.render(tokens, md.options, env)
+
+    expect(html).toBe(renderFull(modified, md))
+    expect(md.stream.stats().lastMode).toBe('chunked')
   })
 
   it('disables chunk cache after md.use()', () => {
@@ -136,7 +178,7 @@ describe('Cache invalidation (P0-1)', () => {
 
     const tokens = md.stream.parse(src, {})
     const html = md.renderer.render(tokens, md.options, {})
-    expect(html).toBe(render(src, md))
+    expect(html).toBe(renderFull(src, md))
 
     // After plugin use, stats should show full parse (not chunked)
     const stats = md.stream.stats()
@@ -159,7 +201,7 @@ describe('Cache invalidation (P0-1)', () => {
     const tokens = md.stream.parse(src, env)
     const html = md.renderer.render(tokens, md.options, env)
 
-    expect(html).toBe(render(src, md))
+    expect(html).toBe(renderFull(src, md))
     expect(env.pluginRan).toBe(true)
     expect(md.stream.stats().lastMode).toBe('full')
   })
@@ -201,6 +243,26 @@ describe('Cache invalidation (P0-1)', () => {
 
     md.stream.parse(src, env1)
     md.stream.parse(src, env2)
+
+    expect(env1.collectCount).toBeDefined()
+    expect(env2.collectCount).toBeDefined()
+    expect(md.stream.stats().lastMode).toBe('full')
+  })
+
+  it('does not hide direct ruler env side effects behind a later safe rule change', () => {
+    const md = markdownit({ stream: true, experimental: { streamChunkCache: true } })
+
+    md.core.ruler.push('collect_before_first_parse', (state) => {
+      state.env.collectCount = (state.env.collectCount || 0) + 1
+    })
+    md.disable('table')
+
+    const src = largeDoc(200)
+    const env1: Record<string, any> = {}
+    const env2: Record<string, any> = {}
+
+    md.stream.parse(src, env1)
+    md.stream.parse(src.replace('Paragraph 120 with some', 'ModifiedP 120 with some'), env2)
 
     expect(env1.collectCount).toBeDefined()
     expect(env2.collectCount).toBeDefined()
@@ -440,7 +502,7 @@ describe('Env sensitivity (P0-4)', () => {
     const tokens = md.stream.parse(largeDoc(200), env)
     const html = md.renderer.render(tokens, md.options, env)
 
-    expect(html).toBe(render(largeDoc(200), md))
+    expect(html).toBe(renderFull(largeDoc(200), md))
     expect(env.pluginRan).toBe(true)
     expect(md.stream.stats().lastMode).toBe('full')
   })
@@ -830,7 +892,7 @@ describe('streamChunkCache integration with StreamParser append paths', () => {
       const html = md.renderer.render(tokens, md.options, {})
       const stats = md.stream.stats()
 
-      expect(html).toBe(render(next, md))
+      expect(html).toBe(renderBaseline(next, md.options))
       expect(stats.lastMode).toBe('append')
       expect(stats.appendHits).toBeGreaterThan(0)
     })

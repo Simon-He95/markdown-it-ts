@@ -20,7 +20,7 @@ import {
   splitIntoSafeChunkRanges,
 } from './chunk_cache'
 
-interface ParserRuleVersions {
+export interface ParserRuleVersions {
   core: number
   block: number
   inline: number
@@ -124,9 +124,10 @@ export class CachedStreamParser {
 
   private ruleVersions: ParserRuleVersions | null = null
 
-  constructor(core: ParserCore, limits?: ChunkTableLimits) {
+  constructor(core: ParserCore, limits?: ChunkTableLimits, initialRuleVersions?: ParserRuleVersions) {
     this.core = core
     this.tableLimits = limits
+    this.ruleVersions = initialRuleVersions ? { ...initialRuleVersions } : null
     this.table = new ChunkTable(limits)
   }
 

@@ -46,12 +46,11 @@ describe('detectHardBoundaries', () => {
   it('does not flag blank lines inside fenced code blocks', () => {
     const src = '```\n\ncode\n\n```\n\noutside\n'
     const boundaries = detectHardBoundaries(src)
-    // Blank lines inside ``` are not boundaries
-    // The blank line after ``` should be a boundary
+    const open = src.indexOf('```')
+    const close = src.indexOf('```', open + 3)
+
     for (const b of boundaries) {
-      const context = src.slice(Math.max(0, b.offset - 30), b.offset + 10)
-      // Should not be inside the fence
-      // Check: the boundary offset should NOT be between the opening and closing ```
+      expect(b.offset).toBeGreaterThan(close)
     }
     expect(boundaries.length).toBeGreaterThanOrEqual(1)
   })
