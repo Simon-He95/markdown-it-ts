@@ -436,6 +436,8 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
   let explicitStreamChunkFallbackSetting = hasExplicitOption(preset?.options, userOptions, 'streamChunkedFallback')
   let usedPlugin = false
   let initialParserRuleVersions: ParserRuleVersions | null = null
+  let safeParserRuleVersions: ParserRuleVersions | null = null
+  let markdownItInstance: MarkdownIt | null = null
 
   // construct minimal core instance; avoid importing renderer here
   const core = new ParserCore()
@@ -464,6 +466,8 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       cachedStreamParser = new CachedStreamParser(core, limits)
       if (usedPlugin)
         cachedStreamParser.setPluginUsed(true)
+      else if (safeParserRuleVersions && markdownItInstance && hasParserRuleChanges(markdownItInstance, safeParserRuleVersions))
+        cachedStreamParser.setUnsafeRuleChange()
     }
     return cachedStreamParser
   }
@@ -482,6 +486,11 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
     return !usedPlugin
       && !!initialParserRuleVersions
       && !hasParserRuleChanges(instance, initialParserRuleVersions)
+  }
+  const noteSafeParserRuleChange = (instance: MarkdownIt) => {
+    safeParserRuleVersions = getParserRuleVersions(instance)
+    if (cachedStreamParser)
+      cachedStreamParser.noteSafeRuleChange(instance)
   }
 
   const md: any = {
@@ -579,9 +588,7 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
         if (c.inline2?.rules)
           this.inline.ruler2.enableOnly(c.inline2.rules)
         // Rule set changed: invalidate cached parser.
-        if (cachedStreamParser) {
-          cachedStreamParser.invalidate()
-        }
+        noteSafeParserRuleChange(this)
         if (streamParser)
           streamParser.reset()
       }
@@ -607,10 +614,7 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
           throw new Error(`Rules manager: invalid rule name ${missed.join(', ')}`)
       }
 
-      // Rule set changed: invalidate cached parser.
-      if (cachedStreamParser) {
-        cachedStreamParser.invalidate()
-      }
+      noteSafeParserRuleChange(this)
       if (streamParser)
         streamParser.reset()
 
@@ -636,10 +640,7 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
           throw new Error(`Rules manager: invalid rule name ${missed.join(', ')}`)
       }
 
-      // Rule set changed: invalidate cached parser.
-      if (cachedStreamParser) {
-        cachedStreamParser.invalidate()
-      }
+      noteSafeParserRuleChange(this)
       if (streamParser)
         streamParser.reset()
 
@@ -860,6 +861,7 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
         cachedStreamParser.resetStats()
     },
   }
+  markdownItInstance = md
 
   // Apply preset components after md is constructed (so rulers are ready)
   if (preset?.components) {
@@ -875,6 +877,7 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
   }
 
   initialParserRuleVersions = getParserRuleVersions(md)
+  safeParserRuleVersions = initialParserRuleVersions
 
   return md as MarkdownIt
 }

@@ -114,6 +114,7 @@ export class CachedStreamParser {
 
   // Whether any plugin has been registered (env-sensitive).
   private pluginUsed = false
+  private unsafeRuleChange = false
 
   // Whether the parser has been invalidated (will be reset on next parse).
   private invalidated = false
@@ -151,6 +152,8 @@ export class CachedStreamParser {
     // 1. Same source → full cache hit
     if (
       cached
+      && !this.pluginUsed
+      && !this.unsafeRuleChange
       && src === cached.src
       && (!envProvided || envProvided === cached.env)
       && !cached.globalStateReason
@@ -177,16 +180,14 @@ export class CachedStreamParser {
     if (getKnownGlobalMarkdownState(workingEnv))
       resetKnownGlobalMarkdownState(workingEnv)
 
-    // 3. Plugin usage disables chunk caching to protect env side effects.
-    //    When a plugin writes to env, skipping a chunk's parse would lose that data.
-    if (this.pluginUsed) {
+    if (this.pluginUsed || this.unsafeRuleChange) {
       const tokens = this.fullParse(src, workingEnv, md, null)
       this.stats.fullParses++
       this.stats.lastMode = 'full'
       setStrategyDiagnostics(workingEnv, {
         area: 'stream',
         path: 'stream-full',
-        reason: 'plugin-used',
+        reason: this.pluginUsed ? 'plugin-used' : 'rule-changed',
       })
       return tokens
     }
@@ -262,6 +263,16 @@ export class CachedStreamParser {
     }
   }
 
+  setUnsafeRuleChange(): void {
+    this.unsafeRuleChange = true
+    this.invalidate()
+  }
+
+  noteSafeRuleChange(md: MarkdownIt): void {
+    this.ruleVersions = this.readRuleVersions(md)
+    this.invalidate()
+  }
+
   getStats(): CachedStreamStats {
     return { ...this.stats }
   }
@@ -289,6 +300,7 @@ export class CachedStreamParser {
       || next.inline !== previous.inline
       || next.inline2 !== previous.inline2
     ) {
+      this.unsafeRuleChange = true
       if (!this.invalidated)
         this.invalidate()
       this.ruleVersions = next
@@ -492,6 +504,7 @@ export class CachedStreamParser {
 
     // Reconstruct from cached + newly parsed chunks.
     const out: Token[] = []
+    const nextTable = new ChunkTable(this.tableLimits)
     let lineOffset = 0
     let hasCacheHits = false
     let hasCacheMisses = false
@@ -502,12 +515,13 @@ export class CachedStreamParser {
 
       if (!isDirty) {
         // Try cache first for clean chunks.
-        const cached = this.table.lookup(range.start, src, range.end)
+        const cached = this.table.lookup(range, src)
 
         if (cached) {
           // Materialize cached tokens with global line offset.
           const materialized = materializeCachedTokens(cached, lineOffset)
           appendTokens(out, materialized)
+          nextTable.store({ ...cached, generation: 0 })
           hasCacheHits = true
           this.stats.chunkHits++
         }
@@ -534,6 +548,7 @@ export class CachedStreamParser {
             range.startLine,
             range.lineCount,
             localTokens,
+            nextTable,
           )
         }
       }
@@ -559,6 +574,7 @@ export class CachedStreamParser {
           range.startLine,
           range.lineCount,
           localTokens,
+          nextTable,
         )
       }
 
@@ -566,6 +582,7 @@ export class CachedStreamParser {
     }
 
     // Update state
+    this.table = nextTable
     this.fullCache = { src, tokens: out, env, globalStateReason: null }
     this.lastSrc = src
     this.lastTokens = out
@@ -610,7 +627,7 @@ export class CachedStreamParser {
     const dirty = new Set<number>()
     for (let i = 0; i < ranges.length; i++) {
       const range = ranges[i]
-      const cached = this.table.lookup(range.start, src, range.end)
+      const cached = this.table.lookup(range, src)
       if (!cached) {
         dirty.add(i)
       }
@@ -632,11 +649,12 @@ export class CachedStreamParser {
     startLine: number,
     lineCount: number,
     tokens: Token[],
+    table = this.table,
   ): void {
     const fingerprint = computeContentFingerprint(src, startOffset, endOffset)
     const tokenCount = countAllTokens(tokens)
 
-    this.table.store({
+    table.store({
       startOffset,
       endOffset,
       startLine,

@@ -166,7 +166,7 @@ describe('ChunkTable', () => {
       tokenCount: 1,
     })
 
-    const hit = table.lookup(0, src, src.length)
+    const hit = table.lookup({ start: 0, end: src.length, startLine: 0, lineCount: 1 }, src)
     expect(hit).not.toBeNull()
     expect(hit!.tokens).toBe(tokens)
   })
@@ -193,10 +193,18 @@ describe('ChunkTable', () => {
 
     const inserted = 'inserted\n\n'
     const shifted = inserted + src
-    const hit = table.lookup(start + inserted.length, shifted, end + inserted.length)
+    const hit = table.lookup({
+      start: start + inserted.length,
+      end: end + inserted.length,
+      startLine: 4,
+      lineCount: 2,
+    }, shifted)
 
     expect(hit).not.toBeNull()
     expect(hit!.tokens).toBe(tokens)
+    expect(hit!.startOffset).toBe(start + inserted.length)
+    expect(hit!.endOffset).toBe(end + inserted.length)
+    expect(hit!.startLine).toBe(4)
   })
 
   it('returns null when content changed', () => {
@@ -216,7 +224,7 @@ describe('ChunkTable', () => {
     })
 
     const modified = 'changed!'
-    const hit = table.lookup(0, modified, modified.length)
+    const hit = table.lookup({ start: 0, end: modified.length, startLine: 0, lineCount: 1 }, modified)
     expect(hit).toBeNull()
   })
 
@@ -276,7 +284,7 @@ describe('ChunkTable', () => {
       })
     }
 
-    expect(table.lookup(ranges[0][0], src, ranges[0][1])).not.toBeNull()
+    expect(table.lookup({ start: ranges[0][0], end: ranges[0][1], startLine: 0, lineCount: 2 }, src)).not.toBeNull()
 
     const [start, end] = ranges[3]
     table.store({
@@ -292,8 +300,8 @@ describe('ChunkTable', () => {
       tokenCount: 0,
     })
 
-    expect(table.lookup(ranges[0][0], src, ranges[0][1])).not.toBeNull()
-    expect(table.lookup(ranges[1][0], src, ranges[1][1])).toBeNull()
+    expect(table.lookup({ start: ranges[0][0], end: ranges[0][1], startLine: 0, lineCount: 2 }, src)).not.toBeNull()
+    expect(table.lookup({ start: ranges[1][0], end: ranges[1][1], startLine: 2, lineCount: 2 }, src)).toBeNull()
   })
 })
 

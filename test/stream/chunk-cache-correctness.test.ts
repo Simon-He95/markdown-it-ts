@@ -187,6 +187,25 @@ describe('Cache invalidation (P0-1)', () => {
     expect(after).not.toContain('<table>')
     expect(md.stream.stats().invalidations).toBeGreaterThan(0)
   })
+
+  it('does not skip direct ruler env side effects when chunk cache is enabled', () => {
+    const md = markdownit({ stream: true, experimental: { streamChunkCache: true } })
+
+    md.core.ruler.push('collect_blocks', (state) => {
+      state.env.collectCount = (state.env.collectCount || 0) + 1
+    })
+
+    const src = largeDoc(200)
+    const env1: Record<string, any> = {}
+    const env2: Record<string, any> = {}
+
+    md.stream.parse(src, env1)
+    md.stream.parse(src, env2)
+
+    expect(env1.collectCount).toBeDefined()
+    expect(env2.collectCount).toBeDefined()
+    expect(md.stream.stats().lastMode).toBe('full')
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -255,6 +274,23 @@ describe('Line map correctness (P0-2)', () => {
     const tokens = parser.parse(prepended, {}, md)
     const html = md.renderer.render(tokens, md.options, {})
     expect(html).toBe(render(prepended))
+  })
+
+  it('keeps chunk metadata current after shifted-content reuse before append', () => {
+    const md = markdownit()
+    const parser = makeParser(md)
+
+    const src = largeDoc(200)
+    parser.parse(src, {}, md)
+
+    const shifted = 'prepended\n\n' + src
+    parser.parse(shifted, {}, md)
+
+    const appended = `${shifted}tail paragraph\n\n`
+    const tokens = parser.parse(appended, {}, md)
+    const html = md.renderer.render(tokens, md.options, {})
+
+    expect(html).toBe(render(appended))
   })
 
   it('stores cached token maps in chunk-local coordinates', () => {
@@ -432,7 +468,7 @@ describe('Content fingerprint (P0-5)', () => {
     })
 
     // Lookup with shorter content
-    const hit = table.lookup(0, 'short', 'short'.length)
+    const hit = table.lookup({ start: 0, end: 'short'.length, startLine: 0, lineCount: 1 }, 'short')
     expect(hit).toBeNull()
   })
 
@@ -457,7 +493,7 @@ describe('Content fingerprint (P0-5)', () => {
     })
 
     // Hash might not collide, but fingerprint check covers all factors.
-    const hit = table.lookup(0, src2, src2.length)
+    const hit = table.lookup({ start: 0, end: src2.length, startLine: 0, lineCount: 1 }, src2)
     // Should be null if first/last differ even if hash somehow collided
     expect(hit).toBeNull()
   })
@@ -479,7 +515,7 @@ describe('Content fingerprint (P0-5)', () => {
       tokenCount: 0,
     })
 
-    expect(table.lookup(0, src2, src2.length)).toBeNull()
+    expect(table.lookup({ start: 0, end: src2.length, startLine: 0, lineCount: 1 }, src2)).toBeNull()
   })
 
   it('generation mismatch invalidates chunk', () => {
@@ -501,7 +537,7 @@ describe('Content fingerprint (P0-5)', () => {
     // Bump generation
     table.invalidateAll()
 
-    const hit = table.lookup(0, src, src.length)
+    const hit = table.lookup({ start: 0, end: src.length, startLine: 0, lineCount: 1 }, src)
     expect(hit).toBeNull()
   })
 })

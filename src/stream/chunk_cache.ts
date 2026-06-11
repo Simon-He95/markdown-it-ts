@@ -141,13 +141,8 @@ export class ChunkTable {
       this.updateLimits(limits)
   }
 
-  /**
-   * Look up a cached chunk by offset range. Verifies exact source content
-   * and generation. Returns null if not found, content changed, or generation
-   * mismatch.
-   */
-  lookup(startOffset: number, src: string, endOffset: number): CachedChunk | null {
-    const key = offsetKey(startOffset, endOffset)
+  lookup(range: SafeChunkRange, src: string): CachedChunk | null {
+    const key = offsetKey(range.start, range.end)
     const cached = this.map.get(key)
     if (cached) {
       // Generation check: if table was invalidated, all old chunks are stale.
@@ -155,18 +150,17 @@ export class ChunkTable {
         this.evict(cached, key)
       }
       else if (
-        cached.sourceText.length === endOffset - startOffset
-        && regionEquals(src, startOffset, cached.sourceText)
+        cached.sourceText.length === range.end - range.start
+        && regionEquals(src, range.start, cached.sourceText)
       ) {
-        this.refresh(cached)
-        return cached
+        return this.useAtCurrentRange(cached, range)
       }
       else {
         this.evict(cached, key)
       }
     }
 
-    return this.lookupByContent(startOffset, src, endOffset)
+    return this.lookupByContent(range, src)
   }
 
   store(chunk: CachedChunk): void {
@@ -316,8 +310,8 @@ export class ChunkTable {
     }
   }
 
-  private lookupByContent(startOffset: number, src: string, endOffset: number): CachedChunk | null {
-    const fingerprint = computeContentFingerprint(src, startOffset, endOffset)
+  private lookupByContent(range: SafeChunkRange, src: string): CachedChunk | null {
+    const fingerprint = computeContentFingerprint(src, range.start, range.end)
     const bucket = this.contentMap.get(contentKey(fingerprint))
     if (!bucket)
       return null
@@ -330,15 +324,37 @@ export class ChunkTable {
         continue
       }
       if (
-        cached.sourceText.length === endOffset - startOffset
-        && regionEquals(src, startOffset, cached.sourceText)
+        cached.sourceText.length === range.end - range.start
+        && regionEquals(src, range.start, cached.sourceText)
       ) {
-        this.refresh(cached)
-        return cached
+        return this.useAtCurrentRange(cached, range)
       }
     }
 
     return null
+  }
+
+  private useAtCurrentRange(cached: CachedChunk, range: SafeChunkRange): CachedChunk {
+    if (
+      cached.startOffset === range.start
+      && cached.endOffset === range.end
+      && cached.startLine === range.startLine
+      && cached.lineCount === range.lineCount
+    ) {
+      this.refresh(cached)
+      return cached
+    }
+
+    const current: CachedChunk = {
+      ...cached,
+      startOffset: range.start,
+      endOffset: range.end,
+      startLine: range.startLine,
+      lineCount: range.lineCount,
+    }
+    this.evict(cached, offsetKey(cached.startOffset, cached.endOffset))
+    this.store(current)
+    return current
   }
 
   private refresh(chunk: CachedChunk): void {
