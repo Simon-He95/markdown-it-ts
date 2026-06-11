@@ -116,6 +116,41 @@ describe('Cache invalidation (P0-1)', () => {
     expect(html).toContain('<a href="https://example.com">https://example.com</a>')
   })
 
+  it('invalidates stream caches after md.linkify.add()', () => {
+    const md = markdownit({
+      stream: true,
+      linkify: true,
+      experimental: {
+        streamChunkCache: true,
+        streamChunkCacheMinChunkChars: 1,
+      },
+    })
+    const src = `${largeDoc(120)}Visit foo:bar now.\n\n${largeDoc(80)}`
+
+    const before = md.renderer.render(md.stream.parse(src, {}), md.options, {})
+    expect(before).not.toContain('https://example.com/bar')
+
+    md.linkify.add('foo:', {
+      validate(text, pos) {
+        const match = /^[A-Za-z0-9]+/.exec(text.slice(pos))
+        return match ? match[0].length : 0
+      },
+      normalize(match) {
+        match.url = `https://example.com/${match.url.slice(4)}`
+      },
+    })
+
+    const next = `${src}Visit foo:baz now.\n\n`
+    const env: Record<string, unknown> = {}
+    const tokens = md.stream.parse(next, env)
+    const html = md.renderer.render(tokens, md.options, env)
+
+    expect(html).toBe(renderFull(next, md))
+    expect(html).toContain('href="https://example.com/bar"')
+    expect(html).toContain('href="https://example.com/baz"')
+    expect(md.stream.stats().invalidations).toBeGreaterThan(0)
+  })
+
   it('invalidates cache after md.set({ breaks: true })', () => {
     const md = markdownit({ stream: true, breaks: false, experimental: { streamChunkCache: true } })
     const src = `${largeDoc(120)}soft\nbreak\n\n${largeDoc(80)}`
@@ -1065,6 +1100,71 @@ describe('Hard boundary detection (P0-6)', () => {
         // This boundary is inside the fence — should not happen
         expect(b.offset).toBe(-1)
       }
+    }
+  })
+})
+
+describe('Chunk cache parse parity', () => {
+  const parityCases = [
+    ['setext heading', 'Title\n---\n\nAfter heading\n\n'],
+    ['reference definition', '[ref]: https://example.com\n\nText with [ref][]\n\n'],
+    ['lazy continuation', '- item\n  continuation\n\nparagraph\nlazy continuation\n\n'],
+    ['nested list', '- item 1\n  - nested\n\n    continuation\n\n- item 2\n\n'],
+    ['blockquote marker blank', '> quote\n>\n> continued\n\n'],
+    ['html type 1', '<script>\nconst a = 1\n</script>\n\nAfter\n\n'],
+    ['html type 6', '<div>\ninline html\n\n</div>\n\n'],
+    ['table', '| a | b |\n| - | - |\n| 1 | 2 |\n\nAfter table\n\n'],
+    ['fence', '```ts\nconst x = 1\n```\n\nAfter fence\n\n'],
+    ['non-ascii', 'Emoji 😀 and CJK 文本 with [link](https://example.com)\n\n'],
+  ] as const
+
+  for (const [name, body] of parityCases) {
+    it(`matches full parse for ${name}`, () => {
+      const md = markdownit({
+        html: true,
+        linkify: true,
+        stream: true,
+        experimental: {
+          streamChunkCache: true,
+          streamChunkCacheMinChunkChars: 1,
+        },
+      })
+      const src = `${largeDoc(80)}${body}${largeDoc(80)}`
+      const env: Record<string, unknown> = {}
+      const tokens = md.stream.parse(src, env)
+      const html = md.renderer.render(tokens, md.options, env)
+
+      expect(html).toBe(renderBaseline(src, md.options))
+    })
+  }
+
+  it('matches full parse across incremental edits', () => {
+    const md = markdownit({
+      html: true,
+      linkify: true,
+      stream: true,
+      experimental: {
+        streamChunkCache: true,
+        streamChunkCacheMinChunkChars: 1,
+      },
+    })
+    const base = `${largeDoc(120)}Title\n---\n\n${largeDoc(90)}`
+    const insertAt = base.indexOf('Paragraph 70 with some')
+    const inserted = 'Inserted paragraph with 😀 emoji.\n\n| a | b |\n| - | - |\n| 1 | 2 |\n\n'
+    const steps = [
+      base,
+      `${base}> quote\n>\n> continued\n\n`,
+      `${base.slice(0, insertAt)}${inserted}${base.slice(insertAt)}`,
+      `${base.replace('Paragraph 40 with some', 'Changed paragraph 40 with some')}<!-- comment -->\n\n`,
+      `${base}\`\`\`ts\nconst x = 1\n\`\`\`\n\n`,
+    ]
+
+    for (const src of steps) {
+      const env: Record<string, unknown> = {}
+      const tokens = md.stream.parse(src, env)
+      const html = md.renderer.render(tokens, md.options, env)
+
+      expect(html).toBe(renderBaseline(src, md.options))
     }
   })
 })

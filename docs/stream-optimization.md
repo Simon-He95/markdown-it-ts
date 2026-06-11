@@ -45,7 +45,7 @@
 
 Same-source 可以直接命中完整 token cache。中间编辑仍会扫描并切分当前文档；只有 hard boundary 和精确内容比较都保持安全时，才会跳过未变 chunk 的重新解析。
 
-注册插件或直接修改 parser ruler 后，per-chunk cache 会清空并停用；普通 `StreamParser` 的 same-source、append、tail reparse 路径仍然可以继续工作。`CachedStreamParser` / `ChunkCache` 通过 `markdown-it-ts/experimental` 和 `markdown-it-ts/stream/cached` 暴露；`ChunkTable` 通过 `markdown-it-ts/experimental` 和 `markdown-it-ts/stream/chunk-table` 暴露。token materialization helper 仍不作为 package public API 暴露，也不提供 `markdown-it-ts/stream/cached_parser` 或 `markdown-it-ts/stream/chunk_cache` 子路径入口。
+注册插件或直接修改 parser ruler 后，per-chunk cache 会清空并停用；普通 `StreamParser` 的 same-source、append、tail reparse 路径仍然可以继续工作。`md.linkify.add()` / `set()` / `tlds()` 这类运行时 linkify mutation 会清空 stream cache，并让 chunk cache 在下一次 parse 前失效。`CachedStreamParser` 通过 `markdown-it-ts/experimental` 和 `markdown-it-ts/stream/cached` 暴露；`ChunkTable` 通过 `markdown-it-ts/experimental` 和 `markdown-it-ts/stream/chunk-table` 暴露。token materialization helper 仍不作为 package public API 暴露，也不提供 `markdown-it-ts/stream/cached_parser` 或 `markdown-it-ts/stream/chunk_cache` 子路径入口。
 
 默认上限是 `256` 个 chunk、`2_000_000` 个 chunk source chars、`100_000` 个 cached token weight。token weight 会递归统计 inline children、attrs 和 content 字符串，避免 inline-heavy 文档低估缓存占用。可以按运行环境调低：
 
@@ -62,7 +62,7 @@ const md = MarkdownIt({
 })
 ```
 
-Bundle 成本需要显式接受：同步 `md.stream.parse()` opt-in 路径会让 `CachedStreamParser` 从根入口可达。当前构建输出为 `dist/index.js` 92.73 kB / gzip 18.81 kB；直接子路径 `markdown-it-ts/stream/cached` 对应 `dist/stream/cached.js` 34.88 kB / gzip 8.86 kB。修改 chunk cache internals 后用 `pnpm run build` 重新核对。
+Bundle 成本需要显式接受：同步 `md.stream.parse()` opt-in 路径会让 `CachedStreamParser` 从根入口可达。当前构建输出为 `dist/index.js` 95.46 kB / gzip 19.42 kB；直接子路径 `markdown-it-ts/stream/cached` 对应 `dist/stream/cached.js` 18.94 kB / gzip 4.75 kB。修改 chunk cache internals 后用 `pnpm run build` 重新核对。
 
 ## chunked / streaming 正确性说明
 
@@ -157,7 +157,7 @@ import { getParseDiagnostics } from 'markdown-it-ts/experimental'
 - `getParseDiagnostics(env)?.strategy`
 - `getParseDiagnostics(env)?.chunkCache`，当 `experimental.streamChunkCache` 被实际尝试时，包含 path（`chunk-cache` / `identity` / `fallback-full`）、enabled/fallback 状态、chunk hit/miss、evictions、append chunk 数、invalidations、table size、retained source chars、cached entry chars/token weight、reused/reparsed/dirty range chars、shifted token count、last reparsed chars/chunks，以及枚举化的 fallback 原因（`ChunkCacheFallbackReason`）。`totalCachedEntryChars` / `totalCachedEntryTokenWeight` 是缓存容量计数：moved-content alias 会按 entry 计入，用于 eviction pressure，不是 JS heap 占用估算。
 
-`experimental.streamChunkCache` 目前只对 core-only parser 自动启用。注册任意 plugin 后会回退到普通 stream/full parse，并在 diagnostics 中标记 `enabled: false`、`fallback: true`、`fallbackReason: 'plugin-used'`，避免复用 chunk tokens 时跳过 plugin 的 env side effects。
+`experimental.streamChunkCache` 目前只对 core-only parser 自动启用。注册任意 plugin 后会回退到普通 stream/full parse，并在 diagnostics 中标记 `enabled: false`、`fallback: true`、`fallbackReason: 'plugin-used'`，避免复用 chunk tokens 时跳过 plugin 的 env side effects。缓存命中不会重放 parser rule 的 env side effects；如果调用方修改 parser/ruler/linkify 这类运行时状态，应依赖内置 invalidation 或显式调用 `md.stream.reset()`。
 
 常见路径包括：
 

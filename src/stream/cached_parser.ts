@@ -386,6 +386,7 @@ export class CachedStreamParser {
     return JSON.stringify({
       html: options.html,
       linkify: options.linkify,
+      linkifyVersion: (md as { __linkifyVersion?: number }).__linkifyVersion ?? 0,
       breaks: options.breaks,
       typographer: options.typographer,
       quotes: options.quotes,

@@ -1,4 +1,4 @@
-export { CachedStreamParser, CachedStreamParser as ChunkCache } from './cached_parser'
+export { CachedStreamParser } from './cached_parser'
 export type {
   CachedStreamParserOptions,
   CachedStreamStats,

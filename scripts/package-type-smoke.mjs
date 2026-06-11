@@ -24,7 +24,6 @@ import {
   Token as CoreToken,
 } from 'markdown-it-ts/core'
 import {
-  ChunkCache,
   ChunkTable,
   chunkedParse,
   EditableBuffer,
@@ -43,7 +42,6 @@ import { StreamBuffer as StreamBufferSubpath } from 'markdown-it-ts/stream/buffe
 import { chunkedParse as chunkedParseSubpath } from 'markdown-it-ts/stream/chunked'
 import {
   CachedStreamParser,
-  ChunkCache as ChunkCacheSubpath,
   type CachedStreamStats,
 } from 'markdown-it-ts/stream/cached'
 import {
@@ -143,8 +141,6 @@ const coreToken = new CoreToken('text', '', 0)
 const streamBuffer = new StreamBuffer(typedMd)
 const streamStats: StreamStats = typedMd.stream.stats()
 const cachedStreamParser = new CachedStreamParser(typedMd.core)
-const chunkCache = new ChunkCache(typedMd.core)
-const chunkCacheSubpath = new ChunkCacheSubpath(typedMd.core)
 const cachedStreamStats: CachedStreamStats = cachedStreamParser.getStats()
 const chunkTable = new ChunkTable()
 const chunkTableSubpath = new ChunkTableSubpath()
@@ -184,8 +180,6 @@ void coreToken
 void streamBuffer
 void streamStats
 void cachedStreamParser
-void chunkCache
-void chunkCacheSubpath
 void cachedStreamStats
 void chunkTable
 void chunkTableSubpath
@@ -266,6 +260,12 @@ import type { PieceTableStats } from 'markdown-it-ts'
 
 // @ts-expect-error UnboundedBufferOptions must not be a root named export.
 import type { UnboundedBufferOptions } from 'markdown-it-ts'
+
+// @ts-expect-error ChunkCache alias must not be exported; use CachedStreamParser.
+import { ChunkCache } from 'markdown-it-ts/experimental'
+
+// @ts-expect-error ChunkCache alias must not be exported; use CachedStreamParser.
+import { ChunkCache as ChunkCacheSubpath } from 'markdown-it-ts/stream/cached'
 `)
 
 const tscArgs = [

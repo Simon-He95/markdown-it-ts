@@ -505,9 +505,38 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
     return streamParser
   }
   let linkifyInstance: InstanceType<typeof LinkifyIt> | null = null
+  let linkifyVersion = 0
+  const invalidateMutableParserState = () => {
+    linkifyVersion++
+    if (markdownItInstance) {
+      (markdownItInstance as { __linkifyVersion?: number }).__linkifyVersion = linkifyVersion
+    }
+    if (cachedStreamParser)
+      cachedStreamParser.invalidate()
+    if (streamParser)
+      streamParser.reset()
+  }
+  const wrapLinkifyMutators = (inst: InstanceType<typeof LinkifyIt>) => {
+    const target = inst as unknown as Record<string, unknown>
+    if (target.__markdownItTsLinkifyWrapped)
+      return
+    for (const name of ['add', 'set', 'tlds'] as const) {
+      const original = target[name]
+      if (typeof original !== 'function')
+        continue
+      target[name] = function (this: InstanceType<typeof LinkifyIt>, ...args: unknown[]) {
+        const result = original.apply(this, args)
+        invalidateMutableParserState()
+        return result
+      }
+    }
+    Object.defineProperty(target, '__markdownItTsLinkifyWrapped', { value: true })
+  }
   const getLinkify = () => {
-    if (!linkifyInstance)
+    if (!linkifyInstance) {
       linkifyInstance = new LinkifyIt()
+      wrapLinkifyMutators(linkifyInstance)
+    }
     return linkifyInstance
   }
   const canUseImplicitLargeInputStrategy = (instance: MarkdownIt) => {
@@ -555,6 +584,7 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
     __explicitStreamChunkConfig: explicitStreamChunkConfig,
     __explicitFullChunkFallbackSetting: explicitFullChunkFallbackSetting,
     __explicitStreamChunkFallbackSetting: explicitStreamChunkFallbackSetting,
+    __linkifyVersion: linkifyVersion,
     __canUseImplicitLargeInputStrategy() {
       return canUseImplicitLargeInputStrategy(this)
     },

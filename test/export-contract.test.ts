@@ -30,8 +30,8 @@ describe('root export contract', () => {
     const experimental = await import('../src/experimental')
 
     expect(experimental).toHaveProperty('CachedStreamParser')
-    expect(experimental).toHaveProperty('ChunkCache')
     expect(experimental).toHaveProperty('ChunkTable')
+    expect(experimental).not.toHaveProperty('ChunkCache')
     expect(experimental).not.toHaveProperty('cloneTokens')
     expect(experimental).not.toHaveProperty('materializeCachedTokens')
   })
@@ -40,7 +40,7 @@ describe('root export contract', () => {
     const cached = await import('../src/stream/cached')
 
     expect(cached).toHaveProperty('CachedStreamParser')
-    expect(cached).toHaveProperty('ChunkCache')
+    expect(cached).not.toHaveProperty('ChunkCache')
     expect(cached).not.toHaveProperty('ChunkTable')
     expect(cached).not.toHaveProperty('computeSourceHash')
     expect(cached).not.toHaveProperty('detectHardBoundaries')
