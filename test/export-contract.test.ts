@@ -33,4 +33,14 @@ describe('root export contract', () => {
     expect(experimental).not.toHaveProperty('cloneTokens')
     expect(experimental).not.toHaveProperty('materializeCachedTokens')
   })
+
+  it('keeps low-level chunk cache internals out of the cached stream subpath', async () => {
+    const cached = await import('../src/stream/cached')
+
+    expect(cached).toHaveProperty('CachedStreamParser')
+    expect(cached).not.toHaveProperty('ChunkTable')
+    expect(cached).not.toHaveProperty('computeSourceHash')
+    expect(cached).not.toHaveProperty('detectHardBoundaries')
+    expect(cached).not.toHaveProperty('splitIntoSafeChunkRanges')
+  })
 })

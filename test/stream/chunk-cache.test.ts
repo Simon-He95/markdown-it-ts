@@ -224,6 +224,54 @@ describe('ChunkTable', () => {
     expect(hit!.startLine).toBe(4)
   })
 
+  it('keeps duplicate original ranges when content lookup reuses a shifted copy', () => {
+    const chunk = 'stable repeated chunk content\n\n'
+    const src = chunk + chunk
+    const inserted = 'inserted\n\n'
+    const shifted = inserted + src
+    const table = new ChunkTable()
+
+    table.store({
+      startOffset: 0,
+      endOffset: chunk.length,
+      startLine: 0,
+      lineCount: 2,
+      sourceText: chunk,
+      fingerprint: computeContentFingerprint(src, 0, chunk.length),
+      tokens: [],
+      generation: 0,
+      charLength: chunk.length,
+      tokenWeight: 0,
+    })
+    table.store({
+      startOffset: chunk.length,
+      endOffset: chunk.length * 2,
+      startLine: 2,
+      lineCount: 2,
+      sourceText: chunk,
+      fingerprint: computeContentFingerprint(src, chunk.length, chunk.length * 2),
+      tokens: [],
+      generation: 0,
+      charLength: chunk.length,
+      tokenWeight: 0,
+    })
+
+    const hit = table.lookup({
+      start: inserted.length,
+      end: inserted.length + chunk.length,
+      startLine: 2,
+      lineCount: 2,
+    }, shifted)
+
+    expect(hit).not.toBeNull()
+    expect(table.size).toBe(3)
+    expect(table.getChunks().map(c => c.startOffset).sort((a, b) => a - b)).toEqual([
+      0,
+      inserted.length,
+      chunk.length,
+    ])
+  })
+
   it('returns null when content changed', () => {
     const table = new ChunkTable()
     const src = 'original'

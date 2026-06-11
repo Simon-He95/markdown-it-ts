@@ -85,6 +85,23 @@ describe('Cache invalidation (P0-1)', () => {
     expect(html).toContain('<div>raw html</div>')
   })
 
+  it('direct CachedStreamParser invalidates after md.set({ html: true })', () => {
+    const md = markdownit({ html: false })
+    const parser = makeParser(md)
+    const env: Record<string, unknown> = {}
+    const src = `${largeDoc(120)}<div>raw html</div>\n\n${largeDoc(80)}`
+
+    parser.parse(src, env, md)
+    md.set({ html: true })
+
+    const tokens = parser.parse(src, env, md)
+    const html = md.renderer.render(tokens, md.options, env)
+
+    expect(html).toBe(renderBaseline(src, md.options))
+    expect(html).toContain('<div>raw html</div>')
+    expect(parser.getStats().invalidations).toBeGreaterThan(0)
+  })
+
   it('invalidates cache after md.set({ linkify: true })', () => {
     const md = markdownit({ stream: true, linkify: false, experimental: { streamChunkCache: true } })
     const src = `${largeDoc(120)}Visit https://example.com now.\n\n${largeDoc(80)}`

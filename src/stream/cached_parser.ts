@@ -134,6 +134,8 @@ export class CachedStreamParser {
   // Stored limits used to create/recreate the ChunkTable.
   private tableLimits: ChunkTableLimits | undefined
 
+  private optionsSignature: string | null = null
+
   private ruleVersions: ParserRuleVersions | null = null
 
   constructor(
@@ -153,6 +155,7 @@ export class CachedStreamParser {
 
   parse(src: string, env: Record<string, unknown> | undefined, md: MarkdownIt): Token[] {
     this.ensureRuleVersions(md)
+    this.ensureOptions(md)
 
     // If invalidated (e.g. by md.set/enable/disable/use), reset internal state.
     if (this.invalidated) {
@@ -345,6 +348,31 @@ export class CachedStreamParser {
       inline: md.inline.ruler.version,
       inline2: md.inline.ruler2.version,
     }
+  }
+
+  private ensureOptions(md: MarkdownIt): void {
+    const next = this.readOptionsSignature(md)
+    if (this.optionsSignature === null) {
+      this.optionsSignature = next
+      return
+    }
+    if (this.optionsSignature !== next) {
+      this.optionsSignature = next
+      if (!this.invalidated)
+        this.invalidate()
+    }
+  }
+
+  private readOptionsSignature(md: MarkdownIt): string {
+    const options = md.options
+    return JSON.stringify({
+      html: options.html,
+      linkify: options.linkify,
+      breaks: options.breaks,
+      typographer: options.typographer,
+      quotes: options.quotes,
+      maxNesting: options.maxNesting,
+    })
   }
 
   private doReset(): void {

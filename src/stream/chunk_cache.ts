@@ -350,7 +350,6 @@ export class ChunkTable {
       startLine: range.startLine,
       lineCount: range.lineCount,
     }
-    this.evict(cached, offsetKey(cached.startOffset, cached.endOffset))
     this.store(current)
     return current
   }
