@@ -452,6 +452,17 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
 
   let streamParser: StreamParser | null = null
   let cachedStreamParser: CachedStreamParser | null = null
+  const canUseStreamChunkCache = () => {
+    if (usedPlugin || unsafeParserRuleChange)
+      return false
+    if (safeParserRuleVersions && markdownItInstance && hasParserRuleChanges(markdownItInstance, safeParserRuleVersions)) {
+      unsafeParserRuleChange = true
+      if (cachedStreamParser)
+        cachedStreamParser.invalidate()
+      return false
+    }
+    return true
+  }
   const getCachedStreamParser = () => {
     if (!cachedStreamParser) {
       const limits: Record<string, number | undefined> = {}
@@ -465,18 +476,12 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       if (maxTotalTokens !== undefined)
         limits.maxTotalTokens = maxTotalTokens
       cachedStreamParser = new CachedStreamParser(core, limits, safeParserRuleVersions ?? undefined)
-      if (!usedPlugin && safeParserRuleVersions && markdownItInstance && hasParserRuleChanges(markdownItInstance, safeParserRuleVersions))
-        unsafeParserRuleChange = true
-      if (usedPlugin)
-        cachedStreamParser.setPluginUsed(true)
-      else if (unsafeParserRuleChange)
-        cachedStreamParser.setUnsafeRuleChange()
     }
     return cachedStreamParser
   }
   const getStreamParser = () => {
     if (!streamParser)
-      streamParser = new StreamParser(core, () => opts.streamChunkCache ? getCachedStreamParser() : null)
+      streamParser = new StreamParser(core, () => opts.streamChunkCache && canUseStreamChunkCache() ? getCachedStreamParser() : null)
     return streamParser
   }
   let linkifyInstance: InstanceType<typeof LinkifyIt> | null = null
@@ -494,13 +499,13 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
     if (safeParserRuleVersions && hasParserRuleChanges(instance, safeParserRuleVersions)) {
       unsafeParserRuleChange = true
       if (cachedStreamParser)
-        cachedStreamParser.setUnsafeRuleChange()
+        cachedStreamParser.invalidate()
     }
   }
   const noteSafeParserRuleChange = (instance: MarkdownIt) => {
     if (unsafeParserRuleChange) {
       if (cachedStreamParser)
-        cachedStreamParser.setUnsafeRuleChange()
+        cachedStreamParser.invalidate()
       return
     }
     safeParserRuleVersions = getParserRuleVersions(instance)

@@ -27,6 +27,7 @@
 - 大文档的一次性 stream 首次解析会按配置进入 chunked fallback。
 - 长文本纯 append 场景会自动切到内部 unbounded-backed append，只消费新增 delta。
 - 显式开启 `experimental.streamChunkCache` 后，中间编辑或大文档 fallback 可以复用未变 chunk；same-source、append、tail reparse 仍优先走主 `StreamParser` 路径。
+- 如果注册了插件，per-chunk cache 会停用，但普通 `StreamParser` 的 cache/append/tail 路径仍然保留。
 - 中间编辑、不安全边界、reference-definition 风险、merge 失败时立即回退到现有 `tail/chunked/full` 路径；开启 `streamChunkCache` 时，chunk cache 只作为这些 fallback 的辅助层。
 
 ### `experimental.streamChunkCache`
@@ -41,6 +42,8 @@
 - chunk-local token 副本，materialize 时 clone 并按当前行号平移；
 - offset index 和 content index，用于 same-offset replacement 与中间编辑后的 shifted chunk lookup；
 - 主 `StreamParser` 的最近源码与 token cache。
+
+Same-source 可以直接命中完整 token cache。中间编辑仍会扫描并切分当前文档；只有 hard boundary 和精确内容比较都保持安全时，才会跳过未变 chunk 的重新解析。
 
 默认上限是 `256` 个 chunk、`2_000_000` 个 chunk source chars、`100_000` 个 cached tokens。可以按运行环境调低：
 

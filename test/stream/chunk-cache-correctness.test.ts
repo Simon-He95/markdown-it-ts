@@ -165,6 +165,26 @@ describe('Cache invalidation (P0-1)', () => {
     expect(md.stream.stats().lastMode).toBe('chunked')
   })
 
+  it('re-enables direct chunk cache after rule-version invalidation', () => {
+    const md = markdownit()
+    const parser = makeParser(md)
+    const src = largeDoc(300)
+    const env: Record<string, unknown> = {}
+
+    parser.parse(src, env, md)
+    md.disable('table')
+    parser.parse(src, env, md)
+    parser.resetStats()
+
+    const modified = src.replace('Paragraph 150 with some', 'ModifiedP 150 with some')
+    const tokens = parser.parse(modified, env, md)
+    const html = md.renderer.render(tokens, md.options, env)
+
+    expect(html).toBe(renderFull(modified, md))
+    expect(parser.getStats().lastMode).toBe('chunked')
+    expect(parser.getStats().chunkHits).toBeGreaterThan(0)
+  })
+
   it('disables chunk cache after md.use()', () => {
     const md = markdownit({ stream: true, experimental: { streamChunkCache: true } })
     const src = largeDoc(200)
@@ -204,6 +224,24 @@ describe('Cache invalidation (P0-1)', () => {
     expect(html).toBe(renderFull(src, md))
     expect(env.pluginRan).toBe(true)
     expect(md.stream.stats().lastMode).toBe('full')
+  })
+
+  it('keeps regular stream append path after md.use()', () => {
+    const md = markdownit({ stream: true, experimental: { streamChunkCache: true } })
+    md.use(() => {})
+
+    const src = largeDoc(120)
+    const next = `${src}Appended after plugin.\n\n`
+    const env: Record<string, unknown> = {}
+
+    md.stream.parse(src, env)
+    md.stream.resetStats()
+    const tokens = md.stream.parse(next, env)
+    const html = md.renderer.render(tokens, md.options, env)
+
+    expect(html).toBe(renderFull(next, md))
+    expect(md.stream.stats().lastMode).toBe('append')
+    expect(md.stream.stats().appendHits).toBeGreaterThan(0)
   })
 
   it('uses cached stream parser after enabling streamChunkCache with md.set()', () => {
@@ -397,6 +435,37 @@ describe('Line map correctness (P0-2)', () => {
 // ---------------------------------------------------------------------------
 
 describe('Global markdown state fallback (P0-3)', () => {
+  it('same-source cache works for reference-definition documents with stable env', () => {
+    const md = markdownit()
+    const parser = makeParser(md)
+    const src = '[ref]: /url\n\n[ref]\n'
+    const env: Record<string, any> = {}
+
+    const tokens1 = parser.parse(src, env, md)
+    const tokens2 = parser.parse(src, env, md)
+
+    expect(tokens2).toBe(tokens1)
+    expect(env.references).toBeDefined()
+    expect(parser.getStats().cacheHits).toBe(1)
+    expect(parser.getStats().lastMode).toBe('cache')
+  })
+
+  it('same-source cache misses for global-state documents with a new env', () => {
+    const md = markdownit()
+    const parser = makeParser(md)
+    const src = '[ref]: /url\n\n[ref]\n'
+    const env1: Record<string, any> = {}
+    const env2: Record<string, any> = {}
+
+    parser.parse(src, env1, md)
+    parser.parse(src, env2, md)
+
+    expect(env1.references).toBeDefined()
+    expect(env2.references).toBeDefined()
+    expect(parser.getStats().cacheHits).toBe(0)
+    expect(parser.getStats().lastMode).toBe('full')
+  })
+
   it('falls back to full parse when reference definition is present', () => {
     const md = markdownit({ stream: true, experimental: { streamChunkCache: true } })
     const src = '[ref]: /url\n\nText with [ref][]\n'

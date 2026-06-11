@@ -73,12 +73,12 @@ function makeEmptyStats(): CachedStreamStats {
 // stabilises and only the tail grows.
 //
 // Key behaviours:
-//   - Same source without global env state → instant full-source cache hit.
+//   - Same source with the same env/global-state shape → instant full-source cache hit.
 //   - Append (src.startsWith(cachedSrc)) → reuses cached prefix chunks,
 //     parses the cached tail plus appended segment.
 //   - Non-append edit → finds hard boundaries, reuses unchanged chunks,
 //     re-parses changed ones + neighbors.
-//   - Global markdown state (references, footnotes, abbr) → full fallback.
+//   - Global markdown state (references, footnotes, abbr) → full fallback except same-source hits.
 //   - Plugin usage disables chunk caching (conservative env safety).
 //
 // Cache safety notes:
@@ -114,7 +114,6 @@ export class CachedStreamParser {
 
   // Whether any plugin has been registered (env-sensitive).
   private pluginUsed = false
-  private unsafeRuleChange = false
 
   // Whether the parser has been invalidated (will be reset on next parse).
   private invalidated = false
@@ -154,11 +153,9 @@ export class CachedStreamParser {
     if (
       cached
       && !this.pluginUsed
-      && !this.unsafeRuleChange
       && src === cached.src
       && (!envProvided || envProvided === cached.env)
-      && !cached.globalStateReason
-      && !globalStateReason
+      && cached.globalStateReason === globalStateReason
     ) {
       this.stats.cacheHits++
       this.stats.lastMode = 'cache'
@@ -181,14 +178,14 @@ export class CachedStreamParser {
     if (getKnownGlobalMarkdownState(workingEnv))
       resetKnownGlobalMarkdownState(workingEnv)
 
-    if (this.pluginUsed || this.unsafeRuleChange) {
+    if (this.pluginUsed) {
       const tokens = this.fullParse(src, workingEnv, md, null)
       this.stats.fullParses++
       this.stats.lastMode = 'full'
       setStrategyDiagnostics(workingEnv, {
         area: 'stream',
         path: 'stream-full',
-        reason: this.pluginUsed ? 'plugin-used' : 'rule-changed',
+        reason: 'plugin-used',
       })
       return tokens
     }
@@ -264,11 +261,6 @@ export class CachedStreamParser {
     }
   }
 
-  setUnsafeRuleChange(): void {
-    this.unsafeRuleChange = true
-    this.invalidate()
-  }
-
   noteSafeRuleChange(md: MarkdownIt): void {
     this.ruleVersions = this.readRuleVersions(md)
     this.invalidate()
@@ -301,7 +293,6 @@ export class CachedStreamParser {
       || next.inline !== previous.inline
       || next.inline2 !== previous.inline2
     ) {
-      this.unsafeRuleChange = true
       if (!this.invalidated)
         this.invalidate()
       this.ruleVersions = next

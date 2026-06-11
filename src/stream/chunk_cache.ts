@@ -83,7 +83,7 @@ export interface CachedChunk {
 }
 
 export interface HardBoundary {
-  /** Byte offset just past the newline ending the blank line. */
+  /** UTF-16 code-unit offset just past the newline ending the blank line. */
   offset: number
   /** 0-based line number of the blank line. */
   line: number
@@ -120,7 +120,7 @@ const DEFAULT_CHUNK_TABLE_LIMITS: Required<ChunkTableLimits> = {
 // ---------------------------------------------------------------------------
 
 export class ChunkTable {
-  /** Offset-range keyed map for O(1) lookup and LRU recency. */
+  /** Offset-range keyed map for direct lookup and LRU recency. */
   private map = new Map<string, CachedChunk>()
   /** Content keyed map for unchanged chunks that move after middle edits. */
   private contentMap = new Map<string, CachedChunk[]>()
@@ -222,9 +222,7 @@ export class ChunkTable {
   }
 
   /**
-   * Increment generation so ALL existing chunks become stale on next lookup.
-   * Does NOT eagerly clear memory — chunks are evicted lazily on lookup or
-   * when new chunks are stored and exceed limits.
+   * Increment generation and clear all cached chunks immediately.
    */
   invalidateAll(): void {
     this.generation++
@@ -412,9 +410,9 @@ function regionEquals(src: string, start: number, text: string): boolean {
 // ---------------------------------------------------------------------------
 
 interface RawLine {
-  start: number // byte offset of line start
-  end: number // byte offset of '\n' (exclusive), or src.length
-  endWithNl: number // byte offset just past '\n', or src.length
+  start: number // UTF-16 code-unit index of line start
+  end: number // UTF-16 code-unit index of '\n' (exclusive), or src.length
+  endWithNl: number // UTF-16 code-unit index just past '\n', or src.length
   blank: boolean
   insideFence: boolean
 }
