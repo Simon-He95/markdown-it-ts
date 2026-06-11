@@ -94,6 +94,24 @@ describe('detectHardBoundaries', () => {
     const boundaries = detectHardBoundaries(src)
     expect(boundaries.length).toBe(0)
   })
+
+  it('does not flag blank lines inside HTML block types 1-5', () => {
+    const cases = [
+      ['script', '<script>\n\nconsole.log(1)\n\n</script>\n\noutside\n', '</script>'],
+      ['comment', '<!--\n\ncomment\n\n-->\n\noutside\n', '-->'],
+      ['processing', '<?mdts\n\nvalue\n\n?>\n\noutside\n', '?>'],
+      ['declaration', '<!DECL\n\nvalue\n\n>\n\noutside\n', '\n>\n'],
+      ['cdata', '<![CDATA[\n\nvalue\n\n]]>\n\noutside\n', ']]>'],
+    ] as const
+
+    for (const [, src, closeMarker] of cases) {
+      const boundaries = detectHardBoundaries(src)
+      const close = src.indexOf(closeMarker)
+      for (const boundary of boundaries) {
+        expect(boundary.offset).toBeGreaterThan(close)
+      }
+    }
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -149,6 +167,34 @@ describe('ChunkTable', () => {
     })
 
     const hit = table.lookup(0, src, src.length)
+    expect(hit).not.toBeNull()
+    expect(hit!.tokens).toBe(tokens)
+  })
+
+  it('looks up unchanged content after offsets shift', () => {
+    const src = 'prefix\n\nstable chunk content\n\nsuffix\n'
+    const start = src.indexOf('stable')
+    const end = src.indexOf('suffix')
+    const table = new ChunkTable()
+    const tokens: any[] = [{ type: 'paragraph_open', tag: 'p', nesting: 1 }]
+
+    table.store({
+      startOffset: start,
+      endOffset: end,
+      startLine: 2,
+      lineCount: 2,
+      sourceText: src.slice(start, end),
+      fingerprint: computeContentFingerprint(src, start, end),
+      tokens,
+      generation: 0,
+      charLength: end - start,
+      tokenCount: 1,
+    })
+
+    const inserted = 'inserted\n\n'
+    const shifted = inserted + src
+    const hit = table.lookup(start + inserted.length, shifted, end + inserted.length)
+
     expect(hit).not.toBeNull()
     expect(hit!.tokens).toBe(tokens)
   })
@@ -505,6 +551,27 @@ describe('CachedStreamParser', () => {
 
     // With 200 paragraphs, chunks > 4; hitting at least 1 unchanged chunk is expected.
     expect(stats2.chunkHits).toBeGreaterThan(0)
+  })
+
+  it('reuses unchanged chunks after insertion before them', () => {
+    const md = markdownit()
+    const parser = makeParser(md)
+
+    let src = ''
+    for (let i = 0; i < 200; i++) {
+      src += `Paragraph ${i} with some extra longer filler text to reach minChars.\n\n`
+    }
+
+    parser.parse(src, {}, md)
+    parser.resetStats()
+
+    const inserted = 'Inserted paragraph before existing chunks.\n\n'
+    const modified = inserted + src
+    const tokens = parser.parse(modified, {}, md)
+    const html = md.renderer.render(tokens, md.options, {})
+
+    expect(html).toBe(render(modified))
+    expect(parser.getStats().chunkHits).toBeGreaterThan(0)
   })
 
   it('append of large document uses cached prefix chunks', () => {

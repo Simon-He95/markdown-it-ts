@@ -449,27 +449,27 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
 
   let streamParser: StreamParser | null = null
   let cachedStreamParser: CachedStreamParser | null = null
-  const getStreamParser = () => {
-    if (opts.streamChunkCache) {
-      if (!cachedStreamParser) {
-        const limits: Record<string, number | undefined> = {}
-        const maxChunks = opts.streamChunkCacheMaxChunks
-        const maxTotalChars = opts.streamChunkCacheMaxTotalChars
-        const maxTotalTokens = opts.streamChunkCacheMaxTotalTokens
-        if (maxChunks !== undefined)
-          limits.maxChunks = maxChunks
-        if (maxTotalChars !== undefined)
-          limits.maxTotalChars = maxTotalChars
-        if (maxTotalTokens !== undefined)
-          limits.maxTotalTokens = maxTotalTokens
-        cachedStreamParser = new CachedStreamParser(core, limits)
-        if (usedPlugin)
-          cachedStreamParser.setPluginUsed(true)
-      }
-      return cachedStreamParser
+  const getCachedStreamParser = () => {
+    if (!cachedStreamParser) {
+      const limits: Record<string, number | undefined> = {}
+      const maxChunks = opts.streamChunkCacheMaxChunks
+      const maxTotalChars = opts.streamChunkCacheMaxTotalChars
+      const maxTotalTokens = opts.streamChunkCacheMaxTotalTokens
+      if (maxChunks !== undefined)
+        limits.maxChunks = maxChunks
+      if (maxTotalChars !== undefined)
+        limits.maxTotalChars = maxTotalChars
+      if (maxTotalTokens !== undefined)
+        limits.maxTotalTokens = maxTotalTokens
+      cachedStreamParser = new CachedStreamParser(core, limits)
+      if (usedPlugin)
+        cachedStreamParser.setPluginUsed(true)
     }
+    return cachedStreamParser
+  }
+  const getStreamParser = () => {
     if (!streamParser)
-      streamParser = new StreamParser(core)
+      streamParser = new StreamParser(core, () => opts.streamChunkCache ? getCachedStreamParser() : null)
     return streamParser
   }
   let linkifyInstance: InstanceType<typeof LinkifyIt> | null = null
@@ -531,12 +531,12 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       }
       if (renderer)
         renderer.set(resolvedNewOpts as RendererOptions)
+      if (streamParser)
+        streamParser.reset()
       if (typeof resolvedNewOpts.stream === 'boolean') {
         this.stream.enabled = resolvedNewOpts.stream
-        if (streamParser) {
-          streamParser.reset()
+        if (streamParser)
           streamParser.resetStats()
-        }
       }
       // Invalidate cached stream parser when options change — stale chunks
       // may produce incorrect output under new parser/rule/option state.
@@ -582,6 +582,8 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
         if (cachedStreamParser) {
           cachedStreamParser.invalidate()
         }
+        if (streamParser)
+          streamParser.reset()
       }
       return this
     },
@@ -609,6 +611,8 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       if (cachedStreamParser) {
         cachedStreamParser.invalidate()
       }
+      if (streamParser)
+        streamParser.reset()
 
       return this
     },
@@ -636,6 +640,8 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       if (cachedStreamParser) {
         cachedStreamParser.invalidate()
       }
+      if (streamParser)
+        streamParser.reset()
 
       return this
     },
@@ -660,6 +666,8 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       if (cachedStreamParser) {
         cachedStreamParser.setPluginUsed(true)
       }
+      if (streamParser)
+        streamParser.reset()
 
       return this
     },
@@ -827,26 +835,29 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       if (!md.stream.enabled)
         return md.parse(src, env ?? {})
       const sp = getStreamParser()
-      // CachedStreamParser.parse signature matches StreamParser.parse
       return sp.parse(src, env, md)
     },
     reset() {
       getStreamParser().reset()
+      if (cachedStreamParser)
+        cachedStreamParser.reset()
     },
     peek() {
-      const sp = opts.streamChunkCache ? cachedStreamParser : streamParser
+      const sp = streamParser
       return sp ? sp.peek() : []
     },
     stats() {
-      const sp = opts.streamChunkCache ? cachedStreamParser : streamParser
+      const sp = streamParser
       return sp
         ? sp.getStats()
         : { total: 0, cacheHits: 0, appendHits: 0, unboundedAppendHits: 0, tailHits: 0, fullParses: 0, resets: 0, chunkedParses: 0, lastMode: 'idle' }
     },
     resetStats() {
-      const sp = opts.streamChunkCache ? cachedStreamParser : streamParser
+      const sp = streamParser
       if (sp)
         sp.resetStats()
+      if (cachedStreamParser)
+        cachedStreamParser.resetStats()
     },
   }
 

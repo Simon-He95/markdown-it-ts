@@ -26,7 +26,35 @@
 - 适合重解析尾部容器时优先走 tail reparse。
 - 大文档的一次性 stream 首次解析会按配置进入 chunked fallback。
 - 长文本纯 append 场景会自动切到内部 unbounded-backed append，只消费新增 delta。
-- 中间编辑、不安全边界、reference-definition 风险、merge 失败时立即回退到现有 `tail/chunked/full` 路径。
+- 显式开启 `experimental.streamChunkCache` 后，中间编辑或大文档 fallback 可以复用未变 chunk；same-source、append、tail reparse 仍优先走主 `StreamParser` 路径。
+- 中间编辑、不安全边界、reference-definition 风险、merge 失败时立即回退到现有 `tail/chunked/full` 路径；开启 `streamChunkCache` 时，chunk cache 只作为这些 fallback 的辅助层。
+
+### `experimental.streamChunkCache`
+
+`streamChunkCache` 默认关闭。它适合 append-heavy 且会反复编辑同一份长文本的场景，尤其是中间插入/删除后仍希望复用未变段落 chunk 的编辑器或 chat transcript。
+
+不建议为大文件一次性展示或历史恢复默认开启它；这类输入通常继续依赖 `streamSkipCacheAboveChars` / `streamSkipCacheAboveLines`、plain full parse、chunked fallback 或 unbounded-backed append。
+
+开启后会额外保留：
+
+- 每个 cached chunk 的 `sourceText`，用于精确比较；
+- chunk-local token 副本，materialize 时 clone 并按当前行号平移；
+- offset index 和 content index，用于 same-offset replacement 与中间编辑后的 shifted chunk lookup；
+- 主 `StreamParser` 的最近源码与 token cache。
+
+默认上限是 `256` 个 chunk、`2_000_000` 个 chunk source chars、`100_000` 个 cached tokens。可以按运行环境调低：
+
+```ts
+const md = MarkdownIt({
+  stream: true,
+  experimental: {
+    streamChunkCache: true,
+    streamChunkCacheMaxChunks: 128,
+    streamChunkCacheMaxTotalChars: 500_000,
+    streamChunkCacheMaxTotalTokens: 25_000,
+  },
+})
+```
 
 ## chunked / streaming 正确性说明
 
@@ -53,6 +81,10 @@ chunkedParse(md, source, env, {
 - `unboundedAppendHits`
 - `tailHits`
 - `chunkedParses`
+- `chunkHits`
+- `chunkMisses`
+- `appendedChunks`
+- `invalidations`
 - `fullParses`
 - `lastMode`
 

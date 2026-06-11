@@ -392,6 +392,12 @@ import markdownIt from 'markdown-it-ts'
 const md = markdownIt({
   stream: true, // enable stream mode
   streamChunkedFallback: true, // use chunked on first large parse or large non-append edits
+  // optional per-chunk cache for repeated long-document edits; off by default
+  // Avoid enabling it for one-shot large document display/restores.
+  streamChunkCache: true,
+  streamChunkCacheMaxChunks: 128,
+  streamChunkCacheMaxTotalChars: 500_000,
+  streamChunkCacheMaxTotalTokens: 25_000,
   // optional tuning
   // By default, chunk size is adaptive to doc size (streamChunkAdaptive: true)
   // You can pin fixed sizes by setting streamChunkAdaptive: false

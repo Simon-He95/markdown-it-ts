@@ -120,8 +120,10 @@ const DEFAULT_CHUNK_TABLE_LIMITS: Required<ChunkTableLimits> = {
 // ---------------------------------------------------------------------------
 
 export class ChunkTable {
-  /** Offset-range keyed map for O(1) lookup and LRU recency. Offset-shifting edits naturally miss. */
+  /** Offset-range keyed map for O(1) lookup and LRU recency. */
   private map = new Map<string, CachedChunk>()
+  /** Content keyed map for unchanged chunks that move after middle edits. */
+  private contentMap = new Map<string, CachedChunk[]>()
   /** Sorted array for ordered iteration and range invalidation. */
   private list: CachedChunk[] = []
 
@@ -145,32 +147,30 @@ export class ChunkTable {
    * mismatch.
    */
   lookup(startOffset: number, src: string, endOffset: number): CachedChunk | null {
-    const key = `${startOffset}:${endOffset}`
+    const key = offsetKey(startOffset, endOffset)
     const cached = this.map.get(key)
-    if (!cached)
-      return null
-
-    // Generation check: if table was invalidated, all old chunks are stale.
-    if (cached.generation !== this.generation) {
-      this.evict(cached, key)
-      return null
+    if (cached) {
+      // Generation check: if table was invalidated, all old chunks are stale.
+      if (cached.generation !== this.generation) {
+        this.evict(cached, key)
+      }
+      else if (
+        cached.sourceText.length === endOffset - startOffset
+        && regionEquals(src, startOffset, cached.sourceText)
+      ) {
+        this.refresh(cached)
+        return cached
+      }
+      else {
+        this.evict(cached, key)
+      }
     }
 
-    if (
-      cached.sourceText.length !== endOffset - startOffset
-      || cached.sourceText !== src.slice(startOffset, endOffset)
-    ) {
-      this.evict(cached, key)
-      return null
-    }
-
-    this.map.delete(key)
-    this.map.set(key, cached)
-    return cached
+    return this.lookupByContent(startOffset, src, endOffset)
   }
 
   store(chunk: CachedChunk): void {
-    const key = `${chunk.startOffset}:${chunk.endOffset}`
+    const key = offsetKey(chunk.startOffset, chunk.endOffset)
 
     // Remove existing entry at same key.
     const existing = this.map.get(key)
@@ -186,6 +186,7 @@ export class ChunkTable {
     this.totalTokens += chunk.tokenCount
 
     this.map.set(key, chunk)
+    this.addToContentIndex(chunk)
 
     // Insert in sorted order.
     const last = this.list[this.list.length - 1]
@@ -214,12 +215,13 @@ export class ChunkTable {
     for (let i = this.list.length - 1; i >= 0; i--) {
       const c = this.list[i]
       if (c.endOffset > start && c.startOffset < end) {
-        toRemove.push({ chunk: c, key: `${c.startOffset}:${c.endOffset}` })
+        toRemove.push({ chunk: c, key: offsetKey(c.startOffset, c.endOffset) })
         this.list.splice(i, 1)
       }
     }
     for (const { chunk, key } of toRemove) {
       this.map.delete(key)
+      this.removeFromContentIndex(chunk)
       this.totalChars -= chunk.charLength
       this.totalTokens -= chunk.tokenCount
     }
@@ -234,6 +236,7 @@ export class ChunkTable {
     this.generation++
     // Clear immediately to free memory.
     this.map.clear()
+    this.contentMap.clear()
     this.list.length = 0
     this.totalChars = 0
     this.totalTokens = 0
@@ -241,6 +244,7 @@ export class ChunkTable {
 
   clear(): void {
     this.map.clear()
+    this.contentMap.clear()
     this.list.length = 0
     this.totalChars = 0
     this.totalTokens = 0
@@ -287,6 +291,7 @@ export class ChunkTable {
 
   private evict(chunk: CachedChunk, key: string): void {
     this.map.delete(key)
+    this.removeFromContentIndex(chunk)
     this.totalChars -= chunk.charLength
     this.totalTokens -= chunk.tokenCount
     // Remove from sorted list.
@@ -310,6 +315,80 @@ export class ChunkTable {
       this.evict(oldest, key)
     }
   }
+
+  private lookupByContent(startOffset: number, src: string, endOffset: number): CachedChunk | null {
+    const fingerprint = computeContentFingerprint(src, startOffset, endOffset)
+    const bucket = this.contentMap.get(contentKey(fingerprint))
+    if (!bucket)
+      return null
+
+    for (let i = bucket.length - 1; i >= 0; i--) {
+      const cached = bucket[i]
+      const key = offsetKey(cached.startOffset, cached.endOffset)
+      if (cached.generation !== this.generation) {
+        this.evict(cached, key)
+        continue
+      }
+      if (
+        cached.sourceText.length === endOffset - startOffset
+        && regionEquals(src, startOffset, cached.sourceText)
+      ) {
+        this.refresh(cached)
+        return cached
+      }
+    }
+
+    return null
+  }
+
+  private refresh(chunk: CachedChunk): void {
+    const key = offsetKey(chunk.startOffset, chunk.endOffset)
+    if (this.map.get(key) !== chunk)
+      return
+    this.map.delete(key)
+    this.map.set(key, chunk)
+  }
+
+  private addToContentIndex(chunk: CachedChunk): void {
+    const key = contentKey(chunk.fingerprint)
+    const bucket = this.contentMap.get(key)
+    if (bucket) {
+      bucket.push(chunk)
+    }
+    else {
+      this.contentMap.set(key, [chunk])
+    }
+  }
+
+  private removeFromContentIndex(chunk: CachedChunk): void {
+    const key = contentKey(chunk.fingerprint)
+    const bucket = this.contentMap.get(key)
+    if (!bucket)
+      return
+    const idx = bucket.indexOf(chunk)
+    if (idx !== -1)
+      bucket.splice(idx, 1)
+    if (bucket.length === 0)
+      this.contentMap.delete(key)
+  }
+}
+
+function offsetKey(startOffset: number, endOffset: number): string {
+  return `${startOffset}:${endOffset}`
+}
+
+function contentKey(fingerprint: ContentFingerprint): string {
+  return `${fingerprint.hash}:${fingerprint.length}:${fingerprint.first.length}:${fingerprint.first}:${fingerprint.last.length}:${fingerprint.last}`
+}
+
+function regionEquals(src: string, start: number, text: string): boolean {
+  if (start < 0 || start + text.length > src.length)
+    return false
+  for (let i = 0; i < text.length; i++) {
+    if (src.charCodeAt(start + i) !== text.charCodeAt(i))
+      return false
+  }
+  return true
 }
 
 // ---------------------------------------------------------------------------
@@ -852,9 +931,9 @@ function isInsideHtmlBlock(
     const lineEnd = le === -1 ? src.length : le
 
     const lineStr = src.slice(ls, lineEnd)
-    const tagName = getRawHtmlBlockTag(lineStr)
-    if (tagName) {
-      if (!hasRawHtmlBlockClose(src, lineEnd, lineStart, tagName)) {
+    const htmlBlock = getHtmlBlockStart(lineStr)
+    if (htmlBlock) {
+      if (!hasHtmlBlockClose(src, lineEnd, lineStart, htmlBlock)) {
         return true
       }
     }
@@ -863,15 +942,47 @@ function isInsideHtmlBlock(
   return false
 }
 
-function getRawHtmlBlockTag(line: string): string | null {
-  const trimmed = line.trimStart()
-  const match = /^<(pre|script|style|textarea)\b/i.exec(trimmed)
-  return match ? match[1].toLowerCase() : null
+interface HtmlBlockStart {
+  kind: 'tag' | 'comment' | 'processing' | 'declaration' | 'cdata'
+  tagName?: string
 }
 
-function hasRawHtmlBlockClose(src: string, openEnd: number, closeBefore: number, tagName: string): boolean {
-  const closeRe = new RegExp(`</${tagName}\\s*>`, 'i')
-  return closeRe.test(src.slice(openEnd, closeBefore))
+function getHtmlBlockStart(line: string): HtmlBlockStart | null {
+  const trimmed = line.trimStart()
+  const tagMatch = /^<(pre|script|style|textarea)\b/i.exec(trimmed)
+  if (tagMatch) {
+    const tagName = tagMatch[1].toLowerCase()
+    if (new RegExp(`</${tagName}\\s*>`, 'i').test(trimmed))
+      return null
+    return { kind: 'tag', tagName: tagMatch[1].toLowerCase() }
+  }
+  if (trimmed.startsWith('<!--'))
+    return trimmed.includes('-->', 4) ? null : { kind: 'comment' }
+  if (trimmed.startsWith('<?'))
+    return trimmed.includes('?>', 2) ? null : { kind: 'processing' }
+  if (trimmed.startsWith('<![CDATA['))
+    return trimmed.includes(']]>', 9) ? null : { kind: 'cdata' }
+  if (/^<![A-Z]/i.test(trimmed))
+    return trimmed.includes('>', 2) ? null : { kind: 'declaration' }
+  return null
+}
+
+function hasHtmlBlockClose(src: string, openEnd: number, closeBefore: number, block: HtmlBlockStart): boolean {
+  const body = src.slice(openEnd, closeBefore)
+  switch (block.kind) {
+    case 'tag': {
+      const closeRe = new RegExp(`</${block.tagName}\\s*>`, 'i')
+      return closeRe.test(body)
+    }
+    case 'comment':
+      return body.includes('-->')
+    case 'processing':
+      return body.includes('?>')
+    case 'declaration':
+      return body.includes('>')
+    case 'cdata':
+      return body.includes(']]>')
+  }
 }
 
 function mergeSmallRanges(ranges: SafeChunkRange[], minChars: number): SafeChunkRange[] {

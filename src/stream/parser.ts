@@ -2,10 +2,12 @@ import type { Token } from '../common/token'
 import type { MarkdownIt } from '../index'
 import type { GlobalMarkdownStateReason } from '../parse/global_state'
 import type { ParserCore } from '../parse/parser_core'
+import type { CachedStreamParser } from './cached_parser'
 import { countLines } from '../common/utils'
 import { detectGlobalMarkdownState, getKnownGlobalMarkdownState, resetKnownGlobalMarkdownState, runWithKnownGlobalMarkdownState } from '../parse/global_state'
 import { beginParseDiagnostics, getParseDiagnostics, setStrategyDiagnostics } from '../parse/strategy_diagnostics'
 import { recommendStreamChunkStrategy } from '../support/chunk_recommend'
+import { cloneTokens } from './chunk_cache'
 import { chunkedParse } from './chunked'
 import { getAutoUnboundedDecision, parseStringUnbounded, shouldAutoUseUnbounded } from './unbounded'
 
@@ -27,6 +29,13 @@ interface StreamSegment {
   srcOffset: number
 }
 
+interface ParserRuleVersions {
+  core: number
+  block: number
+  inline: number
+  inline2: number
+}
+
 const EMPTY_TOKENS: Token[] = []
 
 export interface StreamStats {
@@ -41,6 +50,7 @@ export interface StreamStats {
   chunkHits?: number
   chunkMisses?: number
   appendedChunks?: number
+  invalidations?: number
   lastMode: 'idle' | 'cache' | 'append' | 'tail' | 'full' | 'reset' | 'chunked'
 }
 
@@ -54,14 +64,17 @@ function makeEmptyStats(): StreamStats {
     fullParses: 0,
     resets: 0,
     chunkedParses: 0,
+    invalidations: 0,
     lastMode: 'idle',
   }
 }
 
 export class StreamParser {
   private readonly core: ParserCore
+  private readonly chunkCacheProvider?: () => CachedStreamParser | null
   private cache: StreamCache | null = null
   private stats: StreamStats = makeEmptyStats()
+  private ruleVersions: ParserRuleVersions | null = null
 
   // Only use stream optimization for documents larger than this threshold
   private readonly MIN_SIZE_FOR_OPTIMIZATION = 1000 // characters
@@ -80,11 +93,13 @@ export class StreamParser {
   private readonly MIN_UNBOUNDED_APPEND_TOTAL_CHARS = 500_000
   private readonly MIN_UNBOUNDED_APPEND_CHARS = 64_000
   private readonly MIN_UNBOUNDED_APPEND_LINES = 700
+  private readonly MIN_CHUNK_CACHE_CHARS = 500
 
   // (reserved for future adaptive strategy metrics)
 
-  constructor(core: ParserCore) {
+  constructor(core: ParserCore, chunkCacheProvider?: () => CachedStreamParser | null) {
     this.core = core
+    this.chunkCacheProvider = chunkCacheProvider
   }
 
   reset(): void {
@@ -100,6 +115,8 @@ export class StreamParser {
   }
 
   parse(src: string, env: Record<string, unknown> | undefined, md: MarkdownIt): Token[] {
+    this.ensureRuleVersions(md)
+
     const envProvided = env
     const cached = this.cache
     beginParseDiagnostics(envProvided ?? cached?.env)
@@ -168,7 +185,8 @@ export class StreamParser {
         if ((wantsChunking || shouldAutoChunk)
           && (src.length >= (useChars * 2) || srcLineCount >= (useLines * 2))
           && hasTrailingNewline) {
-          const tokens = chunkedParse(md, src, workingEnv, {
+          const chunkCached = this.tryStreamChunkCache(src, workingEnv, md, srcLineCount)
+          const tokens = chunkCached?.tokens ?? chunkedParse(md, src, workingEnv, {
             maxChunkChars: useChars,
             maxChunkLines: useLines,
             fenceAware: recommendation?.fenceAware ?? chunkFenceAware,
@@ -176,12 +194,21 @@ export class StreamParser {
           })
           this.cache = { src, tokens, env: workingEnv, lineCount: srcLineCount, lastSegment: undefined, globalStateReason: detectGlobalMarkdownState(src) }
           this.updateCacheLineCount(this.cache, srcLineCount)
-          this.recordChunkedParseResult(
-            workingEnv,
-            wantsChunking ? 'explicit-initial-large-doc' : 'default-initial-large-doc',
-          )
+          if (!chunkCached) {
+            this.recordChunkedParseResult(
+              workingEnv,
+              wantsChunking ? 'explicit-initial-large-doc' : 'default-initial-large-doc',
+            )
+          }
           return tokens
         }
+      }
+
+      const chunkCached = this.tryStreamChunkCache(src, workingEnv, md, srcLineCount)
+      if (chunkCached) {
+        this.cache = { src, tokens: chunkCached.tokens, env: workingEnv, lineCount: chunkCached.lineCount, lastSegment: undefined, globalStateReason: detectGlobalMarkdownState(src) }
+        this.updateCacheLineCount(this.cache, chunkCached.lineCount)
+        return chunkCached.tokens
       }
 
       // initial parse
@@ -718,7 +745,8 @@ export class StreamParser {
       if ((wantsChunking || shouldAutoChunk)
         && (src.length >= (useChars * 2) || srcLineCount2 >= (useLines * 2))
         && hasTrailingNewline2) {
-        const tokens = chunkedParse(md, src, fallbackEnv, {
+        const chunkCached = this.tryStreamChunkCache(src, fallbackEnv, md, srcLineCount2)
+        const tokens = chunkCached?.tokens ?? chunkedParse(md, src, fallbackEnv, {
           maxChunkChars: useChars,
           maxChunkLines: useLines,
           fenceAware: recommendation?.fenceAware ?? chunkFenceAware,
@@ -726,12 +754,21 @@ export class StreamParser {
         })
         this.cache = { src, tokens, env: fallbackEnv, lineCount: srcLineCount2, lastSegment: undefined, globalStateReason: detectGlobalMarkdownState(src) }
         this.updateCacheLineCount(this.cache, srcLineCount2)
-        this.recordChunkedParseResult(
-          fallbackEnv,
-          wantsChunking ? 'explicit-fallback-large-doc' : 'default-fallback-large-doc',
-        )
+        if (!chunkCached) {
+          this.recordChunkedParseResult(
+            fallbackEnv,
+            wantsChunking ? 'explicit-fallback-large-doc' : 'default-fallback-large-doc',
+          )
+        }
         return tokens
       }
+    }
+
+    const chunkCached = this.tryStreamChunkCache(src, fallbackEnv, md, srcLineCount2)
+    if (chunkCached) {
+      this.cache = { src, tokens: chunkCached.tokens, env: fallbackEnv, lineCount: chunkCached.lineCount, lastSegment: undefined, globalStateReason: detectGlobalMarkdownState(src) }
+      this.updateCacheLineCount(this.cache, chunkCached.lineCount)
+      return chunkCached.tokens
     }
 
     // full fallback parse
@@ -781,6 +818,53 @@ export class StreamParser {
       chunked: true,
       reason: chunkReason,
     })
+  }
+
+  private tryStreamChunkCache(
+    src: string,
+    env: Record<string, unknown>,
+    md: MarkdownIt,
+    knownLineCount?: number,
+  ): { tokens: Token[], lineCount: number } | null {
+    if (!md.options?.streamChunkCache || src.length < this.MIN_CHUNK_CACHE_CHARS)
+      return null
+
+    const parser = this.chunkCacheProvider?.()
+    if (!parser)
+      return null
+
+    const tokens = cloneTokens(parser.parse(src, env, md))
+    const lineCount = knownLineCount ?? countLines(src)
+    const chunkStats = parser.getStats()
+
+    this.stats.total += 1
+    switch (chunkStats.lastMode) {
+      case 'cache':
+        this.stats.cacheHits += 1
+        this.stats.lastMode = 'cache'
+        break
+      case 'full':
+        this.stats.fullParses += 1
+        this.stats.lastMode = 'full'
+        break
+      case 'append':
+        this.stats.appendHits += 1
+        this.stats.lastMode = 'append'
+        break
+      default:
+        this.stats.chunkedParses = (this.stats.chunkedParses || 0) + 1
+        this.stats.lastMode = 'chunked'
+    }
+    this.syncChunkCacheStats(chunkStats)
+
+    return { tokens, lineCount }
+  }
+
+  private syncChunkCacheStats(chunkStats: ReturnType<CachedStreamParser['getStats']>): void {
+    this.stats.chunkHits = chunkStats.chunkHits
+    this.stats.chunkMisses = chunkStats.chunkMisses
+    this.stats.appendedChunks = chunkStats.appendedChunks
+    this.stats.invalidations = chunkStats.invalidations
   }
 
   private parseFullDocument(
@@ -1038,6 +1122,37 @@ export class StreamParser {
 
   public getStats(): StreamStats {
     return { ...this.stats }
+  }
+
+  private ensureRuleVersions(md: MarkdownIt): void {
+    const next = this.readRuleVersions(md)
+    const previous = this.ruleVersions
+
+    if (!previous) {
+      this.ruleVersions = next
+      return
+    }
+
+    if (
+      next.core !== previous.core
+      || next.block !== previous.block
+      || next.inline !== previous.inline
+      || next.inline2 !== previous.inline2
+    ) {
+      this.cache = null
+      this.ruleVersions = next
+      this.stats.resets += 1
+      this.stats.invalidations = (this.stats.invalidations || 0) + 1
+    }
+  }
+
+  private readRuleVersions(md: MarkdownIt): ParserRuleVersions {
+    return {
+      core: md.core.ruler.version,
+      block: md.block.ruler.version,
+      inline: md.inline.ruler.version,
+      inline2: md.inline.ruler2.version,
+    }
   }
 
   // countLines moved to common utils for reuse

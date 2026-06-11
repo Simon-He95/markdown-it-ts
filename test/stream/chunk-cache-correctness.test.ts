@@ -39,7 +39,7 @@ function largeDoc(paragraphs: number): string {
 describe('Cache invalidation (P0-1)', () => {
   it('invalidates cache after md.set({ html: true })', () => {
     const md = markdownit({ stream: true, experimental: { streamChunkCache: true } })
-    const src = largeDoc(200)
+    const src = `${largeDoc(120)}<div>raw html</div>\n\n${largeDoc(80)}`
 
     // First parse to establish cache
     md.stream.parse(src, {})
@@ -51,6 +51,49 @@ describe('Cache invalidation (P0-1)', () => {
     const tokens = md.stream.parse(src, {})
     const html = md.renderer.render(tokens, md.options, {})
     expect(html).toBe(render(src, md))
+    expect(html).toContain('<div>raw html</div>')
+  })
+
+  it('invalidates cache after md.set({ linkify: true })', () => {
+    const md = markdownit({ stream: true, linkify: false, experimental: { streamChunkCache: true } })
+    const src = `${largeDoc(120)}Visit https://example.com now.\n\n${largeDoc(80)}`
+
+    md.stream.parse(src, {})
+    md.set({ linkify: true })
+
+    const tokens = md.stream.parse(src, {})
+    const html = md.renderer.render(tokens, md.options, {})
+
+    expect(html).toBe(render(src, md))
+    expect(html).toContain('<a href="https://example.com">https://example.com</a>')
+  })
+
+  it('invalidates cache after md.set({ breaks: true })', () => {
+    const md = markdownit({ stream: true, breaks: false, experimental: { streamChunkCache: true } })
+    const src = `${largeDoc(120)}soft\nbreak\n\n${largeDoc(80)}`
+
+    md.stream.parse(src, {})
+    md.set({ breaks: true })
+
+    const tokens = md.stream.parse(src, {})
+    const html = md.renderer.render(tokens, md.options, {})
+
+    expect(html).toBe(render(src, md))
+    expect(html).toContain('<br>')
+  })
+
+  it('invalidates cache after md.set({ typographer: true })', () => {
+    const md = markdownit({ stream: true, typographer: false, experimental: { streamChunkCache: true } })
+    const src = `${largeDoc(120)}(c) -- test\n\n${largeDoc(80)}`
+
+    md.stream.parse(src, {})
+    md.set({ typographer: true })
+
+    const tokens = md.stream.parse(src, {})
+    const html = md.renderer.render(tokens, md.options, {})
+
+    expect(html).toBe(render(src, md))
+    expect(html).not.toContain('(c)')
   })
 
   it('invalidates cache after md.enable()', () => {
@@ -98,6 +141,27 @@ describe('Cache invalidation (P0-1)', () => {
     // After plugin use, stats should show full parse (not chunked)
     const stats = md.stream.stats()
     expect(stats.lastMode).toBe('full')
+  })
+
+  it('disables chunk cache after md.use() and preserves plugin env writes', () => {
+    const md = markdownit({ stream: true, experimental: { streamChunkCache: true } })
+    const src = largeDoc(200)
+
+    md.stream.parse(src, {})
+
+    md.use((md) => {
+      md.core.ruler.push('test_env_after_cache', (state) => {
+        state.env.pluginRan = true
+      })
+    })
+
+    const env: Record<string, unknown> = {}
+    const tokens = md.stream.parse(src, env)
+    const html = md.renderer.render(tokens, md.options, env)
+
+    expect(html).toBe(render(src, md))
+    expect(env.pluginRan).toBe(true)
+    expect(md.stream.stats().lastMode).toBe('full')
   })
 
   it('uses cached stream parser after enabling streamChunkCache with md.set()', () => {
@@ -709,6 +773,32 @@ describe('Append correctness with containers', () => {
       expect(actual).toBe(expected)
     }
   })
+})
+
+describe('streamChunkCache integration with StreamParser append paths', () => {
+  const cases = [
+    ['tight list', '- item A\n- item B\n\n'],
+    ['loose list', '- item A\n\n- item B\n\n'],
+    ['table', '| a | b |\n|---|---|\n| 1 | 2 |\n\n'],
+    ['blockquote', '> quote line\n>\n> next line\n\n'],
+  ] as const
+
+  for (const [name, append] of cases) {
+    it(`keeps append parity for ${name}`, () => {
+      const md = markdownit({ stream: true, experimental: { streamChunkCache: true } })
+      const src = largeDoc(120)
+      const next = src + append
+
+      md.stream.parse(src, {})
+      const tokens = md.stream.parse(next, {})
+      const html = md.renderer.render(tokens, md.options, {})
+      const stats = md.stream.stats()
+
+      expect(html).toBe(render(next, md))
+      expect(stats.lastMode).toBe('append')
+      expect(stats.appendHits).toBeGreaterThan(0)
+    })
+  }
 })
 
 // ---------------------------------------------------------------------------
