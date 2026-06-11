@@ -896,6 +896,7 @@ export class StreamParser {
   ): void {
     setChunkCacheDiagnostics(env, {
       enabled: false,
+      path: 'fallback-full',
       hits: this.stats.chunkHits ?? 0,
       misses: this.stats.chunkMisses ?? 0,
       evictions: this.stats.chunkEvictions ?? 0,

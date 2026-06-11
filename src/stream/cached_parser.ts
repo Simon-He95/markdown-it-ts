@@ -755,6 +755,7 @@ export class CachedStreamParser {
     this.syncTableEvictions()
     setChunkCacheDiagnostics(env, {
       enabled: !fallbackReason,
+      path: fallbackReason ? 'fallback-full' : (this.stats.lastMode === 'cache' ? 'identity' : 'chunk-cache'),
       hits: this.stats.chunkHits,
       misses: this.stats.chunkMisses,
       evictions: this.stats.chunkEvictions,

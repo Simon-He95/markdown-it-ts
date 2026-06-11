@@ -155,7 +155,7 @@ import { getParseDiagnostics } from 'markdown-it-ts/experimental'
 默认策略决策会写入：
 
 - `getParseDiagnostics(env)?.strategy`
-- `getParseDiagnostics(env)?.chunkCache`，当 `experimental.streamChunkCache` 被实际尝试时，包含 enabled/fallback 状态、chunk hit/miss、evictions、append chunk 数、invalidations、table size、retained source chars、cached entry chars/token weight、reused/reparsed/dirty range chars、shifted token count、last reparsed chars/chunks，以及枚举化的 fallback 原因（`ChunkCacheFallbackReason`）。`totalCachedEntryChars` / `totalCachedEntryTokenWeight` 是缓存容量计数：moved-content alias 会按 entry 计入，用于 eviction pressure，不是 JS heap 占用估算。
+- `getParseDiagnostics(env)?.chunkCache`，当 `experimental.streamChunkCache` 被实际尝试时，包含 path（`chunk-cache` / `identity` / `fallback-full`）、enabled/fallback 状态、chunk hit/miss、evictions、append chunk 数、invalidations、table size、retained source chars、cached entry chars/token weight、reused/reparsed/dirty range chars、shifted token count、last reparsed chars/chunks，以及枚举化的 fallback 原因（`ChunkCacheFallbackReason`）。`totalCachedEntryChars` / `totalCachedEntryTokenWeight` 是缓存容量计数：moved-content alias 会按 entry 计入，用于 eviction pressure，不是 JS heap 占用估算。
 
 `experimental.streamChunkCache` 目前只对 core-only parser 自动启用。注册任意 plugin 后会回退到普通 stream/full parse，并在 diagnostics 中标记 `enabled: false`、`fallback: true`、`fallbackReason: 'plugin-used'`，避免复用 chunk tokens 时跳过 plugin 的 env side effects。
 

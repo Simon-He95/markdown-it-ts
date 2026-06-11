@@ -20,6 +20,7 @@ function cacheSummary(env, stats) {
   if (!chunkCache)
     return 'chunkCache=n/a'
   return [
+    `path=${chunkCache.path}`,
     `hits=${stats.chunkHits}`,
     `misses=${stats.chunkMisses}`,
     `table=${chunkCache.tableSize}`,

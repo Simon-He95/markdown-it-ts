@@ -50,6 +50,7 @@ export type ChunkCacheFallbackReason
 
 export interface ChunkCacheDiagnostics {
   enabled: boolean
+  path: 'chunk-cache' | 'identity' | 'fallback-full'
   hits: number
   misses: number
   evictions: number

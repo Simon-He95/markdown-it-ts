@@ -354,6 +354,7 @@ describe('Cache invalidation (P0-1)', () => {
     md.stream.parse(src, env)
 
     const initial = getParseDiagnostics(env)?.chunkCache
+    expect(initial?.path).toBe('chunk-cache')
     expect(initial?.misses).toBeGreaterThan(0)
     expect(initial?.tableSize).toBeGreaterThan(0)
 
@@ -361,6 +362,7 @@ describe('Cache invalidation (P0-1)', () => {
     md.stream.parse(modified, env)
 
     const next = getParseDiagnostics(env)?.chunkCache
+    expect(next?.path).toBe('chunk-cache')
     expect(next?.hits).toBeGreaterThan(0)
     expect(next?.misses).toBeGreaterThan(0)
     expect(next?.tableSize).toBeGreaterThan(0)
@@ -505,6 +507,7 @@ describe('Cache invalidation (P0-1)', () => {
     expect(env.hit).toBe(1)
     expect(parser.getStats().cacheHits).toBe(1)
     expect(parser.getStats().lastMode).toBe('cache')
+    expect(getParseDiagnostics(env)?.chunkCache?.path).toBe('identity')
   })
 })
 
@@ -729,6 +732,7 @@ describe('Global markdown state fallback (P0-3)', () => {
     md.stream.parse(src, env)
 
     expect(getParseDiagnostics(env)?.chunkCache).toMatchObject({
+      path: 'fallback-full',
       enabled: false,
       fallback: true,
       fallbackReason: 'reference-definition',
