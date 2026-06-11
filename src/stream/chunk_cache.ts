@@ -18,6 +18,56 @@ export function computeSourceHash(src: string, start: number, end: number): numb
 }
 
 // ---------------------------------------------------------------------------
+// Content fingerprint: 64-bit for correctness verification
+// We use a 64-bit combined fingerprint (hash32 + length + first16 + last16)
+// to practically eliminate collision risk.
+// ---------------------------------------------------------------------------
+
+const FINGERPRINT_FIRST = 16
+const FINGERPRINT_LAST = 16
+
+function extractFirstChars(s: string, start: number, end: number, count: number): string {
+  const max = Math.min(start + count, end)
+  return s.slice(start, max)
+}
+
+function extractLastChars(s: string, start: number, end: number, count: number): string {
+  const min = Math.max(start, end - count)
+  return s.slice(min, end)
+}
+
+export interface ContentFingerprint {
+  /** FNV-1a 32-bit hash. */
+  hash: number
+  /** Byte length of the chunk content. */
+  length: number
+  /** First FINGERPRINT_FIRST characters. */
+  first: string
+  /** Last FINGERPRINT_LAST characters. */
+  last: string
+}
+
+export function computeContentFingerprint(src: string, start: number, end: number): ContentFingerprint {
+  return {
+    hash: fnv1a32(src, start, end),
+    length: end - start,
+    first: extractFirstChars(src, start, end, FINGERPRINT_FIRST),
+    last: extractLastChars(src, start, end, FINGERPRINT_LAST),
+  }
+}
+
+function fingerprintsMatch(a: ContentFingerprint, src: string, start: number, end: number): boolean {
+  const len = end - start
+  if (a.length !== len) return false
+  const bHash = fnv1a32(src, start, end)
+  if (a.hash !== bHash) return false
+  // Verify first/last chars for extra safety
+  if (a.first !== extractFirstChars(src, start, end, FINGERPRINT_FIRST)) return false
+  if (a.last !== extractLastChars(src, start, end, FINGERPRINT_LAST)) return false
+  return true
+}
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -26,8 +76,19 @@ export interface CachedChunk {
   endOffset: number
   startLine: number
   lineCount: number
-  sourceHash: number
+  /** Content fingerprint for correctness verification. */
+  fingerprint: ContentFingerprint
+  /**
+   * Tokens stored with chunk-local line coordinates (line 0 = chunk start).
+   * Consumers must clone + shift to materialize with global line offsets.
+   */
   tokens: Token[]
+  /** Generation when this chunk was stored. Must match table generation to be valid. */
+  generation: number
+  /** Byte length of the original source slice (fingerprint.length). */
+  charLength: number
+  /** Number of tokens in this chunk (for memory tracking). */
+  tokenCount: number
 }
 
 export interface HardBoundary {
@@ -42,6 +103,185 @@ export interface SafeChunkRange {
   end: number
   startLine: number
   lineCount: number
+}
+
+// ---------------------------------------------------------------------------
+// ChunkTable memory limits
+// ---------------------------------------------------------------------------
+
+export interface ChunkTableLimits {
+  /** Maximum number of chunks. Default: 256. */
+  maxChunks?: number
+  /** Maximum total characters across all cached chunks. Default: 2,000,000. */
+  maxTotalChars?: number
+  /** Maximum total tokens across all cached chunks. Default: 100,000. */
+  maxTotalTokens?: number
+}
+
+const DEFAULT_CHUNK_TABLE_LIMITS: Required<ChunkTableLimits> = {
+  maxChunks: 256,
+  maxTotalChars: 2_000_000,
+  maxTotalTokens: 100_000,
+}
+
+// ---------------------------------------------------------------------------
+// ChunkTable
+// ---------------------------------------------------------------------------
+
+export class ChunkTable {
+  /** Map keyed by `${startOffset}:${endOffset}` for O(1) lookup. */
+  private map = new Map<string, CachedChunk>()
+  /** Sorted array for ordered iteration and range invalidation. */
+  private list: CachedChunk[] = []
+
+  /** Monotonically increasing generation. Incremented on full invalidation. */
+  private generation = 0
+
+  /** Memory tracking. */
+  private totalChars = 0
+  private totalTokens = 0
+  private limits: Required<ChunkTableLimits>
+
+  constructor(limits?: ChunkTableLimits) {
+    this.limits = { ...DEFAULT_CHUNK_TABLE_LIMITS, ...(limits ?? {}) }
+  }
+
+  /**
+   * Look up a cached chunk by offset range. Verifies content fingerprint
+   * and generation. Returns null if not found, content changed, or generation
+   * mismatch.
+   */
+  lookup(startOffset: number, src: string, endOffset: number): CachedChunk | null {
+    const key = `${startOffset}:${endOffset}`
+    const cached = this.map.get(key)
+    if (!cached) return null
+
+    // Generation check: if table was invalidated, all old chunks are stale.
+    if (cached.generation !== this.generation) {
+      this.evict(cached, key)
+      return null
+    }
+
+    // Content fingerprint verification (multi-factor, not just hash).
+    if (!fingerprintsMatch(cached.fingerprint, src, startOffset, endOffset)) {
+      this.evict(cached, key)
+      return null
+    }
+
+    return cached
+  }
+
+  store(chunk: CachedChunk): void {
+    const key = `${chunk.startOffset}:${chunk.endOffset}`
+
+    // Remove existing entry at same key.
+    const existing = this.map.get(key)
+    if (existing) {
+      this.evict(existing, key)
+    }
+
+    // Stamp with current generation.
+    chunk.generation = this.generation
+
+    // Track memory.
+    this.totalChars += chunk.charLength
+    this.totalTokens += chunk.tokenCount
+
+    this.map.set(key, chunk)
+
+    // Insert in sorted order.
+    let i = 0
+    while (i < this.list.length && this.list[i].startOffset < chunk.startOffset) i++
+    this.list.splice(i, 0, chunk)
+
+    // Enforce limits.
+    this.enforceLimits()
+  }
+
+  invalidateRange(start: number, end: number): void {
+    const toRemove: Array<{ chunk: CachedChunk; key: string }> = []
+    for (let i = this.list.length - 1; i >= 0; i--) {
+      const c = this.list[i]
+      if (c.endOffset > start && c.startOffset < end) {
+        toRemove.push({ chunk: c, key: `${c.startOffset}:${c.endOffset}` })
+        this.list.splice(i, 1)
+      }
+    }
+    for (const { chunk, key } of toRemove) {
+      this.map.delete(key)
+      this.totalChars -= chunk.charLength
+      this.totalTokens -= chunk.tokenCount
+    }
+  }
+
+  /**
+   * Increment generation so ALL existing chunks become stale on next lookup.
+   * Does NOT eagerly clear memory — chunks are evicted lazily on lookup or
+   * when new chunks are stored and exceed limits.
+   */
+  invalidateAll(): void {
+    this.generation++
+    // Clear immediately to free memory.
+    this.map.clear()
+    this.list.length = 0
+    this.totalChars = 0
+    this.totalTokens = 0
+  }
+
+  clear(): void {
+    this.map.clear()
+    this.list.length = 0
+    this.totalChars = 0
+    this.totalTokens = 0
+    // Do NOT reset generation — that would make newly stored chunks
+    // incompatible with the rest of the system. clear() is for reset;
+    // invalidateAll() is for generation bump.
+  }
+
+  /** Current generation value. */
+  get currentGeneration(): number {
+    return this.generation
+  }
+
+  get size(): number {
+    return this.list.length
+  }
+
+  get totalCharCount(): number {
+    return this.totalChars
+  }
+
+  get totalTokenCount(): number {
+    return this.totalTokens
+  }
+
+  getChunks(): readonly CachedChunk[] {
+    return this.list
+  }
+
+  // ---- Private ----
+
+  private evict(chunk: CachedChunk, key: string): void {
+    this.map.delete(key)
+    this.totalChars -= chunk.charLength
+    this.totalTokens -= chunk.tokenCount
+    // Remove from sorted list.
+    const idx = this.list.indexOf(chunk)
+    if (idx !== -1) this.list.splice(idx, 1)
+  }
+
+  private enforceLimits(): void {
+    // Evict oldest chunks (by insertion order = by startOffset) until all limits satisfied.
+    while (
+      this.list.length > this.limits.maxChunks
+      || this.totalChars > this.limits.maxTotalChars
+      || this.totalTokens > this.limits.maxTotalTokens
+    ) {
+      if (this.list.length === 0) break
+      const oldest = this.list[0]
+      this.evict(oldest, `${oldest.startOffset}:${oldest.endOffset}`)
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -60,9 +300,9 @@ interface RawLine {
 // Hard-boundary detection
 //
 // A "hard boundary" is a blank line that does NOT sit inside a fenced code
-// block AND does NOT separate lines belonging to the same list or blockquote
-// container. Tokens on either side of a hard boundary are parse-independent
-// and can be safely cached.
+// block AND does NOT separate lines belonging to the same container (list,
+// blockquote, table, setext heading, HTML block). Tokens on either side of a
+// hard boundary are parse-independent and can be safely cached.
 //
 // Conservative approach: we only mark a blank line as hard when we are
 // confident no container spans it. False negatives (treating a hard boundary
@@ -74,6 +314,8 @@ export function detectHardBoundaries(src: string): HardBoundary[] {
   if (len === 0) return []
 
   const lines = collectLines(src)
+  // Pre-classify all lines so containerSpansBlankLine can look up quickly.
+  const classes = lines.map(l => classifyLine(src, l))
   const boundaries: HardBoundary[] = []
   let consecutiveBlank = 0
 
@@ -98,7 +340,7 @@ export function detectHardBoundaries(src: string): HardBoundary[] {
     }
 
     // Single blank line: check if a container spans it.
-    if (!containerSpansBlankLine(lines, i, src)) {
+    if (!containerSpansBlankLine(lines, classes, i, src)) {
       boundaries.push({ offset: line.endWithNl, line: i })
     }
   }
@@ -160,70 +402,52 @@ export function splitIntoSafeChunkRanges(
 }
 
 // ---------------------------------------------------------------------------
-// ChunkTable
+// Dirty range neighbor expansion
+//
+// Given a set of "dirty" chunks (identified by content change), expand the
+// dirty set to include neighbors until we reach stable boundaries on both
+// sides. This ensures that edit-induced boundary changes don't leave stale
+// chunks between dirty and clean regions.
 // ---------------------------------------------------------------------------
 
-export class ChunkTable {
-  /** Map keyed by `${startOffset}:${endOffset}` for O(1) lookup. */
-  private map = new Map<string, CachedChunk>()
-  /** Sorted array for ordered iteration and range invalidation. */
-  private list: CachedChunk[] = []
+/**
+ * Expand a set of dirty chunk indices to include neighbors until stable
+ * boundaries are reached. A "stable boundary" is one where the boundary
+ * between chunks exists in both old and new boundary sets.
+ */
+export function expandDirtyRange(
+  dirtyIndices: Set<number>,
+  totalChunks: number,
+  expandLeft: number = 1,
+  expandRight: number = 1,
+): Set<number> {
+  if (dirtyIndices.size === 0 || totalChunks === 0) return dirtyIndices
 
-  lookup(startOffset: number, src: string, endOffset: number): CachedChunk | null {
-    const key = `${startOffset}:${endOffset}`
-    const cached = this.map.get(key)
-    if (!cached) return null
-    const currentHash = computeSourceHash(src, startOffset, endOffset)
-    if (cached.sourceHash !== currentHash) {
-      // Content changed — evict stale entry.
-      this.map.delete(key)
-      this.list = this.list.filter(c => c !== cached)
-      return null
-    }
-    return cached
-  }
+  const expanded = new Set(dirtyIndices)
 
-  store(chunk: CachedChunk): void {
-    const key = `${chunk.startOffset}:${chunk.endOffset}`
-    // Remove existing entry at same key.
-    const existing = this.map.get(key)
-    if (existing) {
-      this.map.delete(key)
-      this.list = this.list.filter(c => c !== existing)
-    }
-    this.map.set(key, chunk)
-    // Insert in sorted order.
-    let i = 0
-    while (i < this.list.length && this.list[i].startOffset < chunk.startOffset) i++
-    this.list.splice(i, 0, chunk)
-  }
-
-  invalidateRange(start: number, end: number): void {
-    const toRemove: CachedChunk[] = []
-    for (let i = this.list.length - 1; i >= 0; i--) {
-      const c = this.list[i]
-      if (c.endOffset > start && c.startOffset < end) {
-        toRemove.push(c)
-        this.list.splice(i, 1)
+  // Expand left
+  for (let pass = 0; pass < expandLeft; pass++) {
+    const toAdd: number[] = []
+    for (const idx of expanded) {
+      if (idx > 0 && !expanded.has(idx - 1)) {
+        toAdd.push(idx - 1)
       }
     }
-    for (const c of toRemove) {
-      this.map.delete(`${c.startOffset}:${c.endOffset}`)
+    for (const idx of toAdd) expanded.add(idx)
+  }
+
+  // Expand right
+  for (let pass = 0; pass < expandRight; pass++) {
+    const toAdd: number[] = []
+    for (const idx of expanded) {
+      if (idx < totalChunks - 1 && !expanded.has(idx + 1)) {
+        toAdd.push(idx + 1)
+      }
     }
+    for (const idx of toAdd) expanded.add(idx)
   }
 
-  clear(): void {
-    this.map.clear()
-    this.list.length = 0
-  }
-
-  get size(): number {
-    return this.list.length
-  }
-
-  getChunks(): readonly CachedChunk[] {
-    return this.list
-  }
+  return expanded
 }
 
 // ---------------------------------------------------------------------------
@@ -255,6 +479,21 @@ export function cloneTokens(tokens: Token[]): Token[] {
     ? (tokens[0].constructor as typeof Token)
     : Token
   return tokens.map(t => cloneOneToken(t, TokenClass))
+}
+
+/**
+ * Materialize cached tokens into the caller's coordinate space.
+ * Always clones first, then shifts. Never mutates cached tokens.
+ */
+export function materializeCachedTokens(
+  cached: CachedChunk,
+  lineOffset: number,
+): Token[] {
+  const cloned = cloneTokens(cached.tokens)
+  if (lineOffset !== 0) {
+    shiftTokenLines(cloned, lineOffset)
+  }
+  return cloned
 }
 
 // ---------------------------------------------------------------------------
@@ -327,77 +566,12 @@ function isBlank(src: string, start: number, end: number): boolean {
   return true
 }
 
-/**
- * Check if a container (list/blockquote) spans the blank line at `blankIdx`.
- * Conservative: returns true if the blank line MIGHT be inside a container.
- */
-function containerSpansBlankLine(lines: RawLine[], blankIdx: number, src: string): boolean {
-  // Find previous non-blank line
-  let prevIdx = blankIdx - 1
-  while (prevIdx >= 0 && lines[prevIdx].blank) prevIdx--
-  if (prevIdx < 0) return false
-
-  // Find next non-blank line
-  let nextIdx = blankIdx + 1
-  while (nextIdx < lines.length && lines[nextIdx].blank) nextIdx++
-  if (nextIdx >= lines.length) return false
-
-  const prev = lines[prevIdx]
-  const next = lines[nextIdx]
-
-  // Inside fence → container definitely spans (but caller already filters by insideFence)
-  if (prev.insideFence) return true
-
-  const prevInfo = classifyLine(src, prev)
-  const nextInfo = classifyLine(src, next)
-
-  // Blockquote: prev starts with '>', next also starts with '>'
-  if (prevInfo.isBlockquote && nextInfo.isBlockquote) return true
-
-  // List: prev is a list marker, next is a list marker or indented
-  if (prevInfo.isListItem) {
-    if (nextInfo.isListItem) return true
-    if (nextInfo.indent >= 2) return true
-  }
-
-  // Indented continuation: prev is indented (list continuation), look further back
-  if (prevInfo.indent >= 2 && !prevInfo.isBlockquote && !prevInfo.isListItem) {
-    let lookBack = prevIdx - 1
-    while (lookBack >= 0 && lines[lookBack].blank) lookBack--
-    if (lookBack >= 0) {
-      const earlier = classifyLine(src, lines[lookBack])
-      if (earlier.isListItem && (nextInfo.isListItem || nextInfo.indent >= 2)) {
-        return true
-      }
-    }
-  }
-
-  // Also check: lookBack is itself an indented continuation
-  if (prevInfo.indent >= 2 && !prevInfo.isBlockquote && !prevInfo.isListItem) {
-    let lookBack = prevIdx - 1
-    while (lookBack >= 0 && lines[lookBack].blank) lookBack--
-    if (lookBack >= 0) {
-      const earlier2 = classifyLine(src, lines[lookBack])
-      if (earlier2.indent >= 2 && !earlier2.isListItem && !earlier2.isBlockquote) {
-        // Go further back
-        let lb2 = lookBack - 1
-        while (lb2 >= 0 && lines[lb2].blank) lb2--
-        if (lb2 >= 0) {
-          const e3 = classifyLine(src, lines[lb2])
-          if (e3.isListItem && (nextInfo.isListItem || nextInfo.indent >= 2)) {
-            return true
-          }
-        }
-      }
-    }
-  }
-
-  return false
-}
-
 interface LineClass {
   isBlockquote: boolean
   isListItem: boolean
+  isSetextUnderline: boolean
+  isTableRow: boolean
+  isHtmlBlockContinuation: boolean
   indent: number
 }
 
@@ -413,14 +587,14 @@ function classifyLine(src: string, line: RawLine): LineClass {
   }
 
   if (p >= line.end) {
-    return { isBlockquote: false, isListItem: false, indent }
+    return { isBlockquote: false, isListItem: false, isSetextUnderline: false, isTableRow: false, isHtmlBlockContinuation: false, indent }
   }
 
   const ch = src.charCodeAt(p)
 
   // Blockquote
   if (ch === 0x3E /* > */) {
-    return { isBlockquote: true, isListItem: false, indent }
+    return { isBlockquote: true, isListItem: false, isSetextUnderline: false, isTableRow: false, isHtmlBlockContinuation: false, indent }
   }
 
   // Unordered list: '- ', '* ', '+ '
@@ -428,26 +602,256 @@ function classifyLine(src: string, line: RawLine): LineClass {
     if (p + 1 < line.end) {
       const next = src.charCodeAt(p + 1)
       if (next === 0x20 || next === 0x09) {
-        return { isBlockquote: false, isListItem: true, indent }
+        return { isBlockquote: false, isListItem: true, isSetextUnderline: false, isTableRow: false, isHtmlBlockContinuation: false, indent }
       }
     }
   }
 
-  // Ordered list: digit(s) + '. '
+  // Ordered list: digit(s) + '. ' or digit(s) + ') '
   if (ch >= 0x30 && ch <= 0x39) {
     let q = p + 1
     while (q < line.end && src.charCodeAt(q) >= 0x30 && src.charCodeAt(q) <= 0x39) q++
-    if (q < line.end && src.charCodeAt(q) === 0x2E /* . */) {
-      if (q + 1 < line.end) {
-        const after = src.charCodeAt(q + 1)
-        if (after === 0x20 || after === 0x09) {
-          return { isBlockquote: false, isListItem: true, indent }
+    if (q < line.end) {
+      const marker = src.charCodeAt(q)
+      if (marker === 0x2E /* . */ || marker === 0x29 /* ) */) {
+        if (q + 1 < line.end) {
+          const after = src.charCodeAt(q + 1)
+          if (after === 0x20 || after === 0x09) {
+            return { isBlockquote: false, isListItem: true, isSetextUnderline: false, isTableRow: false, isHtmlBlockContinuation: false, indent }
+          }
         }
       }
     }
   }
 
-  return { isBlockquote: false, isListItem: false, indent }
+  // Setext heading underline: line of '=' or '-' (≥1 char), optionally with trailing whitespace
+  if (ch === 0x3D /* = */ || ch === 0x2D /* - */) {
+    // '-' is checked above for list items; if indent is >= 2 and the rest of the
+    // line is all same char, it's a setext underline, not a list item.
+    // But we already caught '- ' as list item. Here we check for setext underline
+    // which is ALL same character (dash or equal) with only trailing spaces.
+    let q = p
+    while (q < line.end && src.charCodeAt(q) === ch) q++
+    // After the run, only spaces/tabs allowed
+    let after = q
+    while (after < line.end) {
+      const ac = src.charCodeAt(after)
+      if (ac !== 0x20 && ac !== 0x09 && ac !== 0x0D) break
+      after++
+    }
+    if (after >= line.end && q > p) {
+      // Line consists entirely of the same char + trailing whitespace → setext underline
+      return { isBlockquote: false, isListItem: false, isSetextUnderline: true, isTableRow: false, isHtmlBlockContinuation: false, indent }
+    }
+  }
+
+  // Table row detection: line contains '|' as a structural character.
+  // A table row starts with optional whitespace + '|' or contains '|' in the content.
+  // We check within the first few chars for a pipe.
+  {
+    let s = p
+    while (s < line.end) {
+      if (src.charCodeAt(s) === 0x7C /* | */) {
+        // Also check if this might be a separator row (| --- | --- |)
+        // But for container detection, any row with | is a table row.
+        return { isBlockquote: false, isListItem: false, isSetextUnderline: false, isTableRow: true, isHtmlBlockContinuation: false, indent }
+      }
+      s++
+    }
+  }
+
+  return { isBlockquote: false, isListItem: false, isSetextUnderline: false, isTableRow: false, isHtmlBlockContinuation: false, indent }
+}
+
+/**
+ * Check if a container (list/blockquote/table/setext/html-block) spans the
+ * blank line at `blankIdx`. Conservative: returns true if the blank line MIGHT
+ * be inside a container.
+ */
+function containerSpansBlankLine(
+  lines: RawLine[],
+  classes: LineClass[],
+  blankIdx: number,
+  src: string,
+): boolean {
+  // Find previous non-blank line
+  let prevIdx = blankIdx - 1
+  while (prevIdx >= 0 && lines[prevIdx].blank) prevIdx--
+  if (prevIdx < 0) return false
+
+  // Find next non-blank line
+  let nextIdx = blankIdx + 1
+  while (nextIdx < lines.length && lines[nextIdx].blank) nextIdx++
+  if (nextIdx >= lines.length) return false
+
+  const prevLine = lines[prevIdx]
+  const nextLine = lines[nextIdx]
+  const prev = classes[prevIdx]
+  const next = classes[nextIdx]
+
+  // Inside fence → container definitely spans (but caller already filters by insideFence)
+  if (prevLine.insideFence) return true
+
+  // Blockquote: prev starts with '>', next also starts with '>'
+  if (prev.isBlockquote && next.isBlockquote) return true
+
+  // Setext heading: prev is a paragraph/heading content, next is a setext underline.
+  // The blank line between heading text and its underline must NOT be split.
+  if (next.isSetextUnderline && !prev.isBlockquote && !prev.isListItem) {
+    // Check: prev should be non-blank content above a setext underline.
+    // The prev line and the underline are part of the same heading.
+    return true
+  }
+
+  // Setext heading: if prev is a setext underline, the next line could be
+  // continuation (unlikely, but be safe).
+  if (prev.isSetextUnderline) {
+    // After a setext underline, containers are reset. This is safe to split.
+    // But if the next line is also setext-like or blockquote? Actually after
+    // setext underline the heading is terminated. But to be safe, if next is
+    // also content-looking, we treat as continuation. No — setext terminates.
+    // Only block if both sides are clearly unrelated.
+    // Return false = not a container span = safe to split.
+  }
+
+  // Table: prev or next is a table row
+  if (prev.isTableRow && next.isTableRow) return true
+
+  // HTML block continuation: if prev and next are inside the same HTML block
+  // (detected by checking if both lines are part of an HTML block type).
+  // We use a heuristic: if the preceding context contains an HTML block opener
+  // that hasn't been closed, treat the blank line as inside the HTML block.
+  // For now, check if both lines look like HTML content.
+  if (isInsideHtmlBlock(lines, classes, blankIdx, src)) return true
+
+  // List: prev is a list marker, next is a list marker or indented
+  if (prev.isListItem) {
+    if (next.isListItem) return true
+    if (next.indent >= 2 && !next.isBlockquote) return true
+  }
+
+  // Indented continuation: prev is indented (list continuation), look further back
+  if (prev.indent >= 2 && !prev.isBlockquote && !prev.isListItem) {
+    let lookBack = prevIdx - 1
+    while (lookBack >= 0 && lines[lookBack].blank) lookBack--
+    if (lookBack >= 0) {
+      const earlier = classes[lookBack]
+      if (earlier.isListItem && (next.isListItem || (next.indent >= 2 && !next.isBlockquote))) {
+        return true
+      }
+    }
+  }
+
+  // Also check: lookBack is itself an indented continuation
+  if (prev.indent >= 2 && !prev.isBlockquote && !prev.isListItem) {
+    let lookBack = prevIdx - 1
+    while (lookBack >= 0 && lines[lookBack].blank) lookBack--
+    if (lookBack >= 0) {
+      const earlier2 = classes[lookBack]
+      if (earlier2.indent >= 2 && !earlier2.isListItem && !earlier2.isBlockquote) {
+        // Go further back
+        let lb2 = lookBack - 1
+        while (lb2 >= 0 && lines[lb2].blank) lb2--
+        if (lb2 >= 0) {
+          const e3 = classes[lb2]
+          if (e3.isListItem && (next.isListItem || (next.indent >= 2 && !next.isBlockquote))) {
+            return true
+          }
+        }
+      }
+    }
+  }
+
+  return false
+}
+
+/**
+ * Heuristic check: is the blank line inside an HTML block?
+ * Detects type 6 (starts with </ ... >) and type 7 (starts with <pre, <script, etc.)
+ * by scanning backwards for unclosed HTML block openers.
+ */
+function isInsideHtmlBlock(
+  _lines: RawLine[],
+  _classes: LineClass[],
+  blankIdx: number,
+  src: string,
+): boolean {
+  // Scan backwards from the blank line looking for HTML block start.
+  // An HTML block starts at a line that begins with specific tags.
+  // We scan back up to 50 lines looking for an unclosed HTML block.
+  const MAX_SCAN_LINES = 50
+
+  // Find the byte offset of the blank line
+  let lineStart = 0
+  let lineIdx = 0
+  while (lineIdx < blankIdx && lineStart < src.length) {
+    const nl = src.indexOf('\n', lineStart)
+    if (nl === -1) break
+    lineStart = nl + 1
+    lineIdx++
+  }
+
+  // Scan backwards to find HTML block start
+  const scanStart = Math.max(0, blankIdx - MAX_SCAN_LINES)
+  for (let i = blankIdx - 1; i >= scanStart; i--) {
+    // Find line i's start
+    let ls = 0
+    let li = 0
+    while (li < i && ls < src.length) {
+      const nl = src.indexOf('\n', ls)
+      if (nl === -1) break
+      ls = nl + 1
+      li++
+    }
+    if (li !== i) break
+
+    const le = src.indexOf('\n', ls)
+    const lineEnd = le === -1 ? src.length : le
+
+    // Check if this line starts an HTML block (type 6 or 7)
+    const lineStr = src.slice(ls, lineEnd)
+    if (isHtmlBlockStart(lineStr)) {
+      // Check if there's a matching close between this line and the blank line.
+      // For simplicity, if we find an HTML block start without a close, assume
+      // the blank line is inside it. This is conservative.
+      if (!hasHtmlBlockClose(src, ls, lineStart)) {
+        return true
+      }
+    }
+  }
+
+  return false
+}
+
+function isHtmlBlockStart(line: string): boolean {
+  const trimmed = line.trimStart()
+  // Type 6: starts with </ ... >
+  if (/^<\//.test(trimmed)) return true
+  // Type 7: starts with <pre, <script, <style, <textarea
+  if (/^<(?:pre|script|style|textarea)\b/i.test(trimmed)) return true
+  // Type 1: <!DOCTYPE, <html, <head, <body etc. — but these are rare in markdown
+  // Not handling for now.
+  return false
+}
+
+function hasHtmlBlockClose(src: string, openOffset: number, closeBefore: number): boolean {
+  // Simple heuristic: look for a blank line between open and closeBefore.
+  // In CommonMark, HTML blocks end at a blank line (for types 6, 7)
+  // or at the closing tag (for type 1-5).
+  // We check if there's a blank line between open and closeBefore.
+  let pos = openOffset
+  while (pos < closeBefore) {
+    const nl = src.indexOf('\n', pos)
+    if (nl === -1) return false
+    const lineContentStart = pos
+    const lineContentEnd = nl
+    // Check if this line (after the open) is blank
+    if (isBlank(src, lineContentStart, lineContentEnd)) {
+      return true // blank line closes HTML block
+    }
+    pos = nl + 1
+  }
+  return false
 }
 
 function mergeSmallRanges(ranges: SafeChunkRange[], minChars: number): SafeChunkRange[] {

@@ -53,9 +53,18 @@ export type { CachedStreamStats } from './stream/cached_parser'
 export {
   ChunkTable,
   cloneTokens,
+  computeContentFingerprint,
   computeSourceHash,
   detectHardBoundaries,
+  expandDirtyRange,
+  materializeCachedTokens,
   shiftTokenLines as shiftTokenLinesCached,
   splitIntoSafeChunkRanges,
 } from './stream/chunk_cache'
-export type { CachedChunk, HardBoundary, SafeChunkRange } from './stream/chunk_cache'
+export type {
+  CachedChunk,
+  ChunkTableLimits,
+  ContentFingerprint,
+  HardBoundary,
+  SafeChunkRange,
+} from './stream/chunk_cache'

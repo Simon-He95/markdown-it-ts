@@ -510,6 +510,11 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
           streamParser.resetStats()
         }
       }
+      // Invalidate cached stream parser when options change — stale chunks
+      // may produce incorrect output under new parser/rule/option state.
+      if (cachedStreamParser) {
+        cachedStreamParser.invalidate()
+      }
       return this
     },
     configure(presets: string | Preset) {
@@ -529,6 +534,10 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
           this.inline.ruler.enableOnly(c.inline.rules)
         if (c.inline2?.rules)
           this.inline.ruler2.enableOnly(c.inline2.rules)
+        // Rule set changed: invalidate cached parser.
+        if (cachedStreamParser) {
+          cachedStreamParser.invalidate()
+        }
       }
       return this
     },
@@ -550,6 +559,11 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
         const missed = names.filter(name => !found.has(name))
         if (missed.length)
           throw new Error(`Rules manager: invalid rule name ${missed.join(', ')}`)
+      }
+
+      // Rule set changed: invalidate cached parser.
+      if (cachedStreamParser) {
+        cachedStreamParser.invalidate()
       }
 
       return this
@@ -574,6 +588,11 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
           throw new Error(`Rules manager: invalid rule name ${missed.join(', ')}`)
       }
 
+      // Rule set changed: invalidate cached parser.
+      if (cachedStreamParser) {
+        cachedStreamParser.invalidate()
+      }
+
       return this
     },
     use(this: MarkdownIt, plugin: MarkdownItPlugin, ...params: unknown[]) {
@@ -591,6 +610,13 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       const thisArg = typeof plugin === 'function' ? plugin : plugin
       usedPlugin = true
       fn.apply(thisArg as unknown, args)
+
+      // Plugins may write to env or change parser behavior.
+      // Disable chunk caching and invalidate the parser.
+      if (cachedStreamParser) {
+        cachedStreamParser.setPluginUsed(true)
+      }
+
       return this
     },
     render(this: MarkdownIt, src: string, env: Record<string, unknown> = {}) {

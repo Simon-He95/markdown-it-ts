@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   ChunkTable,
   computeSourceHash,
+  computeContentFingerprint,
   detectHardBoundaries,
   splitIntoSafeChunkRanges,
   CachedStreamParser,
@@ -129,8 +130,11 @@ describe('ChunkTable', () => {
       endOffset: src.length,
       startLine: 0,
       lineCount: 1,
-      sourceHash: computeSourceHash(src, 0, src.length),
+      fingerprint: computeContentFingerprint(src, 0, src.length),
       tokens,
+      generation: 0,
+      charLength: src.length,
+      tokenCount: 1,
     })
 
     const hit = table.lookup(0, src, src.length)
@@ -146,8 +150,11 @@ describe('ChunkTable', () => {
       endOffset: src.length,
       startLine: 0,
       lineCount: 1,
-      sourceHash: computeSourceHash(src, 0, src.length),
+      fingerprint: computeContentFingerprint(src, 0, src.length),
       tokens: [],
+      generation: 0,
+      charLength: src.length,
+      tokenCount: 0,
     })
 
     const modified = 'changed!'
@@ -157,8 +164,10 @@ describe('ChunkTable', () => {
 
   it('invalidates overlapping chunks', () => {
     const table = new ChunkTable()
-    table.store({ startOffset: 0, endOffset: 10, startLine: 0, lineCount: 1, sourceHash: 123, tokens: [] })
-    table.store({ startOffset: 20, endOffset: 30, startLine: 2, lineCount: 1, sourceHash: 456, tokens: [] })
+    const fp1 = computeContentFingerprint('aaaaaaaaaa', 0, 10)
+    const fp2 = computeContentFingerprint('bbbbbbbbbb', 0, 10)
+    table.store({ startOffset: 0, endOffset: 10, startLine: 0, lineCount: 1, fingerprint: fp1, tokens: [], generation: 0, charLength: 10, tokenCount: 0 })
+    table.store({ startOffset: 20, endOffset: 30, startLine: 2, lineCount: 1, fingerprint: fp2, tokens: [], generation: 0, charLength: 10, tokenCount: 0 })
 
     table.invalidateRange(5, 25)
     expect(table.size).toBe(0)
@@ -166,7 +175,8 @@ describe('ChunkTable', () => {
 
   it('clears all chunks', () => {
     const table = new ChunkTable()
-    table.store({ startOffset: 0, endOffset: 10, startLine: 0, lineCount: 1, sourceHash: 1, tokens: [] })
+    const fp = computeContentFingerprint('aaaaaaaaaa', 0, 10)
+    table.store({ startOffset: 0, endOffset: 10, startLine: 0, lineCount: 1, fingerprint: fp, tokens: [], generation: 0, charLength: 10, tokenCount: 0 })
     table.clear()
     expect(table.size).toBe(0)
   })
@@ -219,7 +229,9 @@ describe('CachedStreamParser', () => {
     const t1 = parser.parse(src, {}, md)
     const t2 = parser.parse(src, {}, md)
 
-    expect(t2).toBe(t1) // same reference = cache hit
+    // Cache hit: same-source fast path returns the identical token array reference
+    // via fullCache (not chunk-level cache), so reference equality holds.
+    expect(t2).toBe(t1)
     expect(parser.getStats().cacheHits).toBe(1)
   })
 
@@ -361,24 +373,27 @@ describe('CachedStreamParser', () => {
     expect(parser.getStats().lastMode).toBe('chunked')
   })
 
-  it('re-parsing the same large document uses cached chunks', () => {
+  it('re-parsing a large document with many chunks reuses unchanged ones', () => {
     const md = markdownit()
     const parser = makeParser(md)
 
+    // Use a large enough document to produce many chunks (> expandLeft + expandRight + 1)
+    // so that not all of them become dirty on a single-paragraph edit.
     let src = ''
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 200; i++) {
       src += `Paragraph ${i} with some extra longer filler text to reach minChars.\n\n`
     }
 
     parser.parse(src, {}, md)
-    const stats1 = parser.getStats()
 
-    // Modify one paragraph with same-length replacement to keep offsets stable
+    // Modify one paragraph with same-length replacement to keep offsets stable.
+    // The dirty set will include the chunk containing paragraph 25 plus its
+    // immediate neighbors (expandLeft=1, expandRight=1).
     const modified = src.replace('Paragraph 25 with some', 'ModifiedP 25 with some')
     parser.parse(modified, {}, md)
     const stats2 = parser.getStats()
 
-    // Should have some chunk cache hits (unchanged chunks)
+    // With 200 paragraphs, chunks > 4; hitting at least 1 unchanged chunk is expected.
     expect(stats2.chunkHits).toBeGreaterThan(0)
   })
 

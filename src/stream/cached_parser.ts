@@ -9,14 +9,16 @@ import {
 } from '../parse/strategy_diagnostics'
 import {
   appendTokens,
-  CachedChunk,
-  ChunkTable,
   cloneTokens,
-  computeSourceHash,
+  computeContentFingerprint,
   detectHardBoundaries,
+  expandDirtyRange,
+  materializeCachedTokens,
   shiftTokenLines,
   splitIntoSafeChunkRanges,
 } from './chunk_cache'
+import type { ChunkTableLimits, SafeChunkRange } from './chunk_cache'
+import { ChunkTable } from './chunk_cache'
 
 // ---------------------------------------------------------------------------
 // Stats
@@ -34,6 +36,7 @@ export interface CachedStreamStats {
   chunkHits: number          // specific to CachedStreamParser
   chunkMisses: number        // specific to CachedStreamParser
   appendedChunks: number     // specific to CachedStreamParser
+  invalidations: number       // number of times the cache was invalidated
   lastMode: 'idle' | 'cache' | 'append' | 'tail' | 'full' | 'reset' | 'chunked'
 }
 
@@ -50,6 +53,7 @@ function makeEmptyStats(): CachedStreamStats {
     chunkHits: 0,
     chunkMisses: 0,
     appendedChunks: 0,
+    invalidations: 0,
     lastMode: 'idle',
   }
 }
@@ -66,13 +70,24 @@ function makeEmptyStats(): CachedStreamStats {
 //   - Append (src.startsWith(cachedSrc)) → reuses cached prefix chunks,
 //     only parses the new appended segment.
 //   - Non-append edit → finds hard boundaries, reuses unchanged chunks,
-//     re-parses changed ones.
+//     re-parses changed ones + neighbors.
 //   - Global markdown state (references, footnotes, abbr) → full fallback.
+//   - Plugin usage disables chunk caching (conservative env safety).
+//
+// Cache correctness guarantees:
+//   - Content fingerprint (hash + length + first/last chars) prevents
+//     collision-based false positives.
+//   - Generation-based invalidation ensures stale chunks are evicted after
+//     md.set(), md.enable(), md.disable(), or md.use().
+//   - Cached tokens retain chunk-local line maps; materialization clones
+//     and shifts to the caller's coordinate space.
+//   - Dirty range neighbor expansion prevents boundary-change artifacts
+//     on middle edits.
 // ---------------------------------------------------------------------------
 
 export class CachedStreamParser {
   private readonly core: ParserCore
-  private table = new ChunkTable()
+  private table: ChunkTable
   private stats: CachedStreamStats = makeEmptyStats()
 
   // Full-source cache (same as StreamParser) for the "identical source" fast-path.
@@ -85,11 +100,15 @@ export class CachedStreamParser {
   // Minimum chars for a document to use chunking.
   private readonly MIN_CHUNK_CHARS = 500
 
-  // Maximum chunks in the table before we evict oldest.
-  private readonly MAX_CHUNKS = 256
+  // Whether any plugin has been registered (env-sensitive).
+  private pluginUsed = false
 
-  constructor(core: ParserCore) {
+  // Whether the parser has been invalidated (will be reset on next parse).
+  private invalidated = false
+
+  constructor(core: ParserCore, limits?: ChunkTableLimits) {
     this.core = core
+    this.table = new ChunkTable(limits)
   }
 
   // ---- Public API ----
@@ -97,6 +116,11 @@ export class CachedStreamParser {
   parse(src: string, env: Record<string, unknown> = {}, md: MarkdownIt): Token[] {
     beginParseDiagnostics(env)
     this.stats.total++
+
+    // If invalidated (e.g. by md.set/enable/disable/use), reset internal state.
+    if (this.invalidated) {
+      this.doReset()
+    }
 
     // 1. Same source → full cache hit
     if (this.fullCache && src === this.fullCache.src) {
@@ -106,7 +130,7 @@ export class CachedStreamParser {
       return this.fullCache.tokens
     }
 
-    // 2. Global state → full fallback
+    // 2. Global state → full fallback (reference, footnote, abbreviation definitions)
     const globalStateReason = detectGlobalMarkdownState(src)
     if (globalStateReason) {
       const tokens = this.fullParse(src, env, md)
@@ -120,7 +144,21 @@ export class CachedStreamParser {
       return tokens
     }
 
-    // 3. Append detection (only for documents large enough that the
+    // 3. Plugin usage disables chunk caching to protect env side effects.
+    //    When a plugin writes to env, skipping a chunk's parse would lose that data.
+    if (this.pluginUsed) {
+      const tokens = this.fullParse(src, env, md)
+      this.stats.fullParses++
+      this.stats.lastMode = 'full'
+      setStrategyDiagnostics(env, {
+        area: 'stream',
+        path: 'stream-full',
+        reason: 'plugin-used',
+      })
+      return tokens
+    }
+
+    // 4. Append detection (only for documents large enough that the
     //    context window doesn't cover the entire source).
     if (
       this.lastSrc &&
@@ -134,7 +172,7 @@ export class CachedStreamParser {
       }
     }
 
-    // 4. Non-append or small document → chunk-aware parse
+    // 5. Non-append or small document → chunk-aware parse
     return this.handleFullParse(src, env, md)
   }
 
@@ -143,11 +181,28 @@ export class CachedStreamParser {
   }
 
   reset(): void {
-    this.table.clear()
-    this.fullCache = null
-    this.lastSrc = ''
-    this.lastTokens = []
+    this.doReset()
     this.stats = makeEmptyStats()
+  }
+
+  /**
+   * Signal that external state (options, plugins, rules) has changed.
+   * The next parse() call will clear all caches and rebuild from scratch.
+   */
+  invalidate(): void {
+    this.invalidated = true
+    this.stats.invalidations++
+  }
+
+  /**
+   * Mark that a plugin has been registered. When true, chunk caching is
+   * disabled to protect env side effects.
+   */
+  setPluginUsed(used: boolean): void {
+    this.pluginUsed = used
+    if (used) {
+      this.invalidate()
+    }
   }
 
   getStats(): CachedStreamStats {
@@ -155,12 +210,18 @@ export class CachedStreamParser {
   }
 
   resetStats(): void {
-    const { resets } = this.stats
     this.stats = makeEmptyStats()
-    this.stats.total = resets // preserve reset count? No, resetStats resets everything.
   }
 
   // ---- Private ----
+
+  private doReset(): void {
+    this.table.invalidateAll()
+    this.fullCache = null
+    this.lastSrc = ''
+    this.lastTokens = []
+    this.invalidated = false
+  }
 
   private handleAppend(
     src: string,
@@ -179,8 +240,7 @@ export class CachedStreamParser {
     }
 
     // ---- No cached chunks: context-based tail reparse ----
-    // Fall back to a lightweight context-aware append (same strategy
-    // as the existing StreamParser).
+    // Fall back to a lightweight context-aware append.
     const ctxLines = Math.min(4, Math.max(1, cachedLineCount - 1))
     const contextPrefix = this.getTailLines(this.lastSrc, ctxLines)
     const contextLineCount = countLines(contextPrefix)
@@ -214,14 +274,12 @@ export class CachedStreamParser {
 
     // Cache the new trailing segment.
     if (appendedTokens.length > 0) {
-      this.table.store({
-        startOffset: this.lastSrc.length,
-        endOffset: src.length,
-        startLine: cachedLineCount,
-        lineCount: countLines(appended),
-        sourceHash: computeSourceHash(src, this.lastSrc.length, src.length),
-        tokens: appendedTokens,
-      })
+      this.storeChunk(
+        src, this.lastSrc.length, src.length,
+        cachedLineCount,
+        countLines(appended),
+        appendedTokens,
+      )
       this.stats.appendedChunks++
     }
 
@@ -244,40 +302,39 @@ export class CachedStreamParser {
     env: Record<string, unknown>,
     md: MarkdownIt,
     cachedLineCount: number,
-    chunks: readonly CachedChunk[],
+    chunks: ReadonlyArray<{ startOffset: number; startLine: number }>,
   ): Token[] {
     const lastChunk = chunks[chunks.length - 1]
     const anchorSrcOffset = lastChunk.startOffset
     const anchorLine = lastChunk.startLine
     const anchorTokenCount = this.findSplitIndex(this.lastTokens, anchorLine)
 
-    // The tail includes the last chunk + appended text.
+    // The tail includes the last chunk + appended text, parsed with LOCAL coords.
     const tailSrc = src.slice(anchorSrcOffset)
     const tailState = this.core.parse(tailSrc, env, md)
     const tailTokens = tailState.tokens
 
-    if (anchorLine > 0) {
-      shiftTokenLines(tailTokens, anchorLine)
-    }
-
     // Build new token array: prefix (unchanged chunks) + re-parsed tail.
     const newTokens = this.lastTokens.slice(0, anchorTokenCount)
-    appendTokens(newTokens, tailTokens)
+    // Materialize tail tokens into global coordinates.
+    const materializedTail = cloneTokens(tailTokens)
+    if (anchorLine > 0) {
+      shiftTokenLines(materializedTail, anchorLine)
+    }
+    appendTokens(newTokens, materializedTail)
     this.lastTokens = newTokens
 
     // Invalidate old chunks in the re-parsed region.
     this.table.invalidateRange(anchorSrcOffset, src.length)
 
-    // Cache the new trailing segment as a single chunk.
+    // Cache the new trailing segment (stored with local coords).
     if (tailTokens.length > 0) {
-      this.table.store({
-        startOffset: anchorSrcOffset,
-        endOffset: src.length,
-        startLine: anchorLine,
-        lineCount: countLines(tailSrc),
-        sourceHash: computeSourceHash(src, anchorSrcOffset, src.length),
-        tokens: tailTokens,
-      })
+      this.storeChunk(
+        src, anchorSrcOffset, src.length,
+        anchorLine,
+        countLines(tailSrc),
+        tailTokens, // stored as-is (local coords)
+      )
     }
     this.stats.appendedChunks++
 
@@ -347,56 +404,74 @@ export class CachedStreamParser {
       return tokens
     }
 
+    // ---- Middle edit: identify dirty chunks ----
+    // We compare each range against the cache. If a chunk content has changed
+    // (fingerprint mismatch), it and its neighbors are marked dirty.
+    const dirtyIndices = this.findDirtyIndices(ranges, src)
+
+    // Expand dirty set to include neighbors (P0-7: prevent boundary artifacts).
+    const expandedDirty = expandDirtyRange(dirtyIndices, ranges.length, 1, 1)
+
     // Reconstruct from cached + newly parsed chunks.
     const out: Token[] = []
     let lineOffset = 0
     let hasCacheHits = false
     let hasCacheMisses = false
 
-    for (const range of ranges) {
-      const cached = this.table.lookup(range.start, src, range.end)
+    for (let i = 0; i < ranges.length; i++) {
+      const range = ranges[i]
+      const isDirty = expandedDirty.has(i)
 
-      if (cached) {
-        // Reuse cached tokens (they have local line numbers)
-        const reused = cloneTokens(cached.tokens)
-        if (lineOffset > 0) {
-          shiftTokenLines(reused, lineOffset)
+      if (!isDirty) {
+        // Try cache first for clean chunks.
+        const cached = this.table.lookup(range.start, src, range.end)
+
+        if (cached) {
+          // Materialize cached tokens with global line offset.
+          const materialized = materializeCachedTokens(cached, lineOffset)
+          appendTokens(out, materialized)
+          hasCacheHits = true
+          this.stats.chunkHits++
+        } else {
+          // Cache miss — parse and store.
+          const ch = src.slice(range.start, range.end)
+          const state = this.core.parse(ch, env, md)
+          // Tokens from core.parse have local line coords (line 0 = chunk start).
+          const localTokens = state.tokens
+
+          // Materialize for output (clone + shift).
+          const materialized = cloneTokens(localTokens)
+          if (lineOffset > 0) shiftTokenLines(materialized, lineOffset)
+          appendTokens(out, materialized)
+          hasCacheMisses = true
+          this.stats.chunkMisses++
+
+          // Store with LOCAL coordinates, not shifted.
+          this.storeChunk(
+            src, range.start, range.end,
+            range.startLine, range.lineCount,
+            localTokens,
+          )
         }
-        appendTokens(out, reused)
-        hasCacheHits = true
-        this.stats.chunkHits++
       } else {
-        // Parse and cache
+        // Dirty chunk — always re-parse.
         const ch = src.slice(range.start, range.end)
         const state = this.core.parse(ch, env, md)
-        const tokens = state.tokens
+        const localTokens = state.tokens
 
-        if (lineOffset > 0) {
-          shiftTokenLines(tokens, lineOffset)
-        }
-        appendTokens(out, tokens)
+        // Materialize for output (clone + shift).
+        const materialized = cloneTokens(localTokens)
+        if (lineOffset > 0) shiftTokenLines(materialized, lineOffset)
+        appendTokens(out, materialized)
         hasCacheMisses = true
         this.stats.chunkMisses++
 
-        // Store in cache (local line numbers). Tokens are stored by
-        // reference; cloning happens at retrieval time.
-        this.table.store({
-          startOffset: range.start,
-          endOffset: range.end,
-          startLine: range.startLine,
-          lineCount: range.lineCount,
-          sourceHash: computeSourceHash(src, range.start, range.end),
-          tokens: state.tokens,
-        })
-
-        // Limit table size: evict oldest chunks instead of clearing all.
-        if (this.table.size > this.MAX_CHUNKS) {
-          const chunks = this.table.getChunks()
-          const evictCount = Math.floor(this.MAX_CHUNKS / 4)
-          for (let i = 0; i < evictCount && i < chunks.length; i++) {
-            this.table.invalidateRange(chunks[i].startOffset, chunks[i].endOffset)
-          }
-        }
+        // Store with LOCAL coordinates.
+        this.storeChunk(
+          src, range.start, range.end,
+          range.startLine, range.lineCount,
+          localTokens,
+        )
       }
 
       lineOffset += range.lineCount
@@ -437,6 +512,53 @@ export class CachedStreamParser {
     return out
   }
 
+  /**
+   * Compare each range against the cache table and return the set of indices
+   * whose content has changed (fingerprint mismatch or no cache entry).
+   */
+  private findDirtyIndices(ranges: SafeChunkRange[], src: string): Set<number> {
+    const dirty = new Set<number>()
+    for (let i = 0; i < ranges.length; i++) {
+      const range = ranges[i]
+      const cached = this.table.lookup(range.start, src, range.end)
+      if (!cached) {
+        dirty.add(i)
+      }
+      // If cached exists but fingerprint matches, it's clean.
+      // (fingerprint already verified during lookup)
+    }
+    return dirty
+  }
+
+  /**
+   * Store a chunk in the table. The tokens must have LOCAL line coordinates
+   * (line 0 = chunk start). We compute a content fingerprint and count tokens
+   * for memory tracking.
+   */
+  private storeChunk(
+    src: string,
+    startOffset: number,
+    endOffset: number,
+    startLine: number,
+    lineCount: number,
+    tokens: Token[],
+  ): void {
+    const fingerprint = computeContentFingerprint(src, startOffset, endOffset)
+    const tokenCount = countAllTokens(tokens)
+
+    this.table.store({
+      startOffset,
+      endOffset,
+      startLine,
+      lineCount,
+      fingerprint,
+      tokens,
+      generation: 0, // will be overwritten by ChunkTable.store()
+      charLength: fingerprint.length,
+      tokenCount,
+    })
+  }
+
   private fullParse(src: string, env: Record<string, unknown>, md: MarkdownIt): Token[] {
     const state = this.core.parse(src, env, md)
     const tokens = state.tokens
@@ -445,6 +567,24 @@ export class CachedStreamParser {
     this.lastTokens = tokens
     return tokens
   }
+}
+
+/**
+ * Recursively count all tokens including children.
+ */
+function countAllTokens(tokens: Token[]): number {
+  let count = 0
+  const stack = [...tokens]
+  while (stack.length) {
+    const t = stack.pop()!
+    count++
+    if (t.children && t.children.length > 0) {
+      for (let i = t.children.length - 1; i >= 0; i--) {
+        stack.push(t.children[i])
+      }
+    }
+  }
+  return count
 }
 
 export default CachedStreamParser
