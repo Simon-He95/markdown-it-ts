@@ -311,6 +311,11 @@ describe('Cache invalidation (P0-1)', () => {
     expect(html).toBe(renderFull(src, md))
     expect(env.pluginRan).toBe(true)
     expect(md.stream.stats().lastMode).toBe('full')
+    expect(getParseDiagnostics(env)?.chunkCache).toMatchObject({
+      enabled: false,
+      fallback: true,
+      fallbackReason: 'plugin-used',
+    })
   })
 
   it('keeps regular stream append path after md.use()', () => {
@@ -755,6 +760,40 @@ describe('Env sensitivity (P0-4)', () => {
     expect(h1).toBe(render(src))
   })
 
+  it('invalidates chunk cache when the explicit env object changes', () => {
+    const md = markdownit()
+    const parser = makeParser(md)
+    const src = largeDoc(200)
+    const modified = src.replace('Paragraph 150 with some', 'ModifiedP 150 with some')
+    const env1: Record<string, unknown> = { marker: 'A' }
+    const env2: Record<string, unknown> = { marker: 'B' }
+
+    parser.parse(src, env1, md)
+    parser.resetStats()
+    parser.parse(modified, env2, md)
+
+    expect(parser.getStats().invalidations).toBe(1)
+    expect(parser.getStats().chunkHits).toBe(0)
+    expect(parser.getStats().appendHits).toBe(0)
+  })
+
+  it('does not take the append path across different env objects', () => {
+    const md = markdownit()
+    const parser = makeParser(md)
+    const src = largeDoc(200)
+    const appended = `${src}Appended with different env.\n\n`
+    const env1: Record<string, unknown> = {}
+    const env2: Record<string, unknown> = {}
+
+    parser.parse(src, env1, md)
+    parser.resetStats()
+    parser.parse(appended, env2, md)
+
+    expect(parser.getStats().invalidations).toBe(1)
+    expect(parser.getStats().appendHits).toBe(0)
+    expect(parser.getStats().chunkHits).toBe(0)
+  })
+
   it('disables chunk cache when a plugin is registered before first stream parse', () => {
     const md = markdownit({ stream: true, experimental: { streamChunkCache: true } })
     md.use((md) => {
@@ -960,13 +999,14 @@ describe('Dirty range expansion (P0-7)', () => {
   it('expands dirty chunk set to include neighbors on edit', () => {
     const md = markdownit()
     const parser = makeParser(md)
+    const env = {}
 
     const src = largeDoc(200)
-    parser.parse(src, {}, md)
+    parser.parse(src, env, md)
 
     // Same-length middle edit — offsets stay stable so cached chunks can be found.
     const modified = src.replace('Paragraph 80 with some', 'ModifiedP 80 with some')
-    parser.parse(modified, {}, md)
+    parser.parse(modified, env, md)
     const stats = parser.getStats()
 
     // Middle chunk + its neighbors become dirty, but far-away chunks are clean.
@@ -977,13 +1017,14 @@ describe('Dirty range expansion (P0-7)', () => {
   it('keeps table body edits equivalent to full parse', () => {
     const md = markdownit()
     const parser = makeParser(md)
+    const env = {}
     const src = `${largeDoc(80)}| a | b |\n| - | - |\n| 1 | 2 |\n| 3 | 4 |\n\n${largeDoc(80)}`
 
-    parser.parse(src, {}, md)
+    parser.parse(src, env, md)
 
     const modified = src.replace('| 3 | 4 |', '| 30 | 40 |')
-    const tokens = parser.parse(modified, {}, md)
-    const html = md.renderer.render(tokens, md.options, {})
+    const tokens = parser.parse(modified, env, md)
+    const html = md.renderer.render(tokens, md.options, env)
 
     expect(html).toBe(render(modified))
     expect(parser.getStats().chunkHits).toBeGreaterThan(0)
@@ -1187,10 +1228,11 @@ describe('streamChunkCache integration with StreamParser append paths', () => {
       const md = markdownit({ stream: true, experimental: { streamChunkCache: true } })
       const src = largeDoc(120)
       const next = src + append
+      const env = {}
 
-      md.stream.parse(src, {})
-      const tokens = md.stream.parse(next, {})
-      const html = md.renderer.render(tokens, md.options, {})
+      md.stream.parse(src, env)
+      const tokens = md.stream.parse(next, env)
+      const html = md.renderer.render(tokens, md.options, env)
       const stats = md.stream.stats()
 
       expect(html).toBe(renderBaseline(next, md.options))

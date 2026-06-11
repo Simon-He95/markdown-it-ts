@@ -103,9 +103,9 @@ export interface SafeChunkRange {
 export interface ChunkTableLimits {
   /** Maximum number of chunks. Default: 256. */
   maxChunks?: number
-  /** Maximum total characters across all cached chunks. Default: 2,000,000. */
+  /** Maximum total characters across cached chunk entries. Default: 2,000,000. */
   maxTotalChars?: number
-  /** Maximum total estimated token weight across all cached chunks. Default: 100,000. */
+  /** Maximum total estimated token weight across cached chunk entries. Default: 100,000. */
   maxTotalTokens?: number
 }
 
@@ -130,7 +130,7 @@ export class ChunkTable {
   /** Monotonically increasing generation. Incremented on full invalidation. */
   private generation = 0
 
-  /** Memory tracking. */
+  /** Entry-capacity tracking. Duplicate moved-content aliases count per entry. */
   private totalChars = 0
   private totalTokenWeightValue = 0
   private limits: Required<ChunkTableLimits>
@@ -275,6 +275,14 @@ export class ChunkTable {
   }
 
   get totalTokenWeight(): number {
+    return this.totalTokenWeightValue
+  }
+
+  get totalEntryCharCount(): number {
+    return this.totalChars
+  }
+
+  get totalEntryTokenWeight(): number {
     return this.totalTokenWeightValue
   }
 
@@ -873,9 +881,8 @@ function containerSpansBlankLine(
     // Return false = not a container span = safe to split.
   }
 
-  // Table: prev or next is a table row
-  if (prev.isTableRow && next.isTableRow)
-    return true
+  // GFM tables terminate at blank lines; two table-looking blocks separated
+  // by a blank line are independent.
 
   // HTML block continuation: if prev and next are inside the same HTML block
   // (detected by checking if both lines are part of an HTML block type).

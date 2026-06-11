@@ -2,10 +2,11 @@ import type { Token } from '../common/token'
 import type { MarkdownIt } from '../index'
 import type { GlobalMarkdownStateReason } from '../parse/global_state'
 import type { ParserCore } from '../parse/parser_core'
+import type { ChunkCacheFallbackReason } from '../parse/strategy_diagnostics'
 import type { CachedStreamParser } from './cached_parser'
 import { countLines } from '../common/utils'
 import { detectGlobalMarkdownState, getKnownGlobalMarkdownState, resetKnownGlobalMarkdownState, runWithKnownGlobalMarkdownState } from '../parse/global_state'
-import { beginParseDiagnostics, getParseDiagnostics, setStrategyDiagnostics } from '../parse/strategy_diagnostics'
+import { beginParseDiagnostics, getParseDiagnostics, setChunkCacheDiagnostics, setStrategyDiagnostics } from '../parse/strategy_diagnostics'
 import { recommendStreamChunkStrategy } from '../support/chunk_recommend'
 import { cloneTokens } from './chunk_cache'
 import { chunkedParse } from './chunked'
@@ -78,6 +79,7 @@ function makeEmptyStats(): StreamStats {
 export class StreamParser {
   private readonly core: ParserCore
   private readonly chunkCacheProvider?: () => CachedStreamParser | null
+  private readonly chunkCacheFallbackReasonProvider?: () => ChunkCacheFallbackReason | null
   private cache: StreamCache | null = null
   private stats: StreamStats = makeEmptyStats()
   private ruleVersions: ParserRuleVersions | null = null
@@ -103,9 +105,14 @@ export class StreamParser {
 
   // (reserved for future adaptive strategy metrics)
 
-  constructor(core: ParserCore, chunkCacheProvider?: () => CachedStreamParser | null) {
+  constructor(
+    core: ParserCore,
+    chunkCacheProvider?: () => CachedStreamParser | null,
+    chunkCacheFallbackReasonProvider?: () => ChunkCacheFallbackReason | null,
+  ) {
     this.core = core
     this.chunkCacheProvider = chunkCacheProvider
+    this.chunkCacheFallbackReasonProvider = chunkCacheFallbackReasonProvider
   }
 
   reset(): void {
@@ -836,8 +843,12 @@ export class StreamParser {
       return null
 
     const parser = this.chunkCacheProvider?.()
-    if (!parser)
+    if (!parser) {
+      const fallbackReason = this.chunkCacheFallbackReasonProvider?.()
+      if (fallbackReason)
+        this.setChunkCacheFallbackDiagnostics(env, fallbackReason)
       return null
+    }
 
     const tokens = cloneTokens(parser.parse(src, env, md))
     const lineCount = knownLineCount ?? countLines(src)
@@ -877,6 +888,37 @@ export class StreamParser {
     this.stats.lastReusedChars = chunkStats.lastReusedChars
     this.stats.lastDirtyRangeChars = chunkStats.lastDirtyRangeChars
     this.stats.lastShiftedTokenCount = chunkStats.lastShiftedTokenCount
+  }
+
+  private setChunkCacheFallbackDiagnostics(
+    env: Record<string, unknown>,
+    fallbackReason: ChunkCacheFallbackReason,
+  ): void {
+    setChunkCacheDiagnostics(env, {
+      enabled: false,
+      hits: this.stats.chunkHits ?? 0,
+      misses: this.stats.chunkMisses ?? 0,
+      evictions: this.stats.chunkEvictions ?? 0,
+      appendedChunks: this.stats.appendedChunks ?? 0,
+      invalidations: this.stats.invalidations ?? 0,
+      tableSize: 0,
+      retainedSourceChars: this.cache?.src.length ?? 0,
+      totalCachedEntryChars: 0,
+      totalCachedEntryTokenWeight: 0,
+      totalCachedChars: 0,
+      totalCachedTokenWeight: 0,
+      reusedChars: this.stats.lastReusedChars ?? 0,
+      reparsedChars: this.stats.lastReparsedChars ?? 0,
+      dirtyRangeChars: this.stats.lastDirtyRangeChars ?? 0,
+      shiftedTokenCount: this.stats.lastShiftedTokenCount ?? 0,
+      lastReparsedChars: this.stats.lastReparsedChars ?? 0,
+      lastReparsedChunks: this.stats.lastReparsedChunks ?? 0,
+      lastReusedChars: this.stats.lastReusedChars ?? 0,
+      lastDirtyRangeChars: this.stats.lastDirtyRangeChars ?? 0,
+      lastShiftedTokenCount: this.stats.lastShiftedTokenCount ?? 0,
+      fallback: true,
+      fallbackReason,
+    })
   }
 
   private parseFullDocument(

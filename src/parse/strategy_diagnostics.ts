@@ -50,13 +50,19 @@ export type ChunkCacheFallbackReason
     | 'unsafe-boundary'
 
 export interface ChunkCacheDiagnostics {
+  enabled: boolean
   hits: number
   misses: number
   evictions: number
   appendedChunks: number
   invalidations: number
   tableSize: number
+  retainedSourceChars: number
+  totalCachedEntryChars: number
+  totalCachedEntryTokenWeight: number
+  /** @deprecated Use totalCachedEntryChars. */
   totalCachedChars: number
+  /** @deprecated Use totalCachedEntryTokenWeight. */
   totalCachedTokenWeight: number
   reusedChars: number
   reparsedChars: number

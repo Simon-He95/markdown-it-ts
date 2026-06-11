@@ -1,6 +1,7 @@
 import type { Token as TokenType } from './common/token'
 import type { ParserBlock } from './parse/parser_block'
 import type { ParserInline } from './parse/parser_inline'
+import type { ChunkCacheFallbackReason } from './parse/strategy_diagnostics'
 import type { RendererOptions } from './render/renderer'
 import type { CachedStreamStats } from './stream/cached_parser'
 import type { StreamStats } from './stream/parser'
@@ -71,9 +72,9 @@ export interface MarkdownItExperimentalOptions {
   streamChunkCache?: boolean
   /** Maximum number of cached chunks before oldest entries are evicted. Default: 256. */
   streamChunkCacheMaxChunks?: number
-  /** Maximum total characters across all cached chunks before eviction. Default: 2,000,000. */
+  /** Maximum total characters across cached chunk entries before eviction. Default: 2,000,000. */
   streamChunkCacheMaxTotalChars?: number
-  /** Maximum total tokens across all cached chunks before eviction. Default: 100,000. */
+  /** Maximum total token weight across cached chunk entries before eviction. Default: 100,000. */
   streamChunkCacheMaxTotalTokens?: number
 }
 
@@ -482,8 +483,21 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
     return cachedStreamParser
   }
   const getStreamParser = () => {
-    if (!streamParser)
-      streamParser = new StreamParser(core, () => opts.streamChunkCache && canUseStreamChunkCache() ? getCachedStreamParser() : null)
+    if (!streamParser) {
+      streamParser = new StreamParser(
+        core,
+        () => opts.streamChunkCache && canUseStreamChunkCache() ? getCachedStreamParser() : null,
+        (): ChunkCacheFallbackReason | null => {
+          if (!opts.streamChunkCache)
+            return null
+          if (usedPlugin)
+            return 'plugin-used'
+          if (unsafeParserRuleChange)
+            return 'rule-version-change'
+          return null
+        },
+      )
+    }
     return streamParser
   }
   let linkifyInstance: InstanceType<typeof LinkifyIt> | null = null

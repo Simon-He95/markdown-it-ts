@@ -117,7 +117,6 @@ export class CachedStreamParser {
 
   // Full-source cache (same as StreamParser) for the "identical source" fast-path.
   private fullCache: {
-    src: string
     tokens: Token[]
     env: Record<string, unknown>
     globalStateReason: GlobalMarkdownStateReason | null
@@ -173,11 +172,18 @@ export class CachedStreamParser {
     }
 
     const envProvided = env
-    const cached = this.fullCache
-    const workingEnv = envProvided ?? cached?.env ?? {}
+    let cached = this.fullCache
+    let workingEnv = envProvided ?? cached?.env ?? {}
 
     beginParseDiagnostics(workingEnv)
     this.stats.total++
+
+    if (cached && envProvided && envProvided !== cached.env) {
+      this.doReset()
+      this.stats.invalidations++
+      cached = null
+      workingEnv = envProvided
+    }
 
     const globalStateReason = detectGlobalMarkdownState(src)
 
@@ -198,7 +204,7 @@ export class CachedStreamParser {
     if (
       cached
       && !this.pluginUsed
-      && src === cached.src
+      && src === this.lastSrc
       && (!envProvided || envProvided === cached.env)
       && cached.globalStateReason === globalStateReason
     ) {
@@ -482,7 +488,7 @@ export class CachedStreamParser {
     this.stats.lastDirtyRangeChars = tailSrc.length
     this.stats.lastShiftedTokenCount = shiftedTokenCount
 
-    this.fullCache = { src, tokens: newTokens, env, globalStateReason: null }
+    this.fullCache = { tokens: newTokens, env, globalStateReason: null }
     this.lastSrc = src
     this.stats.lastMode = 'append'
     this.syncTableEvictions()
@@ -698,7 +704,7 @@ export class CachedStreamParser {
     // Update state
     this.table = nextTable
     this.observedTableEvictions = 0
-    this.fullCache = { src, tokens: out, env, globalStateReason: null }
+    this.fullCache = { tokens: out, env, globalStateReason: null }
     this.lastSrc = src
     this.lastTokens = out
     this.stats.lastReparsedChars = reparsedChars
@@ -744,12 +750,16 @@ export class CachedStreamParser {
   private setChunkCacheDiagnostics(env: Record<string, unknown>, fallbackReason?: ChunkCacheFallbackReason): void {
     this.syncTableEvictions()
     setChunkCacheDiagnostics(env, {
+      enabled: !fallbackReason,
       hits: this.stats.chunkHits,
       misses: this.stats.chunkMisses,
       evictions: this.stats.chunkEvictions,
       appendedChunks: this.stats.appendedChunks,
       invalidations: this.stats.invalidations,
       tableSize: this.table.size,
+      retainedSourceChars: this.lastSrc.length,
+      totalCachedEntryChars: this.table.totalEntryCharCount,
+      totalCachedEntryTokenWeight: this.table.totalEntryTokenWeight,
       totalCachedChars: this.table.totalCharCount,
       totalCachedTokenWeight: this.table.totalTokenWeight,
       reusedChars: this.stats.lastReusedChars,
@@ -823,7 +833,7 @@ export class CachedStreamParser {
     const tokens = runWithKnownGlobalMarkdownState(env, globalStateReason, () => {
       return this.core.parse(src, env, md).tokens
     })
-    this.fullCache = { src, tokens, env, globalStateReason }
+    this.fullCache = { tokens, env, globalStateReason }
     this.lastSrc = src
     this.lastTokens = tokens
     this.stats.lastReparsedChars = src.length

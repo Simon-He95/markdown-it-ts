@@ -129,6 +129,28 @@ describe('detectHardBoundaries', () => {
       expect(detectHardBoundaries(src).some(boundary => boundary.offset === blankEnd)).toBe(true)
     }
   })
+
+  it('does not split ordered list continuation paragraphs', () => {
+    const src = '1. item\n\n   continuation paragraph\n\n2. next\n'
+    expect(detectHardBoundaries(src)).toEqual([])
+  })
+
+  it('does not split blockquotes with blank marker lines', () => {
+    const src = '> quote\n>\n> continued\n'
+    expect(detectHardBoundaries(src)).toEqual([])
+  })
+
+  it('treats blank lines inside type 6 HTML blocks as terminators', () => {
+    const src = '<div>\ninline html\n\n</div>\n'
+    const blankEnd = src.indexOf('\n\n') + 2
+    expect(detectHardBoundaries(src).some(boundary => boundary.offset === blankEnd)).toBe(true)
+  })
+
+  it('splits between independent GFM tables', () => {
+    const src = '| a |\n| - |\n| 1 |\n\n| b |\n| - |\n| 2 |\n'
+    const blankEnd = src.indexOf('\n\n') + 2
+    expect(detectHardBoundaries(src).some(boundary => boundary.offset === blankEnd)).toBe(true)
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -270,6 +292,47 @@ describe('ChunkTable', () => {
       inserted.length,
       chunk.length,
     ])
+  })
+
+  it('keeps duplicate moved-content aliases within entry limits', () => {
+    const chunk = 'stable repeated chunk content\n\n'
+    const chunkCount = 1000
+    const maxChunks = 32
+    const src = chunk.repeat(chunkCount)
+    const table = new ChunkTable({ maxChunks })
+
+    for (let i = 0; i < chunkCount; i++) {
+      const start = i * chunk.length
+      table.store({
+        startOffset: start,
+        endOffset: start + chunk.length,
+        startLine: i * 2,
+        lineCount: 2,
+        sourceText: chunk,
+        fingerprint: computeContentFingerprint(src, start, start + chunk.length),
+        tokens: [],
+        generation: 0,
+        charLength: chunk.length,
+        tokenWeight: 0,
+      })
+    }
+
+    for (let i = 1; i <= 20; i++) {
+      const inserted = 'inserted\n\n'.repeat(i)
+      const shifted = inserted + src
+      const hit = table.lookup({
+        start: inserted.length,
+        end: inserted.length + chunk.length,
+        startLine: i * 2,
+        lineCount: 2,
+      }, shifted)
+
+      expect(hit).not.toBeNull()
+      expect(table.size).toBeLessThanOrEqual(maxChunks)
+      expect(table.totalEntryCharCount).toBeLessThanOrEqual(maxChunks * chunk.length)
+    }
+
+    expect(table.evictions).toBeGreaterThan(0)
   })
 
   it('returns null when content changed', () => {
@@ -427,6 +490,7 @@ describe('CachedStreamParser', () => {
   it('append reuses cached prefix and reparses the tail', () => {
     const md = markdownit()
     const parser = makeParser(md)
+    const env = {}
 
     // Use a large enough document (>2000 chars for minChars) with blank lines so chunking activates.
     let src1 = ''
@@ -436,8 +500,8 @@ describe('CachedStreamParser', () => {
 
     const src2 = src1 + 'appended line at the end.\n'
 
-    const t1 = parser.parse(src1, {}, md)
-    const t2 = parser.parse(src2, {}, md)
+    const t1 = parser.parse(src1, env, md)
+    const t2 = parser.parse(src2, env, md)
     const stats2 = parser.getStats()
 
     // Should be an append
@@ -457,6 +521,7 @@ describe('CachedStreamParser', () => {
   it('append over multiple steps is correct', () => {
     const md = markdownit()
     const parser = makeParser(md)
+    const env = {}
 
     // Start with a baseline that's large enough and has hard boundaries.
     let src = ''
@@ -465,7 +530,7 @@ describe('CachedStreamParser', () => {
     }
 
     // First parse establishes the baseline.
-    parser.parse(src, {}, md)
+    parser.parse(src, env, md)
 
     // Now append in steps.
     const steps = [
@@ -477,7 +542,7 @@ describe('CachedStreamParser', () => {
 
     for (const step of steps) {
       src += step
-      const tokens = parser.parse(src, {}, md)
+      const tokens = parser.parse(src, env, md)
       const html = md.renderer.render(tokens, md.options, {})
       expect(html).toBe(render(src))
     }
@@ -490,13 +555,14 @@ describe('CachedStreamParser', () => {
   it('advances append tail chunks when new hard boundaries are available', () => {
     const md = markdownit()
     const parser = makeParser(md)
+    const env = {}
 
     let src = ''
     for (let i = 0; i < 80; i++) {
       src += `Baseline paragraph ${i} with extra filler text for padding.\n\n`
     }
 
-    parser.parse(src, {}, md)
+    parser.parse(src, env, md)
     const initialChunks = (parser as any).table.getChunks()
     const initialLastStart = initialChunks[initialChunks.length - 1].startOffset
 
@@ -504,7 +570,7 @@ describe('CachedStreamParser', () => {
       for (let i = 0; i < 60; i++) {
         src += `Append ${round}.${i} with enough filler text to create safe chunk ranges.\n\n`
       }
-      parser.parse(src, {}, md)
+      parser.parse(src, env, md)
     }
 
     const chunks = (parser as any).table.getChunks()
@@ -605,6 +671,7 @@ describe('CachedStreamParser', () => {
   it('re-parsing a large document with many chunks reuses unchanged ones', () => {
     const md = markdownit()
     const parser = makeParser(md)
+    const env = {}
 
     // Use a large enough document to produce many chunks (> expandLeft + expandRight + 1)
     // so that not all of them become dirty on a single-paragraph edit.
@@ -613,13 +680,13 @@ describe('CachedStreamParser', () => {
       src += `Paragraph ${i} with some extra longer filler text to reach minChars.\n\n`
     }
 
-    parser.parse(src, {}, md)
+    parser.parse(src, env, md)
 
     // Modify one paragraph with same-length replacement to keep offsets stable.
     // The dirty set will include the chunk containing paragraph 25 plus its
     // immediate neighbors (expandLeft=1, expandRight=1).
     const modified = src.replace('Paragraph 25 with some', 'ModifiedP 25 with some')
-    parser.parse(modified, {}, md)
+    parser.parse(modified, env, md)
     const stats2 = parser.getStats()
 
     // With 200 paragraphs, chunks > 4; hitting at least 1 unchanged chunk is expected.
@@ -629,18 +696,19 @@ describe('CachedStreamParser', () => {
   it('reuses unchanged chunks after insertion before them', () => {
     const md = markdownit()
     const parser = makeParser(md)
+    const env = {}
 
     let src = ''
     for (let i = 0; i < 200; i++) {
       src += `Paragraph ${i} with some extra longer filler text to reach minChars.\n\n`
     }
 
-    parser.parse(src, {}, md)
+    parser.parse(src, env, md)
     parser.resetStats()
 
     const inserted = 'Inserted paragraph before existing chunks.\n\n'
     const modified = inserted + src
-    const tokens = parser.parse(modified, {}, md)
+    const tokens = parser.parse(modified, env, md)
     const html = md.renderer.render(tokens, md.options, {})
 
     expect(html).toBe(render(modified))
@@ -650,6 +718,7 @@ describe('CachedStreamParser', () => {
   it('append of large document uses cached prefix chunks', () => {
     const md = markdownit()
     const parser = makeParser(md)
+    const env = {}
 
     let src = ''
     for (let i = 0; i < 80; i++) {
@@ -657,11 +726,11 @@ describe('CachedStreamParser', () => {
     }
 
     // First parse
-    parser.parse(src, {}, md)
+    parser.parse(src, env, md)
 
     // Append
     const appended = src + 'New paragraph at the end.\n\n'
-    parser.parse(appended, {}, md)
+    parser.parse(appended, env, md)
 
     const stats = parser.getStats()
     expect(stats.lastMode).toBe('append')
