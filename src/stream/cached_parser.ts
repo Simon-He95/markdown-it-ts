@@ -6,6 +6,7 @@ import type { ChunkTableLimits, SafeChunkRange } from './chunk_cache'
 import { detectGlobalMarkdownState, getKnownGlobalMarkdownState, resetKnownGlobalMarkdownState, runWithKnownGlobalMarkdownState } from '../parse/global_state'
 import {
   beginParseDiagnostics,
+  setChunkCacheDiagnostics,
   setStrategyDiagnostics,
 } from '../parse/strategy_diagnostics'
 import {
@@ -25,6 +26,10 @@ export interface ParserRuleVersions {
   block: number
   inline: number
   inline2: number
+}
+
+export interface CachedStreamParserOptions {
+  assumeCoreRulesOnly?: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -123,10 +128,16 @@ export class CachedStreamParser {
 
   private ruleVersions: ParserRuleVersions | null = null
 
-  constructor(core: ParserCore, limits?: ChunkTableLimits, initialRuleVersions?: ParserRuleVersions) {
+  constructor(
+    core: ParserCore,
+    limits?: ChunkTableLimits,
+    initialRuleVersions?: ParserRuleVersions,
+    opts?: CachedStreamParserOptions,
+  ) {
     this.core = core
     this.tableLimits = limits
     this.ruleVersions = initialRuleVersions ? { ...initialRuleVersions } : null
+    this.pluginUsed = !initialRuleVersions && !opts?.assumeCoreRulesOnly
     this.table = new ChunkTable(limits)
   }
 
@@ -160,6 +171,7 @@ export class CachedStreamParser {
       this.stats.cacheHits++
       this.stats.lastMode = 'cache'
       setStrategyDiagnostics(workingEnv, { area: 'stream', path: 'stream-cache', reason: 'same-source' })
+      this.setChunkCacheDiagnostics(workingEnv)
       return cached.tokens
     }
 
@@ -173,6 +185,7 @@ export class CachedStreamParser {
         path: 'stream-full',
         reason: `global-state:${globalStateReason}`,
       })
+      this.setChunkCacheDiagnostics(workingEnv, 'global-state')
       return tokens
     }
     if (getKnownGlobalMarkdownState(workingEnv))
@@ -187,6 +200,7 @@ export class CachedStreamParser {
         path: 'stream-full',
         reason: 'plugin-used',
       })
+      this.setChunkCacheDiagnostics(workingEnv, 'plugin-used')
       return tokens
     }
 
@@ -394,6 +408,7 @@ export class CachedStreamParser {
       path: 'stream-append',
       reason: 'chunk-anchored-append',
     })
+    this.setChunkCacheDiagnostics(env)
     return newTokens
   }
 
@@ -466,6 +481,7 @@ export class CachedStreamParser {
       this.stats.fullParses++
       this.stats.lastMode = 'full'
       setStrategyDiagnostics(env, { area: 'stream', path: 'stream-full', reason: 'small-doc' })
+      this.setChunkCacheDiagnostics(env, 'small-doc')
       return tokens
     }
 
@@ -483,6 +499,7 @@ export class CachedStreamParser {
         path: 'stream-full',
         reason: 'no-safe-boundaries',
       })
+      this.setChunkCacheDiagnostics(env, 'no-safe-boundaries')
       return tokens
     }
 
@@ -608,7 +625,21 @@ export class CachedStreamParser {
       })
     }
 
+    this.setChunkCacheDiagnostics(env)
     return out
+  }
+
+  private setChunkCacheDiagnostics(env: Record<string, unknown>, fallbackReason?: string): void {
+    setChunkCacheDiagnostics(env, {
+      hits: this.stats.chunkHits,
+      misses: this.stats.chunkMisses,
+      appendedChunks: this.stats.appendedChunks,
+      invalidations: this.stats.invalidations,
+      tableSize: this.table.size,
+      totalCachedChars: this.table.totalCharCount,
+      totalCachedTokens: this.table.totalTokenCount,
+      ...(fallbackReason ? { fallback: true, fallbackReason } : {}),
+    })
   }
 
   /**

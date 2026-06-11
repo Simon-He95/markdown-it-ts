@@ -150,6 +150,7 @@ import { getParseDiagnostics } from 'markdown-it-ts/experimental'
 默认策略决策会写入：
 
 - `getParseDiagnostics(env)?.strategy`
+- `getParseDiagnostics(env)?.chunkCache`，当 `experimental.streamChunkCache` 被实际尝试时，包含 chunk hit/miss、append chunk 数、invalidations、table size、cached chars/tokens，以及 fallback 原因。
 
 常见路径包括：
 

@@ -475,7 +475,9 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
         limits.maxTotalChars = maxTotalChars
       if (maxTotalTokens !== undefined)
         limits.maxTotalTokens = maxTotalTokens
-      cachedStreamParser = new CachedStreamParser(core, limits, safeParserRuleVersions ?? undefined)
+      cachedStreamParser = new CachedStreamParser(core, limits, safeParserRuleVersions ?? undefined, {
+        assumeCoreRulesOnly: true,
+      })
     }
     return cachedStreamParser
   }

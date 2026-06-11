@@ -20,7 +20,13 @@ function render(src: string) {
 }
 
 function makeParser(md = markdownit()) {
-  return new CachedStreamParser((md as any).core as ParserCore)
+  const typedMd = md as any
+  return new CachedStreamParser(typedMd.core as ParserCore, undefined, {
+    core: typedMd.core.ruler.version,
+    block: typedMd.block.ruler.version,
+    inline: typedMd.inline.ruler.version,
+    inline2: typedMd.inline.ruler2.version,
+  })
 }
 
 // ---------------------------------------------------------------------------

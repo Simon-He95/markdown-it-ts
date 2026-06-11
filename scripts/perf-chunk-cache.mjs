@@ -4,6 +4,8 @@ import { performance } from 'node:perf_hooks'
 import MarkdownIt from '../dist/index.js'
 import { CachedStreamParser, chunkedParse } from '../dist/experimental.js'
 
+const TRUST_CORE_RULES = { assumeCoreRulesOnly: true }
+
 // ---- helpers ----
 
 function fmt(ms) { return `${ms.toFixed(2)}ms` }
@@ -98,7 +100,7 @@ for (const scenario of SCENARIOS) {
   // 4. CachedStreamParser: same source hit
   {
     const mdC = MarkdownIt()
-    const parser = new CachedStreamParser(mdC.core)
+    const parser = new CachedStreamParser(mdC.core, undefined, undefined, TRUST_CORE_RULES)
     parser.parse(src, {}, mdC)
     measure('cached: same src (cache hit)', () => parser.parse(src, {}, mdC), 200)
   }
@@ -106,7 +108,7 @@ for (const scenario of SCENARIOS) {
   // 5. CachedStreamParser: append workload
   {
     const mdC = MarkdownIt()
-    const parser = new CachedStreamParser(mdC.core)
+    const parser = new CachedStreamParser(mdC.core, undefined, undefined, TRUST_CORE_RULES)
     const half = src.length >> 1
     const breakPos = src.lastIndexOf('\n\n', half)
     const prefix = src.slice(0, breakPos + 2)
@@ -126,7 +128,7 @@ for (const scenario of SCENARIOS) {
   // 6. CachedStreamParser: non-append edit (20% of doc re-parsed)
   {
     const mdC = MarkdownIt()
-    const parser = new CachedStreamParser(mdC.core)
+    const parser = new CachedStreamParser(mdC.core, undefined, undefined, TRUST_CORE_RULES)
 
     parser.parse(src, {}, mdC)
 
@@ -140,13 +142,12 @@ for (const scenario of SCENARIOS) {
     }, 10)
   }
 
-  // 7. CachedStreamParser: re-parse same large doc (chunk cache hit)
+  // 7. CachedStreamParser: same-source identity cache hit
   {
     const mdC = MarkdownIt()
-    const parser = new CachedStreamParser(mdC.core)
+    const parser = new CachedStreamParser(mdC.core, undefined, undefined, TRUST_CORE_RULES)
     parser.parse(src, {}, mdC)
-    // Re-parse with chunk cache population
-    measure('cached: re-parse (chunked)', () => parser.parse(src, {}, mdC), 20)
+    measure('cached: identity cache', () => parser.parse(src, {}, mdC), 20)
   }
 
   // 8. Vanilla chunkedParse for comparison
@@ -162,7 +163,7 @@ for (const scenario of SCENARIOS) {
 console.log('--- Correctness smoke test ---')
 {
   const md = MarkdownIt()
-  const parser = new CachedStreamParser(md.core)
+  const parser = new CachedStreamParser(md.core, undefined, undefined, TRUST_CORE_RULES)
   const src = '# Hello\n\nWorld\n\n- a\n- b\n\n```js\ncode\n```\n\nMore.\n'
 
   const tokens = parser.parse(src, {}, md)

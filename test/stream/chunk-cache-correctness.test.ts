@@ -4,6 +4,7 @@ import {
   CachedStreamParser,
   computeContentFingerprint,
   detectHardBoundaries,
+  getParseDiagnostics,
   materializeCachedTokens,
 } from '../../src/experimental'
 import markdownit, { type MarkdownIt, type MarkdownItOptions } from '../../src/index'
@@ -44,7 +45,13 @@ function renderFull(src: string, md: MarkdownIt) {
 }
 
 function makeParser(md = markdownit()) {
-  return new CachedStreamParser((md as any).core as ParserCore)
+  const typedMd = md as any
+  return new CachedStreamParser(typedMd.core as ParserCore, undefined, {
+    core: typedMd.core.ruler.version,
+    block: typedMd.block.ruler.version,
+    inline: typedMd.inline.ruler.version,
+    inline2: typedMd.inline.ruler2.version,
+  })
 }
 
 /** Build a large markdown doc with paragraph boundaries (safe for chunking). */
@@ -254,6 +261,27 @@ describe('Cache invalidation (P0-1)', () => {
     expect(md.stream.stats().lastMode).toBe('chunked')
   })
 
+  it('exposes chunk cache diagnostics through parse diagnostics', () => {
+    const md = markdownit({ stream: true, experimental: { streamChunkCache: true } })
+    const src = largeDoc(220)
+    const env: Record<string, unknown> = {}
+
+    md.stream.parse(src, env)
+
+    const initial = getParseDiagnostics(env)?.chunkCache
+    expect(initial?.misses).toBeGreaterThan(0)
+    expect(initial?.tableSize).toBeGreaterThan(0)
+
+    const modified = src.replace('Paragraph 150 with some', 'ModifiedP 150 with some')
+    md.stream.parse(modified, env)
+
+    const next = getParseDiagnostics(env)?.chunkCache
+    expect(next?.hits).toBeGreaterThan(0)
+    expect(next?.misses).toBeGreaterThan(0)
+    expect(next?.tableSize).toBeGreaterThan(0)
+    expect(next?.hits).toBe(md.stream.stats().chunkHits)
+  })
+
   it('invalidates cache after direct ruler changes', () => {
     const md = markdownit({ stream: true, experimental: { streamChunkCache: true } })
     const src = '| a | b |\n| --- | --- |\n| c | d |\n'
@@ -305,6 +333,25 @@ describe('Cache invalidation (P0-1)', () => {
     expect(env1.collectCount).toBeDefined()
     expect(env2.collectCount).toBeDefined()
     expect(md.stream.stats().lastMode).toBe('full')
+  })
+
+  it('direct CachedStreamParser is conservative when rules existed before construction', () => {
+    const md = markdownit()
+    md.core.ruler.push('env_side_effect_before_constructor', (state) => {
+      state.env.hit = (state.env.hit || 0) + 1
+    })
+
+    const parser = new CachedStreamParser((md as any).core as ParserCore)
+    const src = largeDoc(200)
+    const env1: Record<string, any> = {}
+    const env2: Record<string, any> = {}
+
+    parser.parse(src, env1, md)
+    parser.parse(src, env2, md)
+
+    expect(env1.hit).toBeDefined()
+    expect(env2.hit).toBeDefined()
+    expect(parser.getStats().lastMode).toBe('full')
   })
 })
 

@@ -37,9 +37,22 @@ export interface EditableDiagnostics {
   fallbackReason?: string
 }
 
+export interface ChunkCacheDiagnostics {
+  hits: number
+  misses: number
+  appendedChunks: number
+  invalidations: number
+  tableSize: number
+  totalCachedChars: number
+  totalCachedTokens: number
+  fallback?: boolean
+  fallbackReason?: string
+}
+
 export interface ParseDiagnostics {
   strategy?: StrategyDiagnostics
   chunk?: ChunkDiagnostics
+  chunkCache?: ChunkCacheDiagnostics
   unbounded?: UnboundedDiagnostics
   editable?: EditableDiagnostics
 }
@@ -135,4 +148,15 @@ export function setEditableDiagnostics(
     return
 
   diagnostics.editable = info
+}
+
+export function setChunkCacheDiagnostics(
+  env: Record<string, unknown> | undefined,
+  info: ChunkCacheDiagnostics,
+): void {
+  const diagnostics = getDiagnosticsStore(env, true)
+  if (!diagnostics)
+    return
+
+  diagnostics.chunkCache = info
 }

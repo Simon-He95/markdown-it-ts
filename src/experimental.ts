@@ -4,6 +4,7 @@ export {
   MDTS_DIAGNOSTICS,
 } from './parse/strategy_diagnostics'
 export type {
+  ChunkCacheDiagnostics,
   ChunkDiagnostics,
   EditableDiagnostics,
   ParseDiagnostics,
@@ -13,8 +14,9 @@ export type {
 
 export { StreamBuffer } from './stream/buffer'
 export { CachedStreamParser } from './stream/cached_parser'
-export type { CachedStreamStats } from './stream/cached_parser'
+export type { CachedStreamParserOptions, CachedStreamStats, ParserRuleVersions } from './stream/cached_parser'
 
+/** @experimental Low-level cache internals. Subject to change without semver guarantees. */
 export {
   ChunkTable,
   cloneTokens,
