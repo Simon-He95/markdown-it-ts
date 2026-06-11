@@ -134,6 +134,7 @@ export class ChunkTable {
   private totalChars = 0
   private totalTokenWeightValue = 0
   private limits: Required<ChunkTableLimits>
+  private evictionCount = 0
 
   constructor(limits?: ChunkTableLimits) {
     this.limits = { ...DEFAULT_CHUNK_TABLE_LIMITS }
@@ -232,6 +233,7 @@ export class ChunkTable {
     this.list.length = 0
     this.totalChars = 0
     this.totalTokenWeightValue = 0
+    this.evictionCount = 0
   }
 
   clear(): void {
@@ -240,6 +242,7 @@ export class ChunkTable {
     this.list.length = 0
     this.totalChars = 0
     this.totalTokenWeightValue = 0
+    this.evictionCount = 0
     // Do NOT reset generation — that would make newly stored chunks
     // incompatible with the rest of the system. clear() is for reset;
     // invalidateAll() is for generation bump.
@@ -275,6 +278,10 @@ export class ChunkTable {
     return this.totalTokenWeightValue
   }
 
+  get evictions(): number {
+    return this.evictionCount
+  }
+
   getChunks(): readonly CachedChunk[] {
     return this.list.slice()
   }
@@ -304,6 +311,7 @@ export class ChunkTable {
       const oldest = key ? this.map.get(key) : undefined
       if (!key || !oldest)
         break
+      this.evictionCount++
       this.evict(oldest, key)
     }
   }

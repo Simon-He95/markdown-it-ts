@@ -50,9 +50,13 @@ export interface StreamStats {
   chunkHits?: number
   chunkMisses?: number
   appendedChunks?: number
+  chunkEvictions?: number
   invalidations?: number
   lastReparsedChars?: number
   lastReparsedChunks?: number
+  lastReusedChars?: number
+  lastDirtyRangeChars?: number
+  lastShiftedTokenCount?: number
   lastMode: 'idle' | 'cache' | 'append' | 'tail' | 'full' | 'reset' | 'chunked'
 }
 
@@ -866,9 +870,13 @@ export class StreamParser {
     this.stats.chunkHits = chunkStats.chunkHits
     this.stats.chunkMisses = chunkStats.chunkMisses
     this.stats.appendedChunks = chunkStats.appendedChunks
+    this.stats.chunkEvictions = chunkStats.chunkEvictions
     this.stats.invalidations = chunkStats.invalidations
     this.stats.lastReparsedChars = chunkStats.lastReparsedChars
     this.stats.lastReparsedChunks = chunkStats.lastReparsedChunks
+    this.stats.lastReusedChars = chunkStats.lastReusedChars
+    this.stats.lastDirtyRangeChars = chunkStats.lastDirtyRangeChars
+    this.stats.lastShiftedTokenCount = chunkStats.lastShiftedTokenCount
   }
 
   private parseFullDocument(

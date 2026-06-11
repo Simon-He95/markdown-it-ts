@@ -359,9 +359,19 @@ describe('Cache invalidation (P0-1)', () => {
     expect(next?.hits).toBeGreaterThan(0)
     expect(next?.misses).toBeGreaterThan(0)
     expect(next?.tableSize).toBeGreaterThan(0)
+    expect(next?.reusedChars).toBeGreaterThan(0)
+    expect(next?.dirtyRangeChars).toBeGreaterThan(0)
+    expect(next?.reparsedChars).toBe(next?.lastReparsedChars)
+    expect(next?.lastReusedChars).toBe(next?.reusedChars)
+    expect(next?.lastDirtyRangeChars).toBe(next?.dirtyRangeChars)
+    expect(next?.lastShiftedTokenCount).toBe(next?.shiftedTokenCount)
+    expect(next?.shiftedTokenCount).toBeGreaterThan(0)
     expect(next?.lastReparsedChars).toBeGreaterThan(0)
     expect(next?.lastReparsedChunks).toBeGreaterThan(0)
     expect(next?.hits).toBe(md.stream.stats().chunkHits)
+    expect(next?.reusedChars).toBe(md.stream.stats().lastReusedChars)
+    expect(next?.dirtyRangeChars).toBe(md.stream.stats().lastDirtyRangeChars)
+    expect(next?.shiftedTokenCount).toBe(md.stream.stats().lastShiftedTokenCount)
   })
 
   it('invalidates cache after direct ruler changes', () => {
@@ -1005,6 +1015,7 @@ describe('ChunkTable memory limits (P0-9)', () => {
     }
 
     expect(table.size).toBeLessThanOrEqual(3)
+    expect(table.evictions).toBeGreaterThan(0)
   })
 
   it('evicts least-recently-used chunks when maxTotalChars exceeded', () => {

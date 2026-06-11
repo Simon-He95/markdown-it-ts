@@ -50,9 +50,13 @@ export interface CachedStreamStats {
   chunkHits: number // specific to CachedStreamParser
   chunkMisses: number // specific to CachedStreamParser
   appendedChunks: number // specific to CachedStreamParser
+  chunkEvictions: number // capacity-triggered evictions in the chunk table
   invalidations: number // number of times the cache was invalidated
   lastReparsedChars: number
   lastReparsedChunks: number
+  lastReusedChars: number
+  lastDirtyRangeChars: number
+  lastShiftedTokenCount: number
   lastMode: 'idle' | 'cache' | 'append' | 'tail' | 'full' | 'reset' | 'chunked'
 }
 
@@ -69,9 +73,13 @@ function makeEmptyStats(): CachedStreamStats {
     chunkHits: 0,
     chunkMisses: 0,
     appendedChunks: 0,
+    chunkEvictions: 0,
     invalidations: 0,
     lastReparsedChars: 0,
     lastReparsedChunks: 0,
+    lastReusedChars: 0,
+    lastDirtyRangeChars: 0,
+    lastShiftedTokenCount: 0,
     lastMode: 'idle',
   }
 }
@@ -138,6 +146,8 @@ export class CachedStreamParser {
 
   private ruleVersions: ParserRuleVersions | null = null
 
+  private observedTableEvictions = 0
+
   constructor(
     core: ParserCore,
     limits?: ChunkTableLimits,
@@ -196,6 +206,9 @@ export class CachedStreamParser {
       this.stats.lastMode = 'cache'
       this.stats.lastReparsedChars = 0
       this.stats.lastReparsedChunks = 0
+      this.stats.lastReusedChars = src.length
+      this.stats.lastDirtyRangeChars = 0
+      this.stats.lastShiftedTokenCount = 0
       setStrategyDiagnostics(workingEnv, { area: 'stream', path: 'stream-cache', reason: 'same-source' })
       this.setChunkCacheDiagnostics(workingEnv)
       return cached.tokens
@@ -379,10 +392,18 @@ export class CachedStreamParser {
     // Recreate the ChunkTable so any stale limits from a previous
     // md.set() / reconfigureTable() are replaced.
     this.table = new ChunkTable(this.tableLimits)
+    this.observedTableEvictions = 0
     this.fullCache = null
     this.lastSrc = ''
     this.lastTokens = []
     this.invalidated = false
+  }
+
+  private syncTableEvictions(): void {
+    const next = this.table.evictions
+    if (next > this.observedTableEvictions)
+      this.stats.chunkEvictions += next - this.observedTableEvictions
+    this.observedTableEvictions = next
   }
 
   private handleAppend(
@@ -426,14 +447,17 @@ export class CachedStreamParser {
     this.table.invalidateRange(anchorSrcOffset, src.length)
 
     let storedChunks = 0
+    let shiftedTokenCount = 0
     for (const range of tailRanges) {
       const chunkSrc = tailSrc.slice(range.start, range.end)
       const state = this.core.parse(chunkSrc, env, md)
       const localTokens = state.tokens
       const globalLineOffset = anchorLine + range.startLine
       const materialized = cloneTokens(localTokens)
-      if (globalLineOffset > 0)
+      if (globalLineOffset > 0) {
+        shiftedTokenCount += countTokenTree(localTokens)
         shiftTokenLines(materialized, globalLineOffset)
+      }
       appendTokens(newTokens, materialized)
 
       const globalStart = anchorSrcOffset + range.start
@@ -454,10 +478,14 @@ export class CachedStreamParser {
     this.stats.appendHits++
     this.stats.lastReparsedChars = tailSrc.length
     this.stats.lastReparsedChunks = tailRanges.length
+    this.stats.lastReusedChars = anchorSrcOffset
+    this.stats.lastDirtyRangeChars = tailSrc.length
+    this.stats.lastShiftedTokenCount = shiftedTokenCount
 
     this.fullCache = { src, tokens: newTokens, env, globalStateReason: null }
     this.lastSrc = src
     this.stats.lastMode = 'append'
+    this.syncTableEvictions()
     setStrategyDiagnostics(env, {
       area: 'stream',
       path: 'stream-append',
@@ -574,6 +602,15 @@ export class CachedStreamParser {
     let hasCacheMisses = false
     let reparsedChars = 0
     let reparsedChunks = 0
+    let reusedChars = 0
+    let shiftedTokenCount = 0
+    let dirtyRangeChars = 0
+
+    for (const idx of expandedDirty) {
+      const range = ranges[idx]
+      if (range)
+        dirtyRangeChars += range.end - range.start
+    }
 
     for (let i = 0; i < ranges.length; i++) {
       const range = ranges[i]
@@ -585,11 +622,14 @@ export class CachedStreamParser {
 
         if (cached) {
           // Materialize cached tokens with global line offset.
+          if (lineOffset > 0)
+            shiftedTokenCount += countTokenTree(cached.tokens)
           const materialized = materializeCachedTokens(cached, lineOffset)
           appendTokens(out, materialized)
           nextTable.store({ ...cached, generation: 0 })
           hasCacheHits = true
           this.stats.chunkHits++
+          reusedChars += range.end - range.start
         }
         else {
           // Cache miss — parse and store.
@@ -600,8 +640,10 @@ export class CachedStreamParser {
 
           // Materialize for output (clone + shift).
           const materialized = cloneTokens(localTokens)
-          if (lineOffset > 0)
+          if (lineOffset > 0) {
+            shiftedTokenCount += countTokenTree(localTokens)
             shiftTokenLines(materialized, lineOffset)
+          }
           appendTokens(out, materialized)
           hasCacheMisses = true
           this.stats.chunkMisses++
@@ -628,8 +670,10 @@ export class CachedStreamParser {
 
         // Materialize for output (clone + shift).
         const materialized = cloneTokens(localTokens)
-        if (lineOffset > 0)
+        if (lineOffset > 0) {
+          shiftedTokenCount += countTokenTree(localTokens)
           shiftTokenLines(materialized, lineOffset)
+        }
         appendTokens(out, materialized)
         hasCacheMisses = true
         this.stats.chunkMisses++
@@ -653,11 +697,16 @@ export class CachedStreamParser {
 
     // Update state
     this.table = nextTable
+    this.observedTableEvictions = 0
     this.fullCache = { src, tokens: out, env, globalStateReason: null }
     this.lastSrc = src
     this.lastTokens = out
     this.stats.lastReparsedChars = reparsedChars
     this.stats.lastReparsedChunks = reparsedChunks
+    this.stats.lastReusedChars = reusedChars
+    this.stats.lastDirtyRangeChars = dirtyRangeChars
+    this.stats.lastShiftedTokenCount = shiftedTokenCount
+    this.syncTableEvictions()
 
     if (hasCacheHits && !hasCacheMisses) {
       this.stats.lastMode = 'chunked'
@@ -693,16 +742,25 @@ export class CachedStreamParser {
   }
 
   private setChunkCacheDiagnostics(env: Record<string, unknown>, fallbackReason?: ChunkCacheFallbackReason): void {
+    this.syncTableEvictions()
     setChunkCacheDiagnostics(env, {
       hits: this.stats.chunkHits,
       misses: this.stats.chunkMisses,
+      evictions: this.stats.chunkEvictions,
       appendedChunks: this.stats.appendedChunks,
       invalidations: this.stats.invalidations,
       tableSize: this.table.size,
       totalCachedChars: this.table.totalCharCount,
       totalCachedTokenWeight: this.table.totalTokenWeight,
+      reusedChars: this.stats.lastReusedChars,
+      reparsedChars: this.stats.lastReparsedChars,
+      dirtyRangeChars: this.stats.lastDirtyRangeChars,
+      shiftedTokenCount: this.stats.lastShiftedTokenCount,
       lastReparsedChars: this.stats.lastReparsedChars,
       lastReparsedChunks: this.stats.lastReparsedChunks,
+      lastReusedChars: this.stats.lastReusedChars,
+      lastDirtyRangeChars: this.stats.lastDirtyRangeChars,
+      lastShiftedTokenCount: this.stats.lastShiftedTokenCount,
       ...(fallbackReason ? { fallback: true, fallbackReason } : {}),
     })
   }
@@ -770,8 +828,25 @@ export class CachedStreamParser {
     this.lastTokens = tokens
     this.stats.lastReparsedChars = src.length
     this.stats.lastReparsedChunks = src.length > 0 ? 1 : 0
+    this.stats.lastReusedChars = 0
+    this.stats.lastDirtyRangeChars = src.length
+    this.stats.lastShiftedTokenCount = 0
     return tokens
   }
+}
+
+function countTokenTree(tokens: Token[]): number {
+  let count = 0
+  const stack: Token[] = []
+  for (let i = tokens.length - 1; i >= 0; i--) stack.push(tokens[i])
+  while (stack.length) {
+    const token = stack.pop()!
+    count++
+    if (token.children) {
+      for (let i = token.children.length - 1; i >= 0; i--) stack.push(token.children[i])
+    }
+  }
+  return count
 }
 
 export default CachedStreamParser

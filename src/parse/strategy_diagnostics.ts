@@ -52,13 +52,21 @@ export type ChunkCacheFallbackReason
 export interface ChunkCacheDiagnostics {
   hits: number
   misses: number
+  evictions: number
   appendedChunks: number
   invalidations: number
   tableSize: number
   totalCachedChars: number
   totalCachedTokenWeight: number
+  reusedChars: number
+  reparsedChars: number
+  dirtyRangeChars: number
+  shiftedTokenCount: number
   lastReparsedChars: number
   lastReparsedChunks: number
+  lastReusedChars: number
+  lastDirtyRangeChars: number
+  lastShiftedTokenCount: number
   fallback?: boolean
   fallbackReason?: ChunkCacheFallbackReason
 }

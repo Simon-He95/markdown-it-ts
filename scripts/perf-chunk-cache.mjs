@@ -25,8 +25,12 @@ function cacheSummary(env, stats) {
     `table=${chunkCache.tableSize}`,
     `cachedChars=${chunkCache.totalCachedChars}`,
     `cachedTokenWeight=${chunkCache.totalCachedTokenWeight}`,
+    `reusedChars=${chunkCache.reusedChars}`,
+    `dirtyRangeChars=${chunkCache.dirtyRangeChars}`,
     `lastReparsedChars=${chunkCache.lastReparsedChars}`,
     `lastReparsedChunks=${chunkCache.lastReparsedChunks}`,
+    `shiftedTokens=${chunkCache.shiftedTokenCount}`,
+    `evictions=${chunkCache.evictions}`,
     chunkCache.fallbackReason ? `fallback=${chunkCache.fallbackReason}` : null,
   ].filter(Boolean).join(' ')
 }
