@@ -15,9 +15,9 @@ import commonmarkPreset from './presets/commonmark'
 import defaultPreset from './presets/default'
 import zeroPreset from './presets/zero'
 import Renderer from './render/renderer'
+import { CachedStreamParser } from './stream/cached_parser'
 import { chunkedParse } from './stream/chunked'
 import { StreamParser } from './stream/parser'
-import { CachedStreamParser } from './stream/cached_parser'
 import {
   getAutoUnboundedDecision,
   parseAsyncIterable as parseAsyncIterableSource,
@@ -143,6 +143,12 @@ export interface MarkdownItOptions {
   autoUnboundedThresholdLines?: number
   /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamChunkCache instead. */
   streamChunkCache?: boolean
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamChunkCacheMaxChunks instead. */
+  streamChunkCacheMaxChunks?: number
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamChunkCacheMaxTotalChars instead. */
+  streamChunkCacheMaxTotalChars?: number
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamChunkCacheMaxTotalTokens instead. */
+  streamChunkCacheMaxTotalTokens?: number
 }
 
 interface PresetComponentRules {
@@ -448,10 +454,15 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
         const maxChunks = opts.streamChunkCacheMaxChunks
         const maxTotalChars = opts.streamChunkCacheMaxTotalChars
         const maxTotalTokens = opts.streamChunkCacheMaxTotalTokens
-        if (maxChunks !== undefined) limits.maxChunks = maxChunks
-        if (maxTotalChars !== undefined) limits.maxTotalChars = maxTotalChars
-        if (maxTotalTokens !== undefined) limits.maxTotalTokens = maxTotalTokens
+        if (maxChunks !== undefined)
+          limits.maxChunks = maxChunks
+        if (maxTotalChars !== undefined)
+          limits.maxTotalChars = maxTotalChars
+        if (maxTotalTokens !== undefined)
+          limits.maxTotalTokens = maxTotalTokens
         cachedStreamParser = new CachedStreamParser(core, limits)
+        if (usedPlugin)
+          cachedStreamParser.setPluginUsed(true)
       }
       return cachedStreamParser
     }
@@ -499,6 +510,7 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
     set(newOpts: MarkdownItOptions) {
       const resolvedNewOpts = applyExperimentalOptions(newOpts)
       this.options = { ...this.options, ...resolvedNewOpts }
+      opts = this.options
       if (hasOwnOption(newOpts, 'fullChunkSizeChars') || hasOwnOption(newOpts, 'fullChunkSizeLines') || hasOwnOption(newOpts, 'fullChunkMaxChunks')) {
         explicitFullChunkConfig = true
         this.__explicitFullChunkConfig = true
@@ -535,11 +547,14 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
         const maxTotalTokensChanged = hasOwnOption(newOpts, 'streamChunkCacheMaxTotalTokens')
         if (maxChunksChanged || maxTotalCharsChanged || maxTotalTokensChanged) {
           const ro = resolvedNewOpts as Record<string, unknown>
-          cachedStreamParser.reconfigureTable({
-            maxChunks: maxChunksChanged ? (ro.streamChunkCacheMaxChunks as number | undefined) : undefined,
-            maxTotalChars: maxTotalCharsChanged ? (ro.streamChunkCacheMaxTotalChars as number | undefined) : undefined,
-            maxTotalTokens: maxTotalTokensChanged ? (ro.streamChunkCacheMaxTotalTokens as number | undefined) : undefined,
-          })
+          const limits: Record<string, number | undefined> = {}
+          if (maxChunksChanged)
+            limits.maxChunks = ro.streamChunkCacheMaxChunks as number | undefined
+          if (maxTotalCharsChanged)
+            limits.maxTotalChars = ro.streamChunkCacheMaxTotalChars as number | undefined
+          if (maxTotalTokensChanged)
+            limits.maxTotalTokens = ro.streamChunkCacheMaxTotalTokens as number | undefined
+          cachedStreamParser.reconfigureTable(limits)
         }
       }
       return this
@@ -817,17 +832,17 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       getStreamParser().reset()
     },
     peek() {
-      const sp = streamParser || cachedStreamParser
+      const sp = opts.streamChunkCache ? cachedStreamParser : streamParser
       return sp ? sp.peek() : []
     },
     stats() {
-      const sp = streamParser || cachedStreamParser
+      const sp = opts.streamChunkCache ? cachedStreamParser : streamParser
       return sp
         ? sp.getStats()
         : { total: 0, cacheHits: 0, appendHits: 0, unboundedAppendHits: 0, tailHits: 0, fullParses: 0, resets: 0, chunkedParses: 0, lastMode: 'idle' }
     },
     resetStats() {
-      const sp = streamParser || cachedStreamParser
+      const sp = opts.streamChunkCache ? cachedStreamParser : streamParser
       if (sp)
         sp.resetStats()
     },

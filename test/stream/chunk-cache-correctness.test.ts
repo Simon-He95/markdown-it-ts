@@ -99,6 +99,16 @@ describe('Cache invalidation (P0-1)', () => {
     const stats = md.stream.stats()
     expect(stats.lastMode).toBe('full')
   })
+
+  it('uses cached stream parser after enabling streamChunkCache with md.set()', () => {
+    const md = markdownit({ stream: true })
+
+    md.stream.parse('initial\n', {})
+    md.set({ experimental: { streamChunkCache: true } })
+    md.stream.parse(largeDoc(200), {})
+
+    expect(md.stream.stats().lastMode).toBe('chunked')
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -167,6 +177,25 @@ describe('Line map correctness (P0-2)', () => {
     const html = md.renderer.render(tokens, md.options, {})
     expect(html).toBe(render(prepended))
   })
+
+  it('stores cached token maps in chunk-local coordinates', () => {
+    const md = markdownit()
+    const parser = makeParser(md)
+
+    parser.parse(largeDoc(200), {}, md)
+    const chunks = (parser as any).table.getChunks()
+
+    expect(chunks.length).toBeGreaterThan(0)
+    for (const chunk of chunks) {
+      for (const token of chunk.tokens) {
+        if (!token.map)
+          continue
+        expect(token.map[0]).toBeGreaterThanOrEqual(0)
+        expect(token.map[0]).toBeLessThan(chunk.lineCount)
+        expect(token.map[1]).toBeLessThanOrEqual(chunk.lineCount)
+      }
+    }
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -215,6 +244,19 @@ describe('Global markdown state fallback (P0-3)', () => {
     // Should fall back because global state includes abbr definitions
     expect(stats.lastMode).toBe('full')
   })
+
+  it('clears reference env state when a reused env parses a clean document', () => {
+    const md = markdownit({ stream: true, experimental: { streamChunkCache: true } })
+    const env: Record<string, unknown> = {}
+    const refSrc = '[ref]: /url\n\n[ref]\n'
+    const cleanSrc = '[ref]\n'
+
+    md.stream.parse(refSrc, env)
+    const tokens = md.stream.parse(cleanSrc, env)
+    const html = md.renderer.render(tokens, md.options, env)
+
+    expect(html).toBe(markdownit().render(cleanSrc))
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -238,6 +280,23 @@ describe('Env sensitivity (P0-4)', () => {
     const h2 = md.renderer.render(t2, md.options, env2)
     expect(h1).toBe(h2)
     expect(h1).toBe(render(src))
+  })
+
+  it('disables chunk cache when a plugin is registered before first stream parse', () => {
+    const md = markdownit({ stream: true, experimental: { streamChunkCache: true } })
+    md.use((md) => {
+      md.core.ruler.push('test_env_side_effect', (state) => {
+        state.env.pluginRan = true
+      })
+    })
+
+    const env: Record<string, unknown> = {}
+    const tokens = md.stream.parse(largeDoc(200), env)
+    const html = md.renderer.render(tokens, md.options, env)
+
+    expect(html).toBe(render(largeDoc(200), md))
+    expect(env.pluginRan).toBe(true)
+    expect(md.stream.stats().lastMode).toBe('full')
   })
 })
 
@@ -425,7 +484,7 @@ describe('Dirty range expansion (P0-7)', () => {
 // ---------------------------------------------------------------------------
 
 describe('ChunkTable memory limits (P0-9)', () => {
-  it('evicts oldest chunks when maxChunks exceeded', () => {
+  it('evicts least-recently-used chunks when maxChunks exceeded', () => {
     const table = new ChunkTable({ maxChunks: 3 })
 
     for (let i = 0; i < 10; i++) {
@@ -446,7 +505,7 @@ describe('ChunkTable memory limits (P0-9)', () => {
     expect(table.size).toBeLessThanOrEqual(3)
   })
 
-  it('evicts oldest chunks when maxTotalChars exceeded', () => {
+  it('evicts least-recently-used chunks when maxTotalChars exceeded', () => {
     const table = new ChunkTable({ maxTotalChars: 200, maxChunks: 100 })
 
     for (let i = 0; i < 20; i++) {

@@ -180,6 +180,50 @@ describe('ChunkTable', () => {
     table.clear()
     expect(table.size).toBe(0)
   })
+
+  it('evicts least-recently-used chunks when maxChunks is exceeded', () => {
+    const src = 'aaa\n\nbbb\n\nccc\n\nddd\n\n'
+    const ranges = [
+      [0, 5],
+      [5, 10],
+      [10, 15],
+      [15, 20],
+    ] as const
+    const table = new ChunkTable({ maxChunks: 3 })
+
+    for (let i = 0; i < 3; i++) {
+      const [start, end] = ranges[i]
+      table.store({
+        startOffset: start,
+        endOffset: end,
+        startLine: i * 2,
+        lineCount: 2,
+        fingerprint: computeContentFingerprint(src, start, end),
+        tokens: [],
+        generation: 0,
+        charLength: end - start,
+        tokenCount: 0,
+      })
+    }
+
+    expect(table.lookup(ranges[0][0], src, ranges[0][1])).not.toBeNull()
+
+    const [start, end] = ranges[3]
+    table.store({
+      startOffset: start,
+      endOffset: end,
+      startLine: 6,
+      lineCount: 2,
+      fingerprint: computeContentFingerprint(src, start, end),
+      tokens: [],
+      generation: 0,
+      charLength: end - start,
+      tokenCount: 0,
+    })
+
+    expect(table.lookup(ranges[0][0], src, ranges[0][1])).not.toBeNull()
+    expect(table.lookup(ranges[1][0], src, ranges[1][1])).toBeNull()
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -253,6 +297,7 @@ describe('CachedStreamParser', () => {
 
     // Should be an append
     expect(stats2.lastMode).toBe('append')
+    expect(stats2.appendHits).toBeGreaterThan(0)
     expect(stats2.appendedChunks).toBeGreaterThan(0)
 
     // Output should match full parse
@@ -294,6 +339,7 @@ describe('CachedStreamParser', () => {
 
     const stats = parser.getStats()
     expect(stats.lastMode).toBe('append')
+    expect(stats.appendHits).toBeGreaterThan(0)
   })
 
   it('edit triggers chunk-aware re-parse', () => {
@@ -402,7 +448,7 @@ describe('CachedStreamParser', () => {
     const parser = makeParser(md)
 
     let src = ''
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 80; i++) {
       src += `Paragraph ${i} with extra content for padding.\n\n`
     }
 
@@ -415,6 +461,40 @@ describe('CachedStreamParser', () => {
 
     const stats = parser.getStats()
     expect(stats.lastMode).toBe('append')
+    expect(stats.appendHits).toBeGreaterThan(0)
     expect(stats.appendedChunks).toBeGreaterThan(0)
+  })
+
+  it('falls back when appending without a cached chunk anchor', () => {
+    const md = markdownit()
+    const parser = makeParser(md)
+    const src1 = `${'long paragraph '.repeat(60)}\n`
+    const src2 = `${src1}appended paragraph\n`
+
+    parser.parse(src1, {}, md)
+    const tokens = parser.parse(src2, {}, md)
+
+    const html = md.renderer.render(tokens, md.options, {})
+    expect(html).toBe(render(src2))
+    expect(parser.getStats().lastMode).toBe('full')
+    expect(parser.getStats().appendHits).toBe(0)
+  })
+
+  it('falls back when appending a closing fence to an open fenced block', () => {
+    const md = markdownit()
+    const parser = makeParser(md)
+    let src1 = '```js\n'
+    for (let i = 0; i < 80; i++) {
+      src1 += `line ${i}\n`
+    }
+    const src2 = `${src1}\`\`\`\n\n`
+
+    parser.parse(src1, {}, md)
+    const tokens = parser.parse(src2, {}, md)
+
+    const html = md.renderer.render(tokens, md.options, {})
+    expect(html).toBe(render(src2))
+    expect(parser.getStats().lastMode).not.toBe('append')
+    expect(parser.getStats().appendHits).toBe(0)
   })
 })

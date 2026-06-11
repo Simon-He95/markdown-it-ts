@@ -58,12 +58,16 @@ export function computeContentFingerprint(src: string, start: number, end: numbe
 
 function fingerprintsMatch(a: ContentFingerprint, src: string, start: number, end: number): boolean {
   const len = end - start
-  if (a.length !== len) return false
+  if (a.length !== len)
+    return false
   const bHash = fnv1a32(src, start, end)
-  if (a.hash !== bHash) return false
+  if (a.hash !== bHash)
+    return false
   // Verify first/last chars for extra safety
-  if (a.first !== extractFirstChars(src, start, end, FINGERPRINT_FIRST)) return false
-  if (a.last !== extractLastChars(src, start, end, FINGERPRINT_LAST)) return false
+  if (a.first !== extractFirstChars(src, start, end, FINGERPRINT_FIRST))
+    return false
+  if (a.last !== extractLastChars(src, start, end, FINGERPRINT_LAST))
+    return false
   return true
 }
 
@@ -129,7 +133,7 @@ const DEFAULT_CHUNK_TABLE_LIMITS: Required<ChunkTableLimits> = {
 // ---------------------------------------------------------------------------
 
 export class ChunkTable {
-  /** Map keyed by `${startOffset}:${endOffset}` for O(1) lookup. */
+  /** Map keyed by `${startOffset}:${endOffset}` for O(1) lookup and LRU recency. */
   private map = new Map<string, CachedChunk>()
   /** Sorted array for ordered iteration and range invalidation. */
   private list: CachedChunk[] = []
@@ -143,7 +147,9 @@ export class ChunkTable {
   private limits: Required<ChunkTableLimits>
 
   constructor(limits?: ChunkTableLimits) {
-    this.limits = { ...DEFAULT_CHUNK_TABLE_LIMITS, ...(limits ?? {}) }
+    this.limits = { ...DEFAULT_CHUNK_TABLE_LIMITS }
+    if (limits)
+      this.updateLimits(limits)
   }
 
   /**
@@ -154,7 +160,8 @@ export class ChunkTable {
   lookup(startOffset: number, src: string, endOffset: number): CachedChunk | null {
     const key = `${startOffset}:${endOffset}`
     const cached = this.map.get(key)
-    if (!cached) return null
+    if (!cached)
+      return null
 
     // Generation check: if table was invalidated, all old chunks are stale.
     if (cached.generation !== this.generation) {
@@ -168,6 +175,8 @@ export class ChunkTable {
       return null
     }
 
+    this.map.delete(key)
+    this.map.set(key, cached)
     return cached
   }
 
@@ -199,7 +208,7 @@ export class ChunkTable {
   }
 
   invalidateRange(start: number, end: number): void {
-    const toRemove: Array<{ chunk: CachedChunk; key: string }> = []
+    const toRemove: Array<{ chunk: CachedChunk, key: string }> = []
     for (let i = this.list.length - 1; i >= 0; i--) {
       const c = this.list[i]
       if (c.endOffset > start && c.startOffset < end) {
@@ -243,7 +252,11 @@ export class ChunkTable {
    * Does NOT invalidate existing chunks — only evicts overflow entries.
    */
   updateLimits(limits: ChunkTableLimits): void {
-    this.limits = { ...this.limits, ...limits }
+    this.limits = {
+      maxChunks: limits.maxChunks ?? this.limits.maxChunks,
+      maxTotalChars: limits.maxTotalChars ?? this.limits.maxTotalChars,
+      maxTotalTokens: limits.maxTotalTokens ?? this.limits.maxTotalTokens,
+    }
     this.enforceLimits()
   }
 
@@ -276,19 +289,23 @@ export class ChunkTable {
     this.totalTokens -= chunk.tokenCount
     // Remove from sorted list.
     const idx = this.list.indexOf(chunk)
-    if (idx !== -1) this.list.splice(idx, 1)
+    if (idx !== -1)
+      this.list.splice(idx, 1)
   }
 
   private enforceLimits(): void {
-    // Evict oldest chunks (by insertion order = by startOffset) until all limits satisfied.
     while (
       this.list.length > this.limits.maxChunks
       || this.totalChars > this.limits.maxTotalChars
       || this.totalTokens > this.limits.maxTotalTokens
     ) {
-      if (this.list.length === 0) break
-      const oldest = this.list[0]
-      this.evict(oldest, `${oldest.startOffset}:${oldest.endOffset}`)
+      if (this.list.length === 0)
+        break
+      const key = this.map.keys().next().value
+      const oldest = key ? this.map.get(key) : undefined
+      if (!key || !oldest)
+        break
+      this.evict(oldest, key)
     }
   }
 }
@@ -298,9 +315,9 @@ export class ChunkTable {
 // ---------------------------------------------------------------------------
 
 interface RawLine {
-  start: number       // byte offset of line start
-  end: number         // byte offset of '\n' (exclusive), or src.length
-  endWithNl: number   // byte offset just past '\n', or src.length
+  start: number // byte offset of line start
+  end: number // byte offset of '\n' (exclusive), or src.length
+  endWithNl: number // byte offset just past '\n', or src.length
   blank: boolean
   insideFence: boolean
 }
@@ -320,7 +337,8 @@ interface RawLine {
 
 export function detectHardBoundaries(src: string): HardBoundary[] {
   const len = src.length
-  if (len === 0) return []
+  if (len === 0)
+    return []
 
   const lines = collectLines(src)
   // Pre-classify all lines so containerSpansBlankLine can look up quickly.
@@ -333,11 +351,13 @@ export function detectHardBoundaries(src: string): HardBoundary[] {
 
     if (line.blank) {
       consecutiveBlank++
-    } else {
+    }
+    else {
       consecutiveBlank = 0
     }
 
-    if (!line.blank || line.insideFence) continue
+    if (!line.blank || line.insideFence)
+      continue
 
     // Double blank line → always a hard boundary.
     // In CommonMark, two consecutive blank lines terminate all containers.
@@ -430,7 +450,8 @@ export function expandDirtyRange(
   expandLeft: number = 1,
   expandRight: number = 1,
 ): Set<number> {
-  if (dirtyIndices.size === 0 || totalChunks === 0) return dirtyIndices
+  if (dirtyIndices.size === 0 || totalChunks === 0)
+    return dirtyIndices
 
   const expanded = new Set(dirtyIndices)
 
@@ -464,7 +485,8 @@ export function expandDirtyRange(
 // ---------------------------------------------------------------------------
 
 export function shiftTokenLines(tokens: Token[], offset: number): void {
-  if (offset === 0) return
+  if (offset === 0)
+    return
   const stack: Token[] = []
   for (let i = tokens.length - 1; i >= 0; i--) stack.push(tokens[i])
   while (stack.length) {
@@ -518,7 +540,8 @@ function collectLines(src: string): RawLine[] {
   while (lineStart < src.length) {
     let lineEnd = src.indexOf('\n', lineStart)
     const hasNl = lineEnd !== -1
-    if (!hasNl) lineEnd = src.length
+    if (!hasNl)
+      lineEnd = src.length
 
     const blank = isBlank(src, lineStart, lineEnd)
 
@@ -528,7 +551,8 @@ function collectLines(src: string): RawLine[] {
       let p = lineStart
       while (p < lineEnd) {
         const c = src.charCodeAt(p)
-        if (c === 0x20 || c === 0x09) p++
+        if (c === 0x20 || c === 0x09)
+          p++
         else break
       }
       if (p < lineEnd) {
@@ -541,7 +565,8 @@ function collectLines(src: string): RawLine[] {
             if (fenceMarker === null) {
               fenceMarker = ch
               fenceLength = q - p
-            } else if (fenceMarker === ch && q - p >= fenceLength) {
+            }
+            else if (fenceMarker === ch && q - p >= fenceLength) {
               fenceMarker = null
               fenceLength = 0
             }
@@ -560,7 +585,8 @@ function collectLines(src: string): RawLine[] {
       insideFence,
     })
 
-    if (!hasNl) break
+    if (!hasNl)
+      break
     lineStart = lineEnd + 1
   }
 
@@ -570,7 +596,8 @@ function collectLines(src: string): RawLine[] {
 function isBlank(src: string, start: number, end: number): boolean {
   for (let i = start; i < end; i++) {
     const c = src.charCodeAt(i)
-    if (c !== 0x20 && c !== 0x09 && c !== 0x0D) return false
+    if (c !== 0x20 && c !== 0x09 && c !== 0x0D)
+      return false
   }
   return true
 }
@@ -590,9 +617,17 @@ function classifyLine(src: string, line: RawLine): LineClass {
 
   while (p < line.end) {
     const c = src.charCodeAt(p)
-    if (c === 0x20) { indent++; p++ }
-    else if (c === 0x09) { indent += 4 - (indent % 4); p++ }
-    else break
+    if (c === 0x20) {
+      indent++
+      p++
+    }
+    else if (c === 0x09) {
+      indent += 4 - (indent % 4)
+      p++
+    }
+    else {
+      break
+    }
   }
 
   if (p >= line.end) {
@@ -645,7 +680,8 @@ function classifyLine(src: string, line: RawLine): LineClass {
     let after = q
     while (after < line.end) {
       const ac = src.charCodeAt(after)
-      if (ac !== 0x20 && ac !== 0x09 && ac !== 0x0D) break
+      if (ac !== 0x20 && ac !== 0x09 && ac !== 0x0D)
+        break
       after++
     }
     if (after >= line.end && q > p) {
@@ -686,23 +722,26 @@ function containerSpansBlankLine(
   // Find previous non-blank line
   let prevIdx = blankIdx - 1
   while (prevIdx >= 0 && lines[prevIdx].blank) prevIdx--
-  if (prevIdx < 0) return false
+  if (prevIdx < 0)
+    return false
 
   // Find next non-blank line
   let nextIdx = blankIdx + 1
   while (nextIdx < lines.length && lines[nextIdx].blank) nextIdx++
-  if (nextIdx >= lines.length) return false
+  if (nextIdx >= lines.length)
+    return false
 
   const prevLine = lines[prevIdx]
-  const nextLine = lines[nextIdx]
   const prev = classes[prevIdx]
   const next = classes[nextIdx]
 
   // Inside fence → container definitely spans (but caller already filters by insideFence)
-  if (prevLine.insideFence) return true
+  if (prevLine.insideFence)
+    return true
 
   // Blockquote: prev starts with '>', next also starts with '>'
-  if (prev.isBlockquote && next.isBlockquote) return true
+  if (prev.isBlockquote && next.isBlockquote)
+    return true
 
   // Setext heading: prev is a paragraph/heading content, next is a setext underline.
   // The blank line between heading text and its underline must NOT be split.
@@ -724,19 +763,23 @@ function containerSpansBlankLine(
   }
 
   // Table: prev or next is a table row
-  if (prev.isTableRow && next.isTableRow) return true
+  if (prev.isTableRow && next.isTableRow)
+    return true
 
   // HTML block continuation: if prev and next are inside the same HTML block
   // (detected by checking if both lines are part of an HTML block type).
   // We use a heuristic: if the preceding context contains an HTML block opener
   // that hasn't been closed, treat the blank line as inside the HTML block.
   // For now, check if both lines look like HTML content.
-  if (isInsideHtmlBlock(lines, classes, blankIdx, src)) return true
+  if (isInsideHtmlBlock(lines, classes, blankIdx, src))
+    return true
 
   // List: prev is a list marker, next is a list marker or indented
   if (prev.isListItem) {
-    if (next.isListItem) return true
-    if (next.indent >= 2 && !next.isBlockquote) return true
+    if (next.isListItem)
+      return true
+    if (next.indent >= 2 && !next.isBlockquote)
+      return true
   }
 
   // Indented continuation: prev is indented (list continuation), look further back
@@ -795,7 +838,8 @@ function isInsideHtmlBlock(
   let lineIdx = 0
   while (lineIdx < blankIdx && lineStart < src.length) {
     const nl = src.indexOf('\n', lineStart)
-    if (nl === -1) break
+    if (nl === -1)
+      break
     lineStart = nl + 1
     lineIdx++
   }
@@ -808,11 +852,13 @@ function isInsideHtmlBlock(
     let li = 0
     while (li < i && ls < src.length) {
       const nl = src.indexOf('\n', ls)
-      if (nl === -1) break
+      if (nl === -1)
+        break
       ls = nl + 1
       li++
     }
-    if (li !== i) break
+    if (li !== i)
+      break
 
     const le = src.indexOf('\n', ls)
     const lineEnd = le === -1 ? src.length : le
@@ -835,9 +881,11 @@ function isInsideHtmlBlock(
 function isHtmlBlockStart(line: string): boolean {
   const trimmed = line.trimStart()
   // Type 6: starts with </ ... >
-  if (/^<\//.test(trimmed)) return true
+  if (/^<\//.test(trimmed))
+    return true
   // Type 7: starts with <pre, <script, <style, <textarea
-  if (/^<(?:pre|script|style|textarea)\b/i.test(trimmed)) return true
+  if (/^<(?:pre|script|style|textarea)\b/i.test(trimmed))
+    return true
   // Type 1: <!DOCTYPE, <html, <head, <body etc. — but these are rare in markdown
   // Not handling for now.
   return false
@@ -851,7 +899,8 @@ function hasHtmlBlockClose(src: string, openOffset: number, closeBefore: number)
   let pos = openOffset
   while (pos < closeBefore) {
     const nl = src.indexOf('\n', pos)
-    if (nl === -1) return false
+    if (nl === -1)
+      return false
     const lineContentStart = pos
     const lineContentEnd = nl
     // Check if this line (after the open) is blank
@@ -864,7 +913,8 @@ function hasHtmlBlockClose(src: string, openOffset: number, closeBefore: number)
 }
 
 function mergeSmallRanges(ranges: SafeChunkRange[], minChars: number): SafeChunkRange[] {
-  if (ranges.length <= 1) return ranges
+  if (ranges.length <= 1)
+    return ranges
   const merged: SafeChunkRange[] = []
   let i = 0
   while (i < ranges.length) {

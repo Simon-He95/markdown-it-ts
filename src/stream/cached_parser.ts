@@ -1,14 +1,16 @@
 import type { Token } from '../common/token'
 import type { MarkdownIt } from '../index'
 import type { ParserCore } from '../parse/parser_core'
+import type { ChunkTableLimits, SafeChunkRange } from './chunk_cache'
 import { countLines } from '../common/utils'
-import { detectGlobalMarkdownState } from '../parse/global_state'
+import { detectGlobalMarkdownState, getKnownGlobalMarkdownState, resetKnownGlobalMarkdownState, runWithKnownGlobalMarkdownState } from '../parse/global_state'
 import {
   beginParseDiagnostics,
   setStrategyDiagnostics,
 } from '../parse/strategy_diagnostics'
 import {
   appendTokens,
+  ChunkTable,
   cloneTokens,
   computeContentFingerprint,
   detectHardBoundaries,
@@ -17,8 +19,6 @@ import {
   shiftTokenLines,
   splitIntoSafeChunkRanges,
 } from './chunk_cache'
-import type { ChunkTableLimits, SafeChunkRange } from './chunk_cache'
-import { ChunkTable } from './chunk_cache'
 
 // ---------------------------------------------------------------------------
 // Stats
@@ -27,16 +27,16 @@ import { ChunkTable } from './chunk_cache'
 export interface CachedStreamStats {
   total: number
   cacheHits: number
-  appendHits: number        // aliased for compatibility
+  appendHits: number // aliased for compatibility
   unboundedAppendHits?: number
-  tailHits: number           // aliased
+  tailHits: number // aliased
   fullParses: number
   resets: number
   chunkedParses: number
-  chunkHits: number          // specific to CachedStreamParser
-  chunkMisses: number        // specific to CachedStreamParser
-  appendedChunks: number     // specific to CachedStreamParser
-  invalidations: number       // number of times the cache was invalidated
+  chunkHits: number // specific to CachedStreamParser
+  chunkMisses: number // specific to CachedStreamParser
+  appendedChunks: number // specific to CachedStreamParser
+  invalidations: number // number of times the cache was invalidated
   lastMode: 'idle' | 'cache' | 'append' | 'tail' | 'full' | 'reset' | 'chunked'
 }
 
@@ -91,7 +91,7 @@ export class CachedStreamParser {
   private stats: CachedStreamStats = makeEmptyStats()
 
   // Full-source cache (same as StreamParser) for the "identical source" fast-path.
-  private fullCache: { src: string; tokens: Token[] } | null = null
+  private fullCache: { src: string, tokens: Token[] } | null = null
 
   // Last known source and token array.
   private lastSrc = ''
@@ -147,6 +147,8 @@ export class CachedStreamParser {
       })
       return tokens
     }
+    if (getKnownGlobalMarkdownState(env))
+      resetKnownGlobalMarkdownState(env)
 
     // 3. Plugin usage disables chunk caching to protect env side effects.
     //    When a plugin writes to env, skipping a chunk's parse would lose that data.
@@ -165,14 +167,16 @@ export class CachedStreamParser {
     // 4. Append detection (only for documents large enough that the
     //    context window doesn't cover the entire source).
     if (
-      this.lastSrc &&
-      src.startsWith(this.lastSrc) &&
-      this.lastSrc.endsWith('\n') &&
-      this.lastSrc.length >= 200
+      this.lastSrc
+      && src.startsWith(this.lastSrc)
+      && this.lastSrc.endsWith('\n')
+      && this.lastSrc.length >= 200
     ) {
       const appended = src.slice(this.lastSrc.length)
       if (appended && appended.charCodeAt(appended.length - 1) === 0x0A) {
-        return this.handleAppend(src, appended, env, md)
+        if (this.endsInsideOpenFence(this.lastSrc))
+          return this.handleFullParse(src, env, md)
+        return this.handleAppend(src, env, md)
       }
     }
 
@@ -205,7 +209,12 @@ export class CachedStreamParser {
    * next doReset().
    */
   reconfigureTable(limits: ChunkTableLimits): void {
-    this.tableLimits = { ...this.tableLimits, ...limits }
+    this.tableLimits = {
+      ...this.tableLimits,
+      ...(limits.maxChunks === undefined ? {} : { maxChunks: limits.maxChunks }),
+      ...(limits.maxTotalChars === undefined ? {} : { maxTotalChars: limits.maxTotalChars }),
+      ...(limits.maxTotalTokens === undefined ? {} : { maxTotalTokens: limits.maxTotalTokens }),
+    }
     if (!this.invalidated) {
       this.table.updateLimits(limits)
     }
@@ -245,84 +254,27 @@ export class CachedStreamParser {
 
   private handleAppend(
     src: string,
-    appended: string,
     env: Record<string, unknown>,
     md: MarkdownIt,
   ): Token[] {
-    const cachedLineCount = countLines(this.lastSrc)
     const chunks = this.table.getChunks()
 
     if (chunks.length > 0) {
       // ---- Chunk-anchored reparse ----
       // Re-parse from the start of the last chunk so we have full context
       // and can cache the new tail properly.
-      return this.handleChunkAnchoredAppend(src, appended, env, md, cachedLineCount, chunks)
+      return this.handleChunkAnchoredAppend(src, env, md, chunks)
     }
 
-    // ---- No cached chunks: context-based tail reparse ----
-    // Fall back to a lightweight context-aware append.
-    const ctxLines = Math.min(4, Math.max(1, cachedLineCount - 1))
-    const contextPrefix = this.getTailLines(this.lastSrc, ctxLines)
-    const contextLineCount = countLines(contextPrefix)
-
-    const combined = contextPrefix + appended
-    const ctxState = this.core.parse(combined, env, md)
-    const ctxTokens = ctxState.tokens
-
-    const splitIdx = ctxTokens.findIndex(
-      t => t.map && typeof t.map[1] === 'number' && t.map[1] > contextLineCount,
-    )
-
-    let appendedTokens: Token[]
-    if (splitIdx !== -1) {
-      appendedTokens = ctxTokens.slice(splitIdx)
-      const shiftBy = cachedLineCount - contextLineCount
-      if (shiftBy > 0) shiftTokenLines(appendedTokens, shiftBy)
-    } else {
-      appendedTokens = []
-    }
-
-    // Truncate the context region from lastTokens.
-    const contextStartLine = cachedLineCount - contextLineCount
-    const splitIndex = this.findSplitIndex(this.lastTokens, contextStartLine)
-    const newTokens = this.lastTokens.slice(0, splitIndex)
-    appendTokens(newTokens, appendedTokens)
-
-    // Invalidate trailing range in chunk table.
-    const trailStart = Math.max(0, this.lastSrc.length - contextPrefix.length)
-    this.table.invalidateRange(trailStart, src.length)
-
-    // Cache the new trailing segment.
-    if (appendedTokens.length > 0) {
-      this.storeChunk(
-        src, this.lastSrc.length, src.length,
-        cachedLineCount,
-        countLines(appended),
-        appendedTokens,
-      )
-      this.stats.appendedChunks++
-    }
-
-    this.fullCache = { src, tokens: newTokens }
-    this.lastSrc = src
-    this.lastTokens = newTokens
-    this.stats.lastMode = 'append'
-    setStrategyDiagnostics(env, {
-      area: 'stream',
-      path: 'stream-append',
-      reason: 'context-append',
-    })
-    return newTokens
+    return this.handleFullParse(src, env, md)
   }
 
   /** Append using the last cached chunk as re-parse anchor. */
   private handleChunkAnchoredAppend(
     src: string,
-    appended: string,
     env: Record<string, unknown>,
     md: MarkdownIt,
-    cachedLineCount: number,
-    chunks: ReadonlyArray<{ startOffset: number; startLine: number }>,
+    chunks: ReadonlyArray<{ startOffset: number, startLine: number }>,
   ): Token[] {
     const lastChunk = chunks[chunks.length - 1]
     const anchorSrcOffset = lastChunk.startOffset
@@ -350,13 +302,16 @@ export class CachedStreamParser {
     // Cache the new trailing segment (stored with local coords).
     if (tailTokens.length > 0) {
       this.storeChunk(
-        src, anchorSrcOffset, src.length,
+        src,
+        anchorSrcOffset,
+        src.length,
         anchorLine,
         countLines(tailSrc),
         tailTokens, // stored as-is (local coords)
       )
     }
     this.stats.appendedChunks++
+    this.stats.appendHits++
 
     this.fullCache = { src, tokens: newTokens }
     this.lastSrc = src
@@ -369,15 +324,48 @@ export class CachedStreamParser {
     return newTokens
   }
 
-  /** Get the last N lines from a string, preserving trailing newline. */
-  private getTailLines(src: string, lineCount: number): string {
-    if (lineCount <= 0 || src.length === 0) return ''
-    const hasTrailingNl = src.charCodeAt(src.length - 1) === 0x0A
-    const parts = src.split('\n')
-    const contentLines = hasTrailingNl ? parts.slice(0, -1) : parts
-    const start = Math.max(0, contentLines.length - lineCount)
-    const result = contentLines.slice(start).join('\n')
-    return hasTrailingNl ? result + '\n' : result
+  private endsInsideOpenFence(text: string): boolean {
+    const WINDOW = 4000
+    const start = text.length > WINDOW ? text.length - WINDOW : 0
+    const chunk = text.slice(start)
+    const len = chunk.length
+    let inFence: { marker: number, length: number } | null = null
+    let lineStart = 0
+
+    while (lineStart <= len) {
+      let lineEnd = chunk.indexOf('\n', lineStart)
+      if (lineEnd === -1)
+        lineEnd = len
+
+      let p = lineStart
+      while (p < lineEnd) {
+        const c = chunk.charCodeAt(p)
+        if (c === 0x20 || c === 0x09)
+          p++
+        else break
+      }
+
+      if (p < lineEnd) {
+        const ch = chunk.charCodeAt(p)
+        if (ch === 0x60 || ch === 0x7E) {
+          let q = p
+          while (q < lineEnd && chunk.charCodeAt(q) === ch) q++
+          const runLen = q - p
+          if (runLen >= 3) {
+            if (!inFence)
+              inFence = { marker: ch, length: runLen }
+            else if (inFence.marker === ch && runLen >= inFence.length)
+              inFence = null
+          }
+        }
+      }
+
+      if (lineEnd === len)
+        break
+      lineStart = lineEnd + 1
+    }
+
+    return inFence !== null
   }
 
   /**
@@ -388,7 +376,8 @@ export class CachedStreamParser {
   private findSplitIndex(tokens: Token[], line: number): number {
     for (let i = 0; i < tokens.length; i++) {
       const t = tokens[i]
-      if (t.map && t.map[0] >= line) return i
+      if (t.map && t.map[0] >= line)
+        return i
     }
     return tokens.length
   }
@@ -452,7 +441,8 @@ export class CachedStreamParser {
           appendTokens(out, materialized)
           hasCacheHits = true
           this.stats.chunkHits++
-        } else {
+        }
+        else {
           // Cache miss — parse and store.
           const ch = src.slice(range.start, range.end)
           const state = this.core.parse(ch, env, md)
@@ -461,19 +451,24 @@ export class CachedStreamParser {
 
           // Materialize for output (clone + shift).
           const materialized = cloneTokens(localTokens)
-          if (lineOffset > 0) shiftTokenLines(materialized, lineOffset)
+          if (lineOffset > 0)
+            shiftTokenLines(materialized, lineOffset)
           appendTokens(out, materialized)
           hasCacheMisses = true
           this.stats.chunkMisses++
 
           // Store with LOCAL coordinates, not shifted.
           this.storeChunk(
-            src, range.start, range.end,
-            range.startLine, range.lineCount,
+            src,
+            range.start,
+            range.end,
+            range.startLine,
+            range.lineCount,
             localTokens,
           )
         }
-      } else {
+      }
+      else {
         // Dirty chunk — always re-parse.
         const ch = src.slice(range.start, range.end)
         const state = this.core.parse(ch, env, md)
@@ -481,15 +476,19 @@ export class CachedStreamParser {
 
         // Materialize for output (clone + shift).
         const materialized = cloneTokens(localTokens)
-        if (lineOffset > 0) shiftTokenLines(materialized, lineOffset)
+        if (lineOffset > 0)
+          shiftTokenLines(materialized, lineOffset)
         appendTokens(out, materialized)
         hasCacheMisses = true
         this.stats.chunkMisses++
 
         // Store with LOCAL coordinates.
         this.storeChunk(
-          src, range.start, range.end,
-          range.startLine, range.lineCount,
+          src,
+          range.start,
+          range.end,
+          range.startLine,
+          range.lineCount,
           localTokens,
         )
       }
@@ -510,7 +509,8 @@ export class CachedStreamParser {
         reason: 'all-cached',
         chunked: true,
       })
-    } else if (hasCacheHits) {
+    }
+    else if (hasCacheHits) {
       this.stats.lastMode = 'chunked'
       setStrategyDiagnostics(env, {
         area: 'stream',
@@ -518,7 +518,8 @@ export class CachedStreamParser {
         reason: 'partial-cached',
         chunked: true,
       })
-    } else {
+    }
+    else {
       this.stats.chunkedParses++
       this.stats.lastMode = 'chunked'
       setStrategyDiagnostics(env, {
@@ -580,8 +581,10 @@ export class CachedStreamParser {
   }
 
   private fullParse(src: string, env: Record<string, unknown>, md: MarkdownIt): Token[] {
-    const state = this.core.parse(src, env, md)
-    const tokens = state.tokens
+    const globalStateReason = detectGlobalMarkdownState(src)
+    const tokens = runWithKnownGlobalMarkdownState(env, globalStateReason, () => {
+      return this.core.parse(src, env, md).tokens
+    })
     this.fullCache = { src, tokens }
     this.lastSrc = src
     this.lastTokens = tokens
