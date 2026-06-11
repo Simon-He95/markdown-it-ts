@@ -379,6 +379,22 @@ describe('Cache invalidation (P0-1)', () => {
     expect(next?.shiftedTokenCount).toBe(md.stream.stats().lastShiftedTokenCount)
   })
 
+  it('coalesces short hard-boundary blocks by default', () => {
+    const md = markdownit()
+    const parser = makeParser(md)
+    let src = ''
+    for (let i = 0; i < 600; i++) {
+      src += `short paragraph ${i}\n\n`
+    }
+
+    parser.parse(src, {}, md)
+
+    const chunks = (parser as any).table.getChunks()
+    expect(chunks.length).toBeGreaterThan(1)
+    expect(chunks.length).toBeLessThan(20)
+    expect(chunks.length).toBeLessThan(detectHardBoundaries(src).length)
+  })
+
   it('invalidates cache after direct ruler changes', () => {
     const md = markdownit({ stream: true, experimental: { streamChunkCache: true } })
     const src = '| a | b |\n| --- | --- |\n| c | d |\n'
@@ -470,6 +486,26 @@ describe('Cache invalidation (P0-1)', () => {
     expect(env2.hit).toBeDefined()
     expect(parser.getStats().lastMode).toBe('full')
   })
+
+  it('keeps same-source cache when plugin fallback is active in direct parser', () => {
+    const md = markdownit()
+    md.core.ruler.push('plugin_side_effect_before_constructor', (state) => {
+      state.env.hit = (state.env.hit || 0) + 1
+    })
+
+    const parser = new CachedStreamParser((md as any).core as ParserCore)
+    const src = largeDoc(120)
+    const env: Record<string, any> = {}
+
+    const tokens1 = parser.parse(src, env, md)
+    parser.resetStats()
+    const tokens2 = parser.parse(src, env, md)
+
+    expect(tokens2).toBe(tokens1)
+    expect(env.hit).toBe(1)
+    expect(parser.getStats().cacheHits).toBe(1)
+    expect(parser.getStats().lastMode).toBe('cache')
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -546,6 +582,30 @@ describe('Line map correctness (P0-2)', () => {
     expect(actualDuplicates.map(t => t.map)).toEqual(expectedDuplicates.map(t => t.map))
     expect(actualDuplicates[0]).not.toBe(actualDuplicates[1])
     expect(md.renderer.render(tokens, md.options, {})).toBe(render(shifted))
+  })
+
+  it('reuses repeated moved chunks without corrupting line maps', () => {
+    const md = markdownit()
+    const parser = makeParser(md)
+    const env = {}
+    const makeChunk = (label: string) => `${label} ${'filler '.repeat(700)}\n\n`
+    const repeated = `repeat paragraph with *emphasis* ${'stable '.repeat(700)}\n\n`
+    const src = `${makeChunk('A')}${repeated}${makeChunk('B')}${repeated}${makeChunk('C')}`
+
+    parser.parse(src, env, md)
+
+    const modified = `${makeChunk('A')}${makeChunk('inserted')}${repeated}${makeChunk('B')}${repeated}${makeChunk('C')}`
+    const tokens = parser.parse(modified, env, md)
+    const expected = md.parse(modified, {})
+    const collect = (items: TokenType[]) => items.filter(t => t.type === 'inline' && t.content?.startsWith('repeat paragraph with'))
+    const actualDuplicates = collect(tokens)
+    const expectedDuplicates = collect(expected)
+
+    expect(actualDuplicates.length).toBe(2)
+    expect(actualDuplicates.map(t => t.map)).toEqual(expectedDuplicates.map(t => t.map))
+    expect(actualDuplicates[0].map).not.toEqual(actualDuplicates[1].map)
+    expect(md.renderer.render(tokens, md.options, {})).toBe(render(modified))
+    expect(parser.getStats().chunkHits).toBeGreaterThan(0)
   })
 
   it('handles edit before cached chunk and shifts downstream line maps correctly', () => {
@@ -659,6 +719,20 @@ describe('Global markdown state fallback (P0-3)', () => {
     md.stream.parse(src, {})
     const stats = md.stream.stats()
     expect(stats.lastMode).toBe('full')
+  })
+
+  it('reports the concrete chunk cache fallback reason for global state', () => {
+    const md = markdownit({ stream: true, experimental: { streamChunkCache: true } })
+    const src = `[ref]: /url\n\n${largeDoc(20)}Text with [ref][]\n\n`
+    const env: Record<string, unknown> = {}
+
+    md.stream.parse(src, env)
+
+    expect(getParseDiagnostics(env)?.chunkCache).toMatchObject({
+      enabled: false,
+      fallback: true,
+      fallbackReason: 'reference-definition',
+    })
   })
 
   it('falls back to full parse when reference definition is added to previously clean doc', () => {
@@ -1018,7 +1092,7 @@ describe('Dirty range expansion (P0-7)', () => {
     const md = markdownit()
     const parser = makeParser(md)
     const env = {}
-    const src = `${largeDoc(80)}| a | b |\n| - | - |\n| 1 | 2 |\n| 3 | 4 |\n\n${largeDoc(80)}`
+    const src = `${largeDoc(220)}| a | b |\n| - | - |\n| 1 | 2 |\n| 3 | 4 |\n\n${largeDoc(220)}`
 
     parser.parse(src, env, md)
 

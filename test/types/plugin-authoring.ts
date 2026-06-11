@@ -84,6 +84,7 @@ const md = MarkdownIt({ html: false }).use(plugin, 'demo')
 const mdWithNamespacedExperimentalOptions = MarkdownIt({
   experimental: {
     fullChunkedFallback: true,
+    streamChunkCacheMinChunkChars: 4096,
   } satisfies MarkdownItExperimentalOptions,
 })
 const typedMd: MarkdownItInstance = md

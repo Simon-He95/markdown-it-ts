@@ -128,7 +128,7 @@ export class CachedStreamParser {
 
   // Minimum chars for a document to use chunking.
   private readonly MIN_CHUNK_CHARS = 500
-  private readonly MIN_SAFE_CHUNK_CHARS = 1
+  private readonly DEFAULT_SAFE_CHUNK_CHARS = 4096
 
   // Whether any plugin has been registered (env-sensitive).
   private pluginUsed = false
@@ -203,7 +203,6 @@ export class CachedStreamParser {
     // 1. Same source → full cache hit
     if (
       cached
-      && !this.pluginUsed
       && src === this.lastSrc
       && (!envProvided || envProvided === cached.env)
       && cached.globalStateReason === globalStateReason
@@ -230,7 +229,7 @@ export class CachedStreamParser {
         path: 'stream-full',
         reason: `global-state:${globalStateReason}`,
       })
-      this.setChunkCacheDiagnostics(workingEnv, 'global-state')
+      this.setChunkCacheDiagnostics(workingEnv, globalStateReason)
       return tokens
     }
     if (getKnownGlobalMarkdownState(workingEnv))
@@ -391,7 +390,12 @@ export class CachedStreamParser {
       typographer: options.typographer,
       quotes: options.quotes,
       maxNesting: options.maxNesting,
+      streamChunkCacheMinChunkChars: options.streamChunkCacheMinChunkChars,
     })
+  }
+
+  private getSafeChunkMinChars(md: MarkdownIt): number {
+    return md.options.streamChunkCacheMinChunkChars ?? this.DEFAULT_SAFE_CHUNK_CHARS
   }
 
   private doReset(): void {
@@ -444,7 +448,7 @@ export class CachedStreamParser {
     // The tail includes the last chunk + appended text.
     const tailSrc = src.slice(anchorSrcOffset)
     const tailBoundaries = detectHardBoundaries(tailSrc)
-    const tailRanges = splitIntoSafeChunkRanges(tailSrc, tailBoundaries, { minChars: this.MIN_SAFE_CHUNK_CHARS })
+    const tailRanges = splitIntoSafeChunkRanges(tailSrc, tailBoundaries, { minChars: this.getSafeChunkMinChars(md) })
 
     // Build new token array: prefix (unchanged chunks) + re-parsed tail.
     const newTokens = this.lastTokens.slice(0, anchorTokenCount)
@@ -576,7 +580,7 @@ export class CachedStreamParser {
 
     // Find hard boundaries and split into safe ranges.
     const boundaries = detectHardBoundaries(src)
-    const ranges = splitIntoSafeChunkRanges(src, boundaries, { minChars: this.MIN_SAFE_CHUNK_CHARS })
+    const ranges = splitIntoSafeChunkRanges(src, boundaries, { minChars: this.getSafeChunkMinChars(md) })
 
     // If no boundaries were found (or document is one big chunk), do a full parse.
     if (ranges.length <= 1) {

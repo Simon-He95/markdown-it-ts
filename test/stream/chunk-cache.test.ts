@@ -492,9 +492,9 @@ describe('CachedStreamParser', () => {
     const parser = makeParser(md)
     const env = {}
 
-    // Use a large enough document (>2000 chars for minChars) with blank lines so chunking activates.
+    // Use a large enough document with blank lines so chunking activates.
     let src1 = ''
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 140; i++) {
       src1 += `Line ${i} with some longer content to fill space for minChars.\n\n`
     }
 
@@ -525,7 +525,7 @@ describe('CachedStreamParser', () => {
 
     // Start with a baseline that's large enough and has hard boundaries.
     let src = ''
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 140; i++) {
       src += `Baseline paragraph ${i} with extra filler text for padding.\n\n`
     }
 
@@ -676,7 +676,7 @@ describe('CachedStreamParser', () => {
     // Use a large enough document to produce many chunks (> expandLeft + expandRight + 1)
     // so that not all of them become dirty on a single-paragraph edit.
     let src = ''
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 360; i++) {
       src += `Paragraph ${i} with some extra longer filler text to reach minChars.\n\n`
     }
 
@@ -694,7 +694,7 @@ describe('CachedStreamParser', () => {
   })
 
   it('reuses unchanged chunks after insertion before them', () => {
-    const md = markdownit()
+    const md = markdownit({ experimental: { streamChunkCacheMinChunkChars: 1 } })
     const parser = makeParser(md)
     const env = {}
 
@@ -721,7 +721,7 @@ describe('CachedStreamParser', () => {
     const env = {}
 
     let src = ''
-    for (let i = 0; i < 80; i++) {
+    for (let i = 0; i < 160; i++) {
       src += `Paragraph ${i} with extra content for padding.\n\n`
     }
 

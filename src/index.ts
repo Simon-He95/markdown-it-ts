@@ -70,6 +70,8 @@ export interface MarkdownItExperimentalOptions {
   autoUnboundedThresholdChars?: number
   autoUnboundedThresholdLines?: number
   streamChunkCache?: boolean
+  /** Minimum safe chunk size used by stream chunk cache coalescing. Default: 4,096. */
+  streamChunkCacheMinChunkChars?: number
   /** Maximum number of cached chunks before oldest entries are evicted. Default: 256. */
   streamChunkCacheMaxChunks?: number
   /** Maximum total characters across cached chunk entries before eviction. Default: 2,000,000. */
@@ -146,6 +148,8 @@ export interface MarkdownItOptions {
   autoUnboundedThresholdLines?: number
   /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamChunkCache instead. */
   streamChunkCache?: boolean
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamChunkCacheMinChunkChars instead. */
+  streamChunkCacheMinChunkChars?: number
   /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamChunkCacheMaxChunks instead. */
   streamChunkCacheMaxChunks?: number
   /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamChunkCacheMaxTotalChars instead. */

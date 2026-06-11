@@ -42,7 +42,6 @@ export interface EditableDiagnostics {
 export type ChunkCacheFallbackReason
   = | GlobalMarkdownStateReason
     | 'disabled'
-    | 'global-state'
     | 'no-safe-boundaries'
     | 'plugin-used'
     | 'rule-version-change'
