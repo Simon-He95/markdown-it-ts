@@ -119,12 +119,13 @@ describe('Line map correctness (P0-2)', () => {
   it('does not accumulate token.map offsets after repeated reuse', () => {
     const md = markdownit()
     const parser = makeParser(md)
+    const env = {}
 
     const src1 = largeDoc(100)
-    const t1 = parser.parse(src1, {}, md)
+    const t1 = parser.parse(src1, env, md)
 
     // Same doc again — should produce same map values
-    const t2 = parser.parse(src1, {}, md)
+    const t2 = parser.parse(src1, env, md)
     for (let i = 0; i < t1.length; i++) {
       const a = t1[i]
       const b = t2[i]
@@ -256,6 +257,20 @@ describe('Global markdown state fallback (P0-3)', () => {
     const html = md.renderer.render(tokens, md.options, env)
 
     expect(html).toBe(markdownit().render(cleanSrc))
+  })
+
+  it('does not reuse same-source cache across explicit env objects', () => {
+    const md = markdownit({ stream: true, experimental: { streamChunkCache: true } })
+    const src = '[x]: /url\n\n[x]\n'
+    const env1: Record<string, any> = {}
+    const env2: Record<string, any> = {}
+
+    md.stream.parse(src, env1)
+    md.stream.parse(src, env2)
+
+    expect(env1.references).toBeDefined()
+    expect(env2.references).toBeDefined()
+    expect(md.stream.stats().lastMode).toBe('full')
   })
 })
 

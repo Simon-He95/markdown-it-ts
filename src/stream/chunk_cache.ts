@@ -18,9 +18,9 @@ export function computeSourceHash(src: string, start: number, end: number): numb
 }
 
 // ---------------------------------------------------------------------------
-// Content fingerprint: 64-bit for correctness verification
-// We use a 64-bit combined fingerprint (hash32 + length + first16 + last16)
-// to practically eliminate collision risk.
+// Content fingerprint: probabilistic cache lookup verification.
+// It combines a 32-bit hash, length, and edge slices to reduce accidental
+// false positives without storing the full chunk content.
 // ---------------------------------------------------------------------------
 
 const FINGERPRINT_FIRST = 16
@@ -39,7 +39,7 @@ function extractLastChars(s: string, start: number, end: number, count: number):
 export interface ContentFingerprint {
   /** FNV-1a 32-bit hash. */
   hash: number
-  /** Byte length of the chunk content. */
+  /** Character length of the chunk content. */
   length: number
   /** First FINGERPRINT_FIRST characters. */
   first: string
@@ -80,7 +80,7 @@ export interface CachedChunk {
   endOffset: number
   startLine: number
   lineCount: number
-  /** Content fingerprint for correctness verification. */
+  /** Content fingerprint for cache lookup verification. */
   fingerprint: ContentFingerprint
   /**
    * Tokens stored with chunk-local line coordinates (line 0 = chunk start).
@@ -89,7 +89,7 @@ export interface CachedChunk {
   tokens: Token[]
   /** Generation when this chunk was stored. Must match table generation to be valid. */
   generation: number
-  /** Byte length of the original source slice (fingerprint.length). */
+  /** Character length of the original source slice (fingerprint.length). */
   charLength: number
   /** Number of tokens in this chunk (for memory tracking). */
   tokenCount: number
@@ -133,7 +133,7 @@ const DEFAULT_CHUNK_TABLE_LIMITS: Required<ChunkTableLimits> = {
 // ---------------------------------------------------------------------------
 
 export class ChunkTable {
-  /** Map keyed by `${startOffset}:${endOffset}` for O(1) lookup and LRU recency. */
+  /** Offset-range keyed map for O(1) lookup and LRU recency. Offset-shifting edits naturally miss. */
   private map = new Map<string, CachedChunk>()
   /** Sorted array for ordered iteration and range invalidation. */
   private list: CachedChunk[] = []
@@ -344,31 +344,12 @@ export function detectHardBoundaries(src: string): HardBoundary[] {
   // Pre-classify all lines so containerSpansBlankLine can look up quickly.
   const classes = lines.map(l => classifyLine(src, l))
   const boundaries: HardBoundary[] = []
-  let consecutiveBlank = 0
-
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
-
-    if (line.blank) {
-      consecutiveBlank++
-    }
-    else {
-      consecutiveBlank = 0
-    }
 
     if (!line.blank || line.insideFence)
       continue
 
-    // Double blank line → always a hard boundary.
-    // In CommonMark, two consecutive blank lines terminate all containers.
-    const isDoubleBlank = consecutiveBlank >= 2
-
-    if (isDoubleBlank) {
-      boundaries.push({ offset: line.endWithNl, line: i })
-      continue
-    }
-
-    // Single blank line: check if a container spans it.
     if (!containerSpansBlankLine(lines, classes, i, src)) {
       boundaries.push({ offset: line.endWithNl, line: i })
     }
@@ -774,6 +755,9 @@ function containerSpansBlankLine(
   if (isInsideHtmlBlock(lines, classes, blankIdx, src))
     return true
 
+  if (prev.indent >= 4 && next.indent >= 4 && !prev.isBlockquote && !next.isBlockquote && !prev.isListItem && !next.isListItem)
+    return true
+
   // List: prev is a list marker, next is a list marker or indented
   if (prev.isListItem) {
     if (next.isListItem)
@@ -817,11 +801,7 @@ function containerSpansBlankLine(
   return false
 }
 
-/**
- * Heuristic check: is the blank line inside an HTML block?
- * Detects type 6 (starts with </ ... >) and type 7 (starts with <pre, <script, etc.)
- * by scanning backwards for unclosed HTML block openers.
- */
+/** Heuristic check: is the blank line inside a raw HTML block that closes by tag. */
 function isInsideHtmlBlock(
   _lines: RawLine[],
   _classes: LineClass[],
@@ -863,13 +843,10 @@ function isInsideHtmlBlock(
     const le = src.indexOf('\n', ls)
     const lineEnd = le === -1 ? src.length : le
 
-    // Check if this line starts an HTML block (type 6 or 7)
     const lineStr = src.slice(ls, lineEnd)
-    if (isHtmlBlockStart(lineStr)) {
-      // Check if there's a matching close between this line and the blank line.
-      // For simplicity, if we find an HTML block start without a close, assume
-      // the blank line is inside it. This is conservative.
-      if (!hasHtmlBlockClose(src, ls, lineStart)) {
+    const tagName = getRawHtmlBlockTag(lineStr)
+    if (tagName) {
+      if (!hasRawHtmlBlockClose(src, lineEnd, lineStart, tagName)) {
         return true
       }
     }
@@ -878,38 +855,15 @@ function isInsideHtmlBlock(
   return false
 }
 
-function isHtmlBlockStart(line: string): boolean {
+function getRawHtmlBlockTag(line: string): string | null {
   const trimmed = line.trimStart()
-  // Type 6: starts with </ ... >
-  if (/^<\//.test(trimmed))
-    return true
-  // Type 7: starts with <pre, <script, <style, <textarea
-  if (/^<(?:pre|script|style|textarea)\b/i.test(trimmed))
-    return true
-  // Type 1: <!DOCTYPE, <html, <head, <body etc. — but these are rare in markdown
-  // Not handling for now.
-  return false
+  const match = /^<(pre|script|style|textarea)\b/i.exec(trimmed)
+  return match ? match[1].toLowerCase() : null
 }
 
-function hasHtmlBlockClose(src: string, openOffset: number, closeBefore: number): boolean {
-  // Simple heuristic: look for a blank line between open and closeBefore.
-  // In CommonMark, HTML blocks end at a blank line (for types 6, 7)
-  // or at the closing tag (for type 1-5).
-  // We check if there's a blank line between open and closeBefore.
-  let pos = openOffset
-  while (pos < closeBefore) {
-    const nl = src.indexOf('\n', pos)
-    if (nl === -1)
-      return false
-    const lineContentStart = pos
-    const lineContentEnd = nl
-    // Check if this line (after the open) is blank
-    if (isBlank(src, lineContentStart, lineContentEnd)) {
-      return true // blank line closes HTML block
-    }
-    pos = nl + 1
-  }
-  return false
+function hasRawHtmlBlockClose(src: string, openEnd: number, closeBefore: number, tagName: string): boolean {
+  const closeRe = new RegExp(`</${tagName}\\s*>`, 'i')
+  return closeRe.test(src.slice(openEnd, closeBefore))
 }
 
 function mergeSmallRanges(ranges: SafeChunkRange[], minChars: number): SafeChunkRange[] {

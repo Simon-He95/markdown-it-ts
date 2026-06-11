@@ -1,8 +1,8 @@
 import type { Token } from '../common/token'
 import type { MarkdownIt } from '../index'
+import type { GlobalMarkdownStateReason } from '../parse/global_state'
 import type { ParserCore } from '../parse/parser_core'
 import type { ChunkTableLimits, SafeChunkRange } from './chunk_cache'
-import { countLines } from '../common/utils'
 import { detectGlobalMarkdownState, getKnownGlobalMarkdownState, resetKnownGlobalMarkdownState, runWithKnownGlobalMarkdownState } from '../parse/global_state'
 import {
   beginParseDiagnostics,
@@ -66,17 +66,17 @@ function makeEmptyStats(): CachedStreamStats {
 // stabilises and only the tail grows.
 //
 // Key behaviours:
-//   - Same source → instant cache hit (O(1)).
+//   - Same source without global env state → instant cache hit (O(1)).
 //   - Append (src.startsWith(cachedSrc)) → reuses cached prefix chunks,
-//     only parses the new appended segment.
+//     parses the cached tail plus appended segment.
 //   - Non-append edit → finds hard boundaries, reuses unchanged chunks,
 //     re-parses changed ones + neighbors.
 //   - Global markdown state (references, footnotes, abbr) → full fallback.
 //   - Plugin usage disables chunk caching (conservative env safety).
 //
-// Cache correctness guarantees:
-//   - Content fingerprint (hash + length + first/last chars) prevents
-//     collision-based false positives.
+// Cache safety notes:
+//   - Content fingerprint (hash + length + first/last chars) reduces
+//     accidental false positives.
 //   - Generation-based invalidation ensures stale chunks are evicted after
 //     md.set(), md.enable(), md.disable(), or md.use().
 //   - Cached tokens retain chunk-local line maps; materialization clones
@@ -91,7 +91,12 @@ export class CachedStreamParser {
   private stats: CachedStreamStats = makeEmptyStats()
 
   // Full-source cache (same as StreamParser) for the "identical source" fast-path.
-  private fullCache: { src: string, tokens: Token[] } | null = null
+  private fullCache: {
+    src: string
+    tokens: Token[]
+    env: Record<string, unknown>
+    globalStateReason: GlobalMarkdownStateReason | null
+  } | null = null
 
   // Last known source and token array.
   private lastSrc = ''
@@ -117,46 +122,57 @@ export class CachedStreamParser {
 
   // ---- Public API ----
 
-  parse(src: string, env: Record<string, unknown> = {}, md: MarkdownIt): Token[] {
-    beginParseDiagnostics(env)
-    this.stats.total++
-
+  parse(src: string, env: Record<string, unknown> | undefined, md: MarkdownIt): Token[] {
     // If invalidated (e.g. by md.set/enable/disable/use), reset internal state.
     if (this.invalidated) {
       this.doReset()
     }
 
+    const envProvided = env
+    const cached = this.fullCache
+    const workingEnv = envProvided ?? cached?.env ?? {}
+
+    beginParseDiagnostics(workingEnv)
+    this.stats.total++
+
+    const globalStateReason = detectGlobalMarkdownState(src)
+
     // 1. Same source → full cache hit
-    if (this.fullCache && src === this.fullCache.src) {
+    if (
+      cached
+      && src === cached.src
+      && (!envProvided || envProvided === cached.env)
+      && !cached.globalStateReason
+      && !globalStateReason
+    ) {
       this.stats.cacheHits++
       this.stats.lastMode = 'cache'
-      setStrategyDiagnostics(env, { area: 'stream', path: 'stream-cache', reason: 'same-source' })
-      return this.fullCache.tokens
+      setStrategyDiagnostics(workingEnv, { area: 'stream', path: 'stream-cache', reason: 'same-source' })
+      return cached.tokens
     }
 
     // 2. Global state → full fallback (reference, footnote, abbreviation definitions)
-    const globalStateReason = detectGlobalMarkdownState(src)
     if (globalStateReason) {
-      const tokens = this.fullParse(src, env, md)
+      const tokens = this.fullParse(src, workingEnv, md, globalStateReason)
       this.stats.fullParses++
       this.stats.lastMode = 'full'
-      setStrategyDiagnostics(env, {
+      setStrategyDiagnostics(workingEnv, {
         area: 'stream',
         path: 'stream-full',
         reason: `global-state:${globalStateReason}`,
       })
       return tokens
     }
-    if (getKnownGlobalMarkdownState(env))
-      resetKnownGlobalMarkdownState(env)
+    if (getKnownGlobalMarkdownState(workingEnv))
+      resetKnownGlobalMarkdownState(workingEnv)
 
     // 3. Plugin usage disables chunk caching to protect env side effects.
     //    When a plugin writes to env, skipping a chunk's parse would lose that data.
     if (this.pluginUsed) {
-      const tokens = this.fullParse(src, env, md)
+      const tokens = this.fullParse(src, workingEnv, md, null)
       this.stats.fullParses++
       this.stats.lastMode = 'full'
-      setStrategyDiagnostics(env, {
+      setStrategyDiagnostics(workingEnv, {
         area: 'stream',
         path: 'stream-full',
         reason: 'plugin-used',
@@ -175,13 +191,13 @@ export class CachedStreamParser {
       const appended = src.slice(this.lastSrc.length)
       if (appended && appended.charCodeAt(appended.length - 1) === 0x0A) {
         if (this.endsInsideOpenFence(this.lastSrc))
-          return this.handleFullParse(src, env, md)
-        return this.handleAppend(src, env, md)
+          return this.handleFullParse(src, workingEnv, md)
+        return this.handleAppend(src, workingEnv, md)
       }
     }
 
     // 5. Non-append or small document → chunk-aware parse
-    return this.handleFullParse(src, env, md)
+    return this.handleFullParse(src, workingEnv, md)
   }
 
   peek(): Token[] {
@@ -189,8 +205,11 @@ export class CachedStreamParser {
   }
 
   reset(): void {
+    const resets = this.stats.resets + 1
     this.doReset()
     this.stats = makeEmptyStats()
+    this.stats.resets = resets
+    this.stats.lastMode = 'reset'
   }
 
   /**
@@ -237,7 +256,9 @@ export class CachedStreamParser {
   }
 
   resetStats(): void {
+    const { resets } = this.stats
     this.stats = makeEmptyStats()
+    this.stats.resets = resets
   }
 
   // ---- Private ----
@@ -281,39 +302,46 @@ export class CachedStreamParser {
     const anchorLine = lastChunk.startLine
     const anchorTokenCount = this.findSplitIndex(this.lastTokens, anchorLine)
 
-    // The tail includes the last chunk + appended text, parsed with LOCAL coords.
+    // The tail includes the last chunk + appended text.
     const tailSrc = src.slice(anchorSrcOffset)
-    const tailState = this.core.parse(tailSrc, env, md)
-    const tailTokens = tailState.tokens
+    const tailBoundaries = detectHardBoundaries(tailSrc)
+    const tailRanges = splitIntoSafeChunkRanges(tailSrc, tailBoundaries, { minChars: 2000 })
 
     // Build new token array: prefix (unchanged chunks) + re-parsed tail.
     const newTokens = this.lastTokens.slice(0, anchorTokenCount)
-    // Materialize tail tokens into global coordinates.
-    const materializedTail = cloneTokens(tailTokens)
-    if (anchorLine > 0) {
-      shiftTokenLines(materializedTail, anchorLine)
-    }
-    appendTokens(newTokens, materializedTail)
-    this.lastTokens = newTokens
 
     // Invalidate old chunks in the re-parsed region.
     this.table.invalidateRange(anchorSrcOffset, src.length)
 
-    // Cache the new trailing segment (stored with local coords).
-    if (tailTokens.length > 0) {
+    let storedChunks = 0
+    for (const range of tailRanges) {
+      const chunkSrc = tailSrc.slice(range.start, range.end)
+      const state = this.core.parse(chunkSrc, env, md)
+      const localTokens = state.tokens
+      const globalLineOffset = anchorLine + range.startLine
+      const materialized = cloneTokens(localTokens)
+      if (globalLineOffset > 0)
+        shiftTokenLines(materialized, globalLineOffset)
+      appendTokens(newTokens, materialized)
+
+      const globalStart = anchorSrcOffset + range.start
+      const globalEnd = anchorSrcOffset + range.end
       this.storeChunk(
         src,
-        anchorSrcOffset,
-        src.length,
-        anchorLine,
-        countLines(tailSrc),
-        tailTokens, // stored as-is (local coords)
+        globalStart,
+        globalEnd,
+        globalLineOffset,
+        range.lineCount,
+        localTokens,
       )
+      storedChunks++
     }
-    this.stats.appendedChunks++
+
+    this.lastTokens = newTokens
+    this.stats.appendedChunks += storedChunks
     this.stats.appendHits++
 
-    this.fullCache = { src, tokens: newTokens }
+    this.fullCache = { src, tokens: newTokens, env, globalStateReason: null }
     this.lastSrc = src
     this.stats.lastMode = 'append'
     setStrategyDiagnostics(env, {
@@ -389,7 +417,7 @@ export class CachedStreamParser {
   ): Token[] {
     // For small documents, just do a full parse (chunk overhead not worth it).
     if (src.length < this.MIN_CHUNK_CHARS) {
-      const tokens = this.fullParse(src, env, md)
+      const tokens = this.fullParse(src, env, md, null)
       this.stats.fullParses++
       this.stats.lastMode = 'full'
       setStrategyDiagnostics(env, { area: 'stream', path: 'stream-full', reason: 'small-doc' })
@@ -402,7 +430,7 @@ export class CachedStreamParser {
 
     // If no boundaries were found (or document is one big chunk), do a full parse.
     if (ranges.length <= 1) {
-      const tokens = this.fullParse(src, env, md)
+      const tokens = this.fullParse(src, env, md, null)
       this.stats.fullParses++
       this.stats.lastMode = 'full'
       setStrategyDiagnostics(env, {
@@ -497,7 +525,7 @@ export class CachedStreamParser {
     }
 
     // Update state
-    this.fullCache = { src, tokens: out }
+    this.fullCache = { src, tokens: out, env, globalStateReason: null }
     this.lastSrc = src
     this.lastTokens = out
 
@@ -580,12 +608,16 @@ export class CachedStreamParser {
     })
   }
 
-  private fullParse(src: string, env: Record<string, unknown>, md: MarkdownIt): Token[] {
-    const globalStateReason = detectGlobalMarkdownState(src)
+  private fullParse(
+    src: string,
+    env: Record<string, unknown>,
+    md: MarkdownIt,
+    globalStateReason: GlobalMarkdownStateReason | null,
+  ): Token[] {
     const tokens = runWithKnownGlobalMarkdownState(env, globalStateReason, () => {
       return this.core.parse(src, env, md).tokens
     })
-    this.fullCache = { src, tokens }
+    this.fullCache = { src, tokens, env, globalStateReason }
     this.lastSrc = src
     this.lastTokens = tokens
     return tokens

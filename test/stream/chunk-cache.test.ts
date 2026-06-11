@@ -77,12 +77,22 @@ describe('detectHardBoundaries', () => {
     expect(boundaries.length).toBe(0) // soft boundary inside blockquote
   })
 
-  it('double blank line is always a hard boundary', () => {
+  it('does not treat double blank lines inside lists as automatically hard', () => {
     const src = '- item 1\n\n\n- item 2\n'
     const boundaries = detectHardBoundaries(src)
-    // Double blank line should be a hard boundary even between list items
-    // (In practice, double blank lines terminate lists in CommonMark)
-    expect(boundaries.length).toBeGreaterThanOrEqual(1)
+    expect(boundaries.length).toBe(0)
+  })
+
+  it('does not flag double blank lines inside indented code blocks', () => {
+    const src = '    a\n\n\n    b\n'
+    const boundaries = detectHardBoundaries(src)
+    expect(boundaries.length).toBe(0)
+  })
+
+  it('does not flag blank lines inside raw HTML blocks', () => {
+    const src = '<script>\n\nconsole.log(1)\n\n</script>\n'
+    const boundaries = detectHardBoundaries(src)
+    expect(boundaries.length).toBe(0)
   })
 })
 
@@ -269,9 +279,10 @@ describe('CachedStreamParser', () => {
     const md = markdownit()
     const parser = makeParser(md)
     const src = '# Hello\n\nWorld\n'
+    const env = {}
 
-    const t1 = parser.parse(src, {}, md)
-    const t2 = parser.parse(src, {}, md)
+    const t1 = parser.parse(src, env, md)
+    const t2 = parser.parse(src, env, md)
 
     // Cache hit: same-source fast path returns the identical token array reference
     // via fullCache (not chunk-level cache), so reference equality holds.
@@ -279,7 +290,7 @@ describe('CachedStreamParser', () => {
     expect(parser.getStats().cacheHits).toBe(1)
   })
 
-  it('append reuses cached prefix and only parses new text', () => {
+  it('append reuses cached prefix and reparses the tail', () => {
     const md = markdownit()
     const parser = makeParser(md)
 
@@ -342,6 +353,31 @@ describe('CachedStreamParser', () => {
     expect(stats.appendHits).toBeGreaterThan(0)
   })
 
+  it('advances append tail chunks when new hard boundaries are available', () => {
+    const md = markdownit()
+    const parser = makeParser(md)
+
+    let src = ''
+    for (let i = 0; i < 80; i++) {
+      src += `Baseline paragraph ${i} with extra filler text for padding.\n\n`
+    }
+
+    parser.parse(src, {}, md)
+    const initialChunks = (parser as any).table.getChunks()
+    const initialLastStart = initialChunks[initialChunks.length - 1].startOffset
+
+    for (let round = 0; round < 2; round++) {
+      for (let i = 0; i < 60; i++) {
+        src += `Append ${round}.${i} with enough filler text to create safe chunk ranges.\n\n`
+      }
+      parser.parse(src, {}, md)
+    }
+
+    const chunks = (parser as any).table.getChunks()
+    const lastStart = chunks[chunks.length - 1].startOffset
+    expect(lastStart).toBeGreaterThan(initialLastStart)
+  })
+
   it('edit triggers chunk-aware re-parse', () => {
     const md = markdownit()
     const parser = makeParser(md)
@@ -389,7 +425,20 @@ describe('CachedStreamParser', () => {
 
     parser.reset()
     expect(parser.getStats().total).toBe(0)
+    expect(parser.getStats().resets).toBe(1)
+    expect(parser.getStats().lastMode).toBe('reset')
     expect(parser.peek()).toEqual([])
+  })
+
+  it('resetStats preserves reset count', () => {
+    const parser = makeParser()
+
+    parser.reset()
+    parser.parse('# Hello\n', {}, markdownit())
+    parser.resetStats()
+
+    expect(parser.getStats().total).toBe(0)
+    expect(parser.getStats().resets).toBe(1)
   })
 
   it('small documents skip chunking (full parse)', () => {
