@@ -238,6 +238,15 @@ export class ChunkTable {
     // invalidateAll() is for generation bump.
   }
 
+  /**
+   * Update memory limits. Triggers enforcement if the new limits are tighter.
+   * Does NOT invalidate existing chunks — only evicts overflow entries.
+   */
+  updateLimits(limits: ChunkTableLimits): void {
+    this.limits = { ...this.limits, ...limits }
+    this.enforceLimits()
+  }
+
   /** Current generation value. */
   get currentGeneration(): number {
     return this.generation

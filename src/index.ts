@@ -67,6 +67,12 @@ export interface MarkdownItExperimentalOptions {
   autoUnboundedThresholdChars?: number
   autoUnboundedThresholdLines?: number
   streamChunkCache?: boolean
+  /** Maximum number of cached chunks before oldest entries are evicted. Default: 256. */
+  streamChunkCacheMaxChunks?: number
+  /** Maximum total characters across all cached chunks before eviction. Default: 2,000,000. */
+  streamChunkCacheMaxTotalChars?: number
+  /** Maximum total tokens across all cached chunks before eviction. Default: 100,000. */
+  streamChunkCacheMaxTotalTokens?: number
 }
 
 export interface MarkdownItOptions {
@@ -437,8 +443,16 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
   let cachedStreamParser: CachedStreamParser | null = null
   const getStreamParser = () => {
     if (opts.streamChunkCache) {
-      if (!cachedStreamParser)
-        cachedStreamParser = new CachedStreamParser(core)
+      if (!cachedStreamParser) {
+        const limits: Record<string, number | undefined> = {}
+        const maxChunks = opts.streamChunkCacheMaxChunks
+        const maxTotalChars = opts.streamChunkCacheMaxTotalChars
+        const maxTotalTokens = opts.streamChunkCacheMaxTotalTokens
+        if (maxChunks !== undefined) limits.maxChunks = maxChunks
+        if (maxTotalChars !== undefined) limits.maxTotalChars = maxTotalChars
+        if (maxTotalTokens !== undefined) limits.maxTotalTokens = maxTotalTokens
+        cachedStreamParser = new CachedStreamParser(core, limits)
+      }
       return cachedStreamParser
     }
     if (!streamParser)
@@ -514,6 +528,19 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       // may produce incorrect output under new parser/rule/option state.
       if (cachedStreamParser) {
         cachedStreamParser.invalidate()
+        // If cache-limit options changed, update the ChunkTable's limits so
+        // the next doReset() creates a table with the new values.
+        const maxChunksChanged = hasOwnOption(newOpts, 'streamChunkCacheMaxChunks')
+        const maxTotalCharsChanged = hasOwnOption(newOpts, 'streamChunkCacheMaxTotalChars')
+        const maxTotalTokensChanged = hasOwnOption(newOpts, 'streamChunkCacheMaxTotalTokens')
+        if (maxChunksChanged || maxTotalCharsChanged || maxTotalTokensChanged) {
+          const ro = resolvedNewOpts as Record<string, unknown>
+          cachedStreamParser.reconfigureTable({
+            maxChunks: maxChunksChanged ? (ro.streamChunkCacheMaxChunks as number | undefined) : undefined,
+            maxTotalChars: maxTotalCharsChanged ? (ro.streamChunkCacheMaxTotalChars as number | undefined) : undefined,
+            maxTotalTokens: maxTotalTokensChanged ? (ro.streamChunkCacheMaxTotalTokens as number | undefined) : undefined,
+          })
+        }
       }
       return this
     },

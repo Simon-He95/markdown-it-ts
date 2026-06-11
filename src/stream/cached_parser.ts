@@ -106,8 +106,12 @@ export class CachedStreamParser {
   // Whether the parser has been invalidated (will be reset on next parse).
   private invalidated = false
 
+  // Stored limits used to create/recreate the ChunkTable.
+  private tableLimits: ChunkTableLimits | undefined
+
   constructor(core: ParserCore, limits?: ChunkTableLimits) {
     this.core = core
+    this.tableLimits = limits
     this.table = new ChunkTable(limits)
   }
 
@@ -195,6 +199,20 @@ export class CachedStreamParser {
   }
 
   /**
+   * Update the ChunkTable's memory limits. If the parser is currently live
+   * (not invalidated), the existing table's limits are updated in-place and
+   * overflow entries evicted. Otherwise the new limits take effect on the
+   * next doReset().
+   */
+  reconfigureTable(limits: ChunkTableLimits): void {
+    this.tableLimits = { ...this.tableLimits, ...limits }
+    if (!this.invalidated) {
+      this.table.updateLimits(limits)
+    }
+    // If invalidated, doReset() will create a fresh table with these limits.
+  }
+
+  /**
    * Mark that a plugin has been registered. When true, chunk caching is
    * disabled to protect env side effects.
    */
@@ -216,7 +234,9 @@ export class CachedStreamParser {
   // ---- Private ----
 
   private doReset(): void {
-    this.table.invalidateAll()
+    // Recreate the ChunkTable so any stale limits from a previous
+    // md.set() / reconfigureTable() are replaced.
+    this.table = new ChunkTable(this.tableLimits)
     this.fullCache = null
     this.lastSrc = ''
     this.lastTokens = []
