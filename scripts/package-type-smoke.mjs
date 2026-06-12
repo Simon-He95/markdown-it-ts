@@ -266,6 +266,12 @@ import { ChunkCache } from 'markdown-it-ts/experimental'
 
 // @ts-expect-error ChunkCache alias must not be exported; use CachedStreamParser.
 import { ChunkCache as ChunkCacheSubpath } from 'markdown-it-ts/stream/cached'
+
+// @ts-expect-error private implementation subpath must not be exported.
+import { CachedStreamParser as PrivateCachedStreamParser } from 'markdown-it-ts/stream/cached_parser'
+
+// @ts-expect-error private implementation subpath must not be exported.
+import { ChunkTable as PrivateChunkTable } from 'markdown-it-ts/stream/chunk_cache'
 `)
 
 const tscArgs = [

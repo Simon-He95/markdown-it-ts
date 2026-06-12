@@ -75,6 +75,44 @@ function countNewlines(src: string): number {
   return count
 }
 
+function publicTokenShape(tokens: TokenType[]): unknown[] {
+  return tokens.map(token => ({
+    type: token.type,
+    tag: token.tag,
+    nesting: token.nesting,
+    level: token.level,
+    map: token.map,
+    attrs: token.attrs,
+    content: token.content,
+    markup: token.markup,
+    info: token.info,
+    block: token.block,
+    hidden: token.hidden,
+    children: token.children ? publicTokenShape(token.children) : null,
+  }))
+}
+
+function parseBaseline(src: string, options: MarkdownItOptions): TokenType[] {
+  return markdownit({
+    ...options,
+    stream: false,
+    streamChunkCache: false,
+    experimental: {
+      ...options.experimental,
+      stream: false,
+      streamChunkCache: false,
+    },
+  }).parse(src, {})
+}
+
+function largeDocAtLeast(chars: number): string {
+  let src = ''
+  for (let i = 0; src.length < chars; i++) {
+    src += `Paragraph ${i} with enough filler text to build a large stream append regression document.\n\n`
+  }
+  return src
+}
+
 // ---------------------------------------------------------------------------
 // P0-1: Options / rules invalidation
 // ---------------------------------------------------------------------------
@@ -1388,6 +1426,62 @@ describe('Chunk cache parse parity', () => {
       expect(html).toBe(renderBaseline(src, md.options))
     }
   })
+
+  it('keeps full parse token shape parity after middle insert and delete', () => {
+    const md = markdownit({
+      html: true,
+      linkify: true,
+      stream: true,
+      experimental: {
+        streamChunkCache: true,
+        streamChunkCacheMinChunkChars: 1,
+      },
+    })
+    const prefix = largeDoc(140)
+    const middle = [
+      '- item 1',
+      '',
+      '  continuation paragraph',
+      '',
+      '  - nested item',
+      '',
+      '> quote',
+      '>',
+      '> - list',
+      '>',
+      '>   continuation',
+      '',
+      '| a | b |',
+      '| - | - |',
+      '| [link](https://example.com) | **strong** |',
+      '',
+    ].join('\n')
+    const suffix = largeDoc(140).replaceAll('Paragraph', 'Suffix paragraph')
+    const insertedBlock = [
+      'Inserted paragraph before cached chunks with https://example.com.',
+      '',
+      '```ts',
+      'const value = 1',
+      '```',
+      '',
+    ].join('\n')
+    const initial = `${prefix}${middle}${suffix}`
+    const inserted = `${prefix}${insertedBlock}${middle}${suffix}`
+    const deleted = `${prefix}${middle}${suffix}`
+    const env: Record<string, unknown> = {}
+
+    md.stream.parse(initial, env)
+
+    md.stream.resetStats()
+    const insertedTokens = md.stream.parse(inserted, env)
+    expect(publicTokenShape(insertedTokens)).toEqual(publicTokenShape(parseBaseline(inserted, md.options)))
+    expect(md.stream.stats().chunkHits).toBeGreaterThan(0)
+
+    md.stream.resetStats()
+    const deletedTokens = md.stream.parse(deleted, env)
+    expect(publicTokenShape(deletedTokens)).toEqual(publicTokenShape(parseBaseline(deleted, md.options)))
+    expect(md.stream.stats().chunkHits).toBeGreaterThan(0)
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -1699,6 +1793,25 @@ describe('streamChunkCache integration with StreamParser append paths', () => {
       expect(getParseDiagnostics(env)?.chunkCache).toBeUndefined()
     })
   }
+
+  it('keeps large-delta append on the main unbounded append path', () => {
+    const md = markdownit({ stream: true, experimental: { streamChunkCache: true } })
+    const src = largeDocAtLeast(20_000)
+    const appended = largeDocAtLeast(65_000).replaceAll('Paragraph', 'Appended paragraph')
+    const next = src + appended
+    const env: Record<string, unknown> = {}
+
+    md.stream.parse(src, env)
+    md.stream.resetStats()
+    const tokens = md.stream.parse(next, env)
+    const html = md.renderer.render(tokens, md.options, env)
+    const stats = md.stream.stats()
+
+    expect(html).toBe(renderBaseline(next, md.options))
+    expect(getParseDiagnostics(env)?.strategy?.path).toBe('stream-unbounded-append')
+    expect(stats.unboundedAppendHits).toBeGreaterThan(0)
+    expect(getParseDiagnostics(env)?.chunkCache).toBeUndefined()
+  })
 })
 
 // ---------------------------------------------------------------------------
