@@ -96,6 +96,73 @@ function estimateLines(src: string): number {
   return countLines(src) + (src.charCodeAt(src.length - 1) === 0x0A ? 0 : 1)
 }
 
+class PendingChunks {
+  private chunks: string[] = []
+  private lineBreaks = 0
+  private lastChar = -1
+  length = 0
+
+  push(chunk: string): void {
+    if (!chunk)
+      return
+
+    this.chunks.push(chunk)
+    this.length += chunk.length
+    this.lastChar = chunk.charCodeAt(chunk.length - 1)
+    this.lineBreaks += countLines(chunk)
+  }
+
+  clear(): void {
+    this.chunks.length = 0
+    this.lineBreaks = 0
+    this.lastChar = -1
+    this.length = 0
+  }
+
+  toString(): string {
+    if (this.chunks.length === 0)
+      return ''
+    if (this.chunks.length === 1)
+      return this.chunks[0]
+
+    const text = this.chunks.join('')
+    this.chunks = [text]
+    return text
+  }
+
+  consume(chars: number): void {
+    if (chars <= 0)
+      return
+    if (chars >= this.length) {
+      this.clear()
+      return
+    }
+
+    let remaining = chars
+    while (remaining > 0 && this.chunks.length) {
+      const first = this.chunks[0]
+      if (remaining < first.length) {
+        this.chunks[0] = first.slice(remaining)
+        break
+      }
+      remaining -= first.length
+      this.chunks.shift()
+    }
+
+    const text = this.chunks.length === 1 ? this.chunks[0] : this.chunks.join('')
+    this.chunks = text ? [text] : []
+    this.length = text.length
+    this.lineBreaks = countLines(text)
+    this.lastChar = text.length ? text.charCodeAt(text.length - 1) : -1
+  }
+
+  estimateLines(): number {
+    if (this.length === 0)
+      return 0
+    return this.lineBreaks + (this.lastChar === 0x0A ? 0 : 1)
+  }
+}
+
 function isBlankLine(src: string, start: number, end: number): boolean {
   for (let i = start; i < end; i++) {
     const ch = src.charCodeAt(i)
@@ -226,7 +293,7 @@ function resolveWindow(md: MarkdownIt, totalChars: number, totalLines: number, o
 export class UnboundedBuffer {
   private readonly md: MarkdownIt
   private readonly options: UnboundedBufferOptions
-  private pending = ''
+  private pending = new PendingChunks()
   private tokens: Token[] = []
   private committedChars = 0
   private committedLines = 0
@@ -246,22 +313,23 @@ export class UnboundedBuffer {
   feed(chunk: string): void {
     if (!chunk)
       return
-    this.pending += chunk
+    this.pending.push(chunk)
     this.fedChunks += 1
   }
 
   flushAvailable(env: Record<string, unknown> = {}): Token[] | null {
-    if (!this.pending)
+    if (this.pending.length === 0)
       return null
 
     const window = this.resolveWindow()
-    const pendingLines = estimateLines(this.pending)
+    const pendingLines = this.pending.estimateLines()
     if (this.pending.length < window.holdBelowChars && pendingLines < window.holdBelowLines) {
       this.updateEnvDiagnostics(env, window, pendingLines)
       return null
     }
 
-    const ranges = splitIntoChunkRanges(this.pending, {
+    const pendingText = this.pending.toString()
+    const ranges = splitIntoChunkRanges(pendingText, {
       maxChunkChars: window.maxChunkChars,
       maxChunkLines: window.maxChunkLines,
       fenceAware: window.fenceAware,
@@ -273,28 +341,29 @@ export class UnboundedBuffer {
       return null
     }
 
-    if (hasUnsafeChunkBoundary(this.pending, ranges, { rangesCoverWholeSource: false })) {
+    if (hasUnsafeChunkBoundary(pendingText, ranges, { rangesCoverWholeSource: false })) {
       this.updateEnvDiagnostics(env, window, pendingLines)
       return null
     }
 
-    const consumed = this.commitRanges(ranges, env)
-    this.pending = this.pending.slice(consumed)
-    this.updateEnvDiagnostics(env, window, estimateLines(this.pending))
+    const consumed = this.commitRanges(pendingText, ranges, env)
+    this.pending.consume(consumed)
+    this.updateEnvDiagnostics(env, window, this.pending.estimateLines())
     return this.tokens
   }
 
   flushIfBoundary(env: Record<string, unknown> = {}): Token[] | null {
-    if (!this.pending)
+    if (this.pending.length === 0)
       return null
 
     const window = this.resolveWindow()
-    if (!endsAtBlankBoundary(this.pending, window.fenceAware)) {
-      this.updateEnvDiagnostics(env, window, estimateLines(this.pending))
+    const pendingText = this.pending.toString()
+    if (!endsAtBlankBoundary(pendingText, window.fenceAware)) {
+      this.updateEnvDiagnostics(env, window, this.pending.estimateLines())
       return null
     }
 
-    const ranges = splitIntoChunkRanges(this.pending, {
+    const ranges = splitIntoChunkRanges(pendingText, {
       maxChunkChars: window.maxChunkChars,
       maxChunkLines: window.maxChunkLines,
       fenceAware: window.fenceAware,
@@ -302,22 +371,22 @@ export class UnboundedBuffer {
     }, true)
 
     if (!ranges.length) {
-      this.updateEnvDiagnostics(env, window, estimateLines(this.pending))
+      this.updateEnvDiagnostics(env, window, this.pending.estimateLines())
       return null
     }
 
-    const rangesToCommit = hasUnsafeChunkBoundary(this.pending, ranges, { rangesCoverWholeSource: true })
-      ? [{ start: 0, end: this.pending.length, lineCount: estimateLines(this.pending) }]
+    const rangesToCommit = hasUnsafeChunkBoundary(pendingText, ranges, { rangesCoverWholeSource: true })
+      ? [{ start: 0, end: pendingText.length, lineCount: estimateLines(pendingText) }]
       : ranges
 
-    this.commitRanges(rangesToCommit, env)
-    this.pending = ''
+    this.commitRanges(pendingText, rangesToCommit, env)
+    this.pending.clear()
     this.updateEnvDiagnostics(env, window, 0)
     return this.tokens
   }
 
   flushForce(env: Record<string, unknown> = {}): Token[] {
-    if (!this.pending) {
+    if (this.pending.length === 0) {
       this.prepareGlobalStateEnv(env, '')
       const window = this.resolveWindow()
       this.updateEnvDiagnostics(env, window, 0)
@@ -325,7 +394,8 @@ export class UnboundedBuffer {
     }
 
     const window = this.resolveWindow()
-    const ranges = splitIntoChunkRanges(this.pending, {
+    const pendingText = this.pending.toString()
+    const ranges = splitIntoChunkRanges(pendingText, {
       maxChunkChars: window.maxChunkChars,
       maxChunkLines: window.maxChunkLines,
       fenceAware: window.fenceAware,
@@ -333,12 +403,12 @@ export class UnboundedBuffer {
     }, true)
 
     if (ranges.length) {
-      const rangesToCommit = hasUnsafeChunkBoundary(this.pending, ranges, { rangesCoverWholeSource: true })
-        ? [{ start: 0, end: this.pending.length, lineCount: estimateLines(this.pending) }]
+      const rangesToCommit = hasUnsafeChunkBoundary(pendingText, ranges, { rangesCoverWholeSource: true })
+        ? [{ start: 0, end: pendingText.length, lineCount: estimateLines(pendingText) }]
         : ranges
 
-      this.commitRanges(rangesToCommit, env)
-      this.pending = ''
+      this.commitRanges(pendingText, rangesToCommit, env)
+      this.pending.clear()
     }
 
     this.updateEnvDiagnostics(env, window, 0)
@@ -346,7 +416,7 @@ export class UnboundedBuffer {
   }
 
   reset(): void {
-    this.pending = ''
+    this.pending.clear()
     this.tokens = []
     this.committedChars = 0
     this.committedLines = 0
@@ -361,7 +431,7 @@ export class UnboundedBuffer {
   }
 
   pendingText(): string {
-    return this.pending
+    return this.pending.toString()
   }
 
   stats(): UnboundedBufferStats {
@@ -372,14 +442,14 @@ export class UnboundedBuffer {
       committedChars: this.committedChars,
       committedLines: this.committedLines,
       pendingChars: this.pending.length,
-      pendingLines: estimateLines(this.pending),
+      pendingLines: this.pending.estimateLines(),
       retainedTokens: this.options.retainTokens !== false,
     }
   }
 
   private resolveWindow(): ResolvedWindow {
     const totalChars = this.committedChars + this.pending.length
-    const totalLines = this.committedLines + estimateLines(this.pending)
+    const totalLines = this.committedLines + this.pending.estimateLines()
     return resolveWindow(this.md, totalChars, totalLines, this.options)
   }
 
@@ -403,17 +473,17 @@ export class UnboundedBuffer {
     this.markedGlobalStateReason = reason
   }
 
-  private commitRanges(ranges: Array<{ start: number, end: number, lineCount: number }>, env: Record<string, unknown>): number {
+  private commitRanges(pendingText: string, ranges: Array<{ start: number, end: number, lineCount: number }>, env: Record<string, unknown>): number {
     if (!ranges.length)
       return 0
 
-    this.prepareGlobalStateEnv(env, this.pending)
+    this.prepareGlobalStateEnv(env, pendingText)
 
     let consumed = 0
     try {
       for (let i = 0; i < ranges.length; i++) {
         const range = ranges[i]
-        const src = this.pending.slice(range.start, range.end)
+        const src = pendingText.slice(range.start, range.end)
         const state = this.md.core.parse(src, env, this.md)
         const nextTokens = state.tokens
         const startOffset = this.committedChars

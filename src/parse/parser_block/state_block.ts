@@ -50,6 +50,21 @@ export class StateBlock {
     let offset = 0
     let start = 0
     let indent_found = false
+    let line = 0
+
+    if (typeof s === 'string' && s.length > 0) {
+      let markerCount = s.charCodeAt(s.length - 1) === 0x0A ? 0 : 1
+      for (let i = 0; i < s.length; i++) {
+        if (s.charCodeAt(i) === 0x0A)
+          markerCount++
+      }
+
+      this.bMarks = new Array(markerCount + 1)
+      this.eMarks = new Array(markerCount + 1)
+      this.tShift = new Array(markerCount + 1)
+      this.sCount = new Array(markerCount + 1)
+      this.bsCount = new Array(markerCount + 1)
+    }
 
     for (let pos = 0, len = s.length; pos < len; pos++) {
       const ch = s.charCodeAt(pos)
@@ -73,11 +88,12 @@ export class StateBlock {
       if (ch === 0x0A || pos === len - 1) {
         if (ch !== 0x0A)
           pos++
-        this.bMarks.push(start)
-        this.eMarks.push(pos)
-        this.tShift.push(indent)
-        this.sCount.push(offset)
-        this.bsCount.push(0)
+        this.bMarks[line] = start
+        this.eMarks[line] = pos
+        this.tShift[line] = indent
+        this.sCount[line] = offset
+        this.bsCount[line] = 0
+        line++
 
         indent_found = false
         indent = 0
@@ -87,13 +103,13 @@ export class StateBlock {
     }
 
     // Push fake entry to simplify bounds checks
-    this.bMarks.push(s.length)
-    this.eMarks.push(s.length)
-    this.tShift.push(0)
-    this.sCount.push(0)
-    this.bsCount.push(0)
+    this.bMarks[line] = s.length
+    this.eMarks[line] = s.length
+    this.tShift[line] = 0
+    this.sCount[line] = 0
+    this.bsCount[line] = 0
 
-    this.lineMax = this.bMarks.length - 1
+    this.lineMax = line
   }
 
   push(type: string, tag: string, nesting: number): Token {

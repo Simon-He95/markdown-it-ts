@@ -3,6 +3,7 @@ import type { MarkdownIt } from '../index'
 import type { GlobalMarkdownStateReason } from '../parse/global_state'
 import { detectGlobalMarkdownState, detectGlobalMarkdownStateFromChunks, getKnownGlobalMarkdownState, resetKnownGlobalMarkdownState, runWithKnownGlobalMarkdownState } from '../parse/global_state'
 import { beginParseDiagnostics, setEditableDiagnostics } from '../parse/strategy_diagnostics'
+import { SegmentIndex } from './indexes'
 import { PieceTable } from './piece_table'
 
 interface SegmentAnchor {
@@ -87,6 +88,7 @@ export class EditableBuffer {
   private statsState: EditableBufferStats
   private globalStateReason: GlobalMarkdownStateReason | null
   private staleGlobalStateReason: GlobalMarkdownStateReason | null = null
+  private segmentIndex = new SegmentIndex()
 
   constructor(md: MarkdownIt, initial = '') {
     this.md = md
@@ -131,6 +133,7 @@ export class EditableBuffer {
     this.staleGlobalStateReason = this.staleGlobalStateReason || this.globalStateReason
     this.source = next
     this.tokens = []
+    this.segmentIndex.clear()
     this.globalStateReason = detectGlobalMarkdownState(text)
     this.statsState = {
       edits: 0,
@@ -226,6 +229,7 @@ export class EditableBuffer {
     this.tokens = runWithKnownGlobalMarkdownState(env, nextReason, () => {
       return this.md.core.parseSource(this.source.view(), env, this.md).tokens
     })
+    this.segmentIndex.rebuild(this.tokens, this.source)
     this.globalStateReason = nextReason
     this.statsState.fullParses += 1
     this.statsState.lastMode = 'full'
@@ -242,6 +246,8 @@ export class EditableBuffer {
     if (anchor.lineStart > 0)
       shiftTokenLines(reparsed, anchor.lineStart)
     appendTokens(this.tokens, reparsed)
+    this.segmentIndex.truncateFromToken(anchor.tokenStart)
+    this.segmentIndex.appendFromTokens(this.tokens, anchor.tokenStart, this.source)
 
     this.statsState.localizedParses += 1
     this.statsState.lastMode = 'localized'
@@ -252,61 +258,18 @@ export class EditableBuffer {
   }
 
   private findAnchorForEditLine(editLine: number): SegmentAnchor | null {
-    const segments = this.collectTopLevelSegments()
-    if (!segments.length)
+    const segment = this.segmentIndex.findByLine(editLine)
+    if (!segment)
       return null
 
-    let segmentIndex = segments.length - 1
-    for (let i = 0; i < segments.length; i++) {
-      const segment = segments[i]
-      if (editLine < segment.lineEnd || editLine <= segment.lineStart) {
-        segmentIndex = i
-        break
-      }
+    const anchor = this.segmentIndex.previous(segment)
+    if (!anchor)
+      return null
+
+    return {
+      tokenStart: anchor.tokenStart,
+      lineStart: anchor.lineStart,
+      lineEnd: anchor.lineEnd,
     }
-
-    const anchorIndex = Math.max(0, segmentIndex - 1)
-    return segments[anchorIndex]
-  }
-
-  private collectTopLevelSegments(): SegmentAnchor[] {
-    const segments: SegmentAnchor[] = []
-    let current: SegmentAnchor | null = null
-
-    const pushCurrent = () => {
-      if (!current)
-        return
-      if (current.lineEnd < current.lineStart)
-        current.lineEnd = current.lineStart
-      segments.push(current)
-      current = null
-    }
-
-    for (let i = 0; i < this.tokens.length; i++) {
-      const token = this.tokens[i]
-      const isSegmentStart = token.level === 0 && token.nesting >= 0
-
-      if (isSegmentStart) {
-        pushCurrent()
-        current = {
-          tokenStart: i,
-          lineStart: token.map?.[0] ?? 0,
-          lineEnd: token.map?.[1] ?? token.map?.[0] ?? 0,
-        }
-      }
-
-      if (!current)
-        continue
-
-      if (token.map) {
-        if (token.map[0] < current.lineStart)
-          current.lineStart = token.map[0]
-        if (token.map[1] > current.lineEnd)
-          current.lineEnd = token.map[1]
-      }
-    }
-
-    pushCurrent()
-    return segments
   }
 }

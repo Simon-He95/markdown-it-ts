@@ -17,6 +17,9 @@ export type { ChunkedOptions, ChunkRange } from './stream/chunked'
 
 export { DebouncedStreamParser, ThrottledStreamParser } from './stream/debounced'
 
+export { createDeltaStream, DeltaMarkdownStream } from './stream/delta'
+export type { DeltaMarkdownStreamOptions, DeltaMarkdownStreamStats, StreamPatch } from './stream/delta'
+
 export { EditableBuffer } from './stream/editable'
 export type { EditableBufferStats } from './stream/editable'
 

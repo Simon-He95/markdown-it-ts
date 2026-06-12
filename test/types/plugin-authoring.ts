@@ -7,8 +7,8 @@ import MarkdownIt, {
   type RendererOptions,
 } from 'markdown-it-ts'
 import { ParserCore } from 'markdown-it-ts/core'
-import { chunkedParse, StreamBuffer } from 'markdown-it-ts/experimental'
-import type { StreamStats } from 'markdown-it-ts/experimental'
+import { chunkedParse, createDeltaStream, StreamBuffer } from 'markdown-it-ts/experimental'
+import type { DeltaMarkdownStreamStats, StreamPatch, StreamStats } from 'markdown-it-ts/experimental'
 import type { RendererRule } from 'markdown-it-ts/render/renderer'
 
 // @ts-expect-error Experimental helpers must stay out of the stable root entry.
@@ -122,6 +122,9 @@ typedMetaToken.meta = { other: 'field' }
 const streamBuffer = new StreamBuffer(typedMd)
 streamBuffer.feed('# Title\n\n')
 const streamStats: StreamStats = typedMd.stream.stats()
+const deltaStream = createDeltaStream(typedMd)
+const streamPatch: StreamPatch | null = typedMd.stream.createDelta().feed('# Title\n\n')
+const deltaStats: DeltaMarkdownStreamStats = deltaStream.stats()
 
 const chunkedTokens: Token[] = chunkedParse(typedMd, '# Title\n\nBody', env)
 const coreTokens: Token[] = new ParserCore().parse('# Core').tokens
@@ -140,5 +143,7 @@ void mdWithNamespacedExperimentalOptions
 void typedMetaToken
 void streamBuffer
 void streamStats
+void streamPatch
+void deltaStats
 void chunkedTokens
 void coreTokens

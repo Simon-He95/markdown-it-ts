@@ -16,6 +16,7 @@ import defaultPreset from './presets/default'
 import zeroPreset from './presets/zero'
 import Renderer from './render/renderer'
 import { chunkedParse } from './stream/chunked'
+import { DeltaMarkdownStream } from './stream/delta'
 import { StreamParser } from './stream/parser'
 import {
   getAutoUnboundedDecision,
@@ -173,6 +174,7 @@ export interface MarkdownIt {
     peek: () => TokenType[]
     stats: () => StreamStats
     resetStats: () => void
+    createDelta: (env?: Record<string, unknown>) => DeltaMarkdownStream
   }
   set: (options: MarkdownItOptions) => this
   configure: (presets: string | Preset) => this
@@ -762,6 +764,9 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
     resetStats() {
       if (streamParser)
         streamParser.resetStats()
+    },
+    createDelta(env: Record<string, unknown> = {}) {
+      return new DeltaMarkdownStream(md as MarkdownIt, env)
     },
   }
 

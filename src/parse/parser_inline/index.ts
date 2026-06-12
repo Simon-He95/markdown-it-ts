@@ -54,6 +54,26 @@ function isInlineTerminatorChar(ch: number): boolean {
   }
 }
 
+function isDefaultDispatchChar(ch: number, linkifyEnabled: boolean): boolean {
+  switch (ch) {
+    case 0x0A: // \n
+    case 0x21: // !
+    case 0x26: // &
+    case 0x2A: // *
+    case 0x3C: // <
+    case 0x5B: // [
+    case 0x5C: // \
+    case 0x5F: // _
+    case 0x60: // `
+    case 0x7E: // ~
+      return true
+    case 0x3A: // :
+      return linkifyEnabled
+    default:
+      return false
+  }
+}
+
 export function isPlainInlineText(src: string): boolean {
   for (let i = 0; i < src.length; i++) {
     if (isInlineTerminatorChar(src.charCodeAt(i))) {
@@ -193,6 +213,11 @@ export class ParserInline {
     const shouldProfile = !!state.env && (Object.prototype.hasOwnProperty.call(state.env, '__mdtsRuleProfile') || Object.prototype.hasOwnProperty.call(state.env, '__mdtsProfileRules'))
 
     if (!shouldProfile) {
+      if (typeof state.src === 'string' && this.isDefaultRuleset()) {
+        this.tokenizeDefault(state)
+        return
+      }
+
       while (state.pos < end) {
         const prevPos = state.pos
         let ok: boolean | void = false
@@ -260,6 +285,69 @@ export class ParserInline {
 
     if (state.pending) {
       state.pushPending()
+    }
+  }
+
+  private tokenizeDefault(state: StateInline): void {
+    const src = state.src as string
+    const end = state.posMax
+    const linkifyEnabled = !!state.md.options.linkify
+
+    while (state.pos < end) {
+      const prevPos = state.pos
+      const ch = src.charCodeAt(prevPos)
+
+      if (!isDefaultDispatchChar(ch, linkifyEnabled)) {
+        let pos = prevPos + 1
+        while (pos < end && !isDefaultDispatchChar(src.charCodeAt(pos), linkifyEnabled))
+          pos++
+        state.pending += src.slice(prevPos, pos)
+        state.pos = pos
+        continue
+      }
+
+      let ok: boolean | void = false
+      if (state.level < state.maxNesting)
+        ok = this.tryDefaultRule(state, ch)
+
+      if (ok) {
+        if (prevPos >= state.pos)
+          throw new Error('inline rule didn\'t increment state.pos')
+        continue
+      }
+
+      state.pending += src.charAt(state.pos++)
+    }
+
+    if (state.pending)
+      state.pushPending()
+  }
+
+  private tryDefaultRule(state: StateInline, ch: number): boolean | void {
+    switch (ch) {
+      case 0x0A:
+        return newline(state, false)
+      case 0x21:
+        return image(state, false)
+      case 0x26:
+        return entity(state, false)
+      case 0x2A:
+      case 0x5F:
+        return emphasis.tokenize(state, false)
+      case 0x3A:
+        return linkify(state, false)
+      case 0x3C:
+        return autolink(state, false) || html_inline(state, false)
+      case 0x5B:
+        return link(state, false)
+      case 0x5C:
+        return escape(state, false)
+      case 0x60:
+        return backticks(state, false)
+      case 0x7E:
+        return strikethrough.tokenize(state, false)
+      default:
+        return false
     }
   }
 

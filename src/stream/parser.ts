@@ -7,6 +7,7 @@ import { detectGlobalMarkdownState, getKnownGlobalMarkdownState, resetKnownGloba
 import { beginParseDiagnostics, getParseDiagnostics, setStrategyDiagnostics } from '../parse/strategy_diagnostics'
 import { recommendStreamChunkStrategy } from '../support/chunk_recommend'
 import { chunkedParse } from './chunked'
+import { LineIndex, SegmentIndex } from './indexes'
 import { getAutoUnboundedDecision, parseStringUnbounded, shouldAutoUseUnbounded } from './unbounded'
 
 interface StreamCache {
@@ -17,6 +18,8 @@ interface StreamCache {
   lineCount?: number
   lastSegment?: StreamSegment | null
   globalStateReason?: GlobalMarkdownStateReason | null
+  lineIndex?: LineIndex
+  segmentIndex?: SegmentIndex
 }
 
 interface StreamSegment {
@@ -28,6 +31,54 @@ interface StreamSegment {
 }
 
 const EMPTY_TOKENS: Token[] = []
+
+function attrsEqual(a?: [string, string][] | null, b?: [string, string][] | null): boolean {
+  if (!a && !b)
+    return true
+  if (!a || !b || a.length !== b.length)
+    return false
+  for (let i = 0; i < a.length; i++) {
+    if (a[i][0] !== b[i][0] || a[i][1] !== b[i][1])
+      return false
+  }
+  return true
+}
+
+function tokenSignature(t: Token): string {
+  return `${t.type}|${t.tag}|${t.nesting}|${t.level}|${t.markup}|${t.info}|${t.content.length}`
+}
+
+function childrenEqual(a?: Token[] | null, b?: Token[] | null): boolean {
+  if (!a && !b)
+    return true
+  if (!a || !b || a.length !== b.length)
+    return false
+  for (let i = 0; i < a.length; i++) {
+    if (!tokenEquals(a[i], b[i]))
+      return false
+  }
+  return true
+}
+
+function tokenEquals(x: Token | undefined, y: Token | undefined): boolean {
+  if (!x || !y)
+    return false
+  if (tokenSignature(x) !== tokenSignature(y))
+    return false
+  const xMap = x.map
+  const yMap = y.map
+  if (!!xMap !== !!yMap)
+    return false
+  if (xMap && yMap && (xMap[0] !== yMap[0] || xMap[1] !== yMap[1]))
+    return false
+  if (x.block !== y.block || x.hidden !== y.hidden)
+    return false
+  if (!attrsEqual(x.attrs, y.attrs))
+    return false
+  if (!childrenEqual(x.children, y.children))
+    return false
+  return x.content === y.content
+}
 
 export interface StreamStats {
   total: number
@@ -547,56 +598,6 @@ export class StreamParser {
         const a = appendedState.tokens
         const maxCheck = Math.min(cachedTail.length, a.length)
 
-        function attrsEqual(a?: [string, string][] | null, b?: [string, string][] | null) {
-          if (!a && !b)
-            return true
-          if (!a || !b || a.length !== b.length)
-            return false
-          for (let i = 0; i < a.length; i++) {
-            if (a[i][0] !== b[i][0] || a[i][1] !== b[i][1])
-              return false
-          }
-          return true
-        }
-
-        function childrenEqual(a?: any[] | null, b?: any[] | null) {
-          if (!a && !b)
-            return true
-          if (!a || !b || a.length !== b.length)
-            return false
-          for (let i = 0; i < a.length; i++) {
-            if (!tokenEquals(a[i], b[i]))
-              return false
-          }
-          return true
-        }
-
-        function tokenEquals(x: any, y: any) {
-          if (!x || !y)
-            return false
-          if (x.type !== y.type)
-            return false
-          const xMap = x.map
-          const yMap = y.map
-          if (!!xMap !== !!yMap)
-            return false
-          if (xMap && yMap && (xMap[0] !== yMap[0] || xMap[1] !== yMap[1]))
-            return false
-          if (x.tag !== y.tag || x.nesting !== y.nesting)
-            return false
-          if (x.markup !== y.markup || x.info !== y.info)
-            return false
-          if (x.block !== y.block || x.hidden !== y.hidden)
-            return false
-          if (!attrsEqual(x.attrs, y.attrs))
-            return false
-          if (!childrenEqual(x.children, y.children))
-            return false
-          if (x.type === 'inline')
-            return (x.content || '') === (y.content || '')
-          return (x.content || '') === (y.content || '')
-        }
-
         // Debug output suppressed in CI
         let dup = 0
         // Try longest prefix match
@@ -627,27 +628,18 @@ export class StreamParser {
       }
 
       // Update cache with new src and line count
+      const oldSrcLength = cached.src.length
+      const lineIndex = this.ensureLineIndex(cached)
       cached.src = src
       cached.globalStateReason = detectGlobalMarkdownState(src)
       const appendedLines = appendedLineCount ?? countLines(appended)
       cached.lineCount = cachedLineCount + appendedLines
+      lineIndex.append(appended, oldSrcLength)
       if (cached.tokens.length > appendStart) {
-        const appendedLastSegment = this.getLastSegment(cached.tokens.slice(appendStart), src)
-        if (appendedLastSegment) {
-          cached.lastSegment = {
-            tokenStart: appendStart + appendedLastSegment.tokenStart,
-            tokenEnd: appendStart + appendedLastSegment.tokenEnd,
-            lineStart: appendedLastSegment.lineStart,
-            lineEnd: appendedLastSegment.lineEnd,
-            srcOffset: appendedLastSegment.srcOffset,
-          }
-        }
-        else {
-          cached.lastSegment = undefined
-        }
-      }
-      else {
-        cached.lastSegment = undefined
+        const segmentIndex = this.ensureSegmentIndex(cached)
+        segmentIndex.truncateFromToken(appendStart)
+        segmentIndex.appendFromTokens(cached.tokens, appendStart, lineIndex)
+        cached.lastSegment = segmentIndex.last()
       }
 
       this.stats.total += 1
@@ -936,7 +928,6 @@ export class StreamParser {
 
     try {
       const tailState = this.core.parse(nextTail, env, md)
-      const localLastSegment = this.getLastSegment(tailState.tokens, nextTail)
       if (lastSegment.lineStart > 0)
         this.shiftTokenLines(tailState.tokens, lastSegment.lineStart)
 
@@ -945,19 +936,7 @@ export class StreamParser {
       cached.globalStateReason = detectGlobalMarkdownState(src)
       cached.tokens.length = lastSegment.tokenStart
       this.appendTokens(cached.tokens, tailState.tokens)
-      cached.lineCount = countLines(src)
-      if (localLastSegment) {
-        cached.lastSegment = {
-          tokenStart: lastSegment.tokenStart + localLastSegment.tokenStart,
-          tokenEnd: lastSegment.tokenStart + localLastSegment.tokenEnd,
-          lineStart: lastSegment.lineStart + localLastSegment.lineStart,
-          lineEnd: lastSegment.lineStart + localLastSegment.lineEnd,
-          srcOffset: lastSegment.srcOffset + localLastSegment.srcOffset,
-        }
-      }
-      else {
-        cached.lastSegment = null
-      }
+      this.updateCacheIndexesFrom(cached, lastSegment.tokenStart, lastSegment.srcOffset, nextTail)
       return cached.tokens
     }
     catch {
@@ -1046,26 +1025,65 @@ export class StreamParser {
 
   private updateCacheLineCount(cache: StreamCache, lineCount?: number): void {
     cache.lineCount = lineCount ?? countLines(cache.src)
-    cache.lastSegment = undefined
+    this.rebuildCacheIndexes(cache)
   }
 
   private ensureLastSegment(cache: StreamCache): StreamSegment | null {
     if (cache.lastSegment !== undefined)
       return cache.lastSegment
 
-    cache.lastSegment = this.getLastSegment(cache.tokens, cache.src)
+    cache.lastSegment = this.ensureSegmentIndex(cache).last()
     return cache.lastSegment
   }
 
-  private getLastSegment(tokens: Token[], src: string): StreamSegment | null {
-    if (tokens.length === 0)
+  private ensureLineIndex(cache: StreamCache): LineIndex {
+    if (!cache.lineIndex) {
+      cache.lineIndex = new LineIndex()
+      cache.lineIndex.reset(cache.src)
+    }
+    return cache.lineIndex
+  }
+
+  private ensureSegmentIndex(cache: StreamCache): SegmentIndex {
+    if (!cache.segmentIndex) {
+      cache.segmentIndex = new SegmentIndex()
+      cache.segmentIndex.rebuild(cache.tokens, this.ensureLineIndex(cache))
+    }
+    return cache.segmentIndex
+  }
+
+  private rebuildCacheIndexes(cache: StreamCache): void {
+    const lineIndex = cache.lineIndex ?? new LineIndex()
+    lineIndex.reset(cache.src)
+    cache.lineIndex = lineIndex
+
+    const segmentIndex = cache.segmentIndex ?? new SegmentIndex()
+    segmentIndex.rebuild(cache.tokens, lineIndex)
+    cache.segmentIndex = segmentIndex
+    cache.lastSegment = segmentIndex.last()
+  }
+
+  private updateCacheIndexesFrom(cache: StreamCache, tokenStart: number, srcOffset: number, nextTail: string): void {
+    const lineIndex = this.ensureLineIndex(cache)
+    lineIndex.truncate(srcOffset)
+    lineIndex.append(nextTail, srcOffset)
+    cache.lineCount = lineIndex.lineCount()
+
+    const segmentIndex = this.ensureSegmentIndex(cache)
+    segmentIndex.truncateFromToken(tokenStart)
+    segmentIndex.appendFromTokens(cache.tokens, tokenStart, lineIndex)
+    cache.lastSegment = segmentIndex.last()
+  }
+
+  private getLastSegment(tokens: Token[], src: string, start = 0, end = tokens.length, lineIndex?: LineIndex): StreamSegment | null {
+    if (end <= start)
       return null
 
     let lineStart = Number.POSITIVE_INFINITY
     let lineEnd = -1
     let depth = 0
 
-    for (let i = tokens.length - 1; i >= 0; i--) {
+    for (let i = end - 1; i >= start; i--) {
       const token = tokens[i]
       if (token.map) {
         if (token.map[0] < lineStart)
@@ -1090,10 +1108,10 @@ export class StreamParser {
             : (token.map?.[1] ?? resolvedStart)
           return {
             tokenStart: i,
-            tokenEnd: tokens.length,
+            tokenEnd: end,
             lineStart: resolvedStart,
             lineEnd: resolvedEnd,
-            srcOffset: this.getLineStartOffset(src, resolvedStart),
+            srcOffset: lineIndex ? lineIndex.offsetOfLine(resolvedStart) : this.getLineStartOffset(src, resolvedStart),
           }
         }
         continue
@@ -1108,10 +1126,10 @@ export class StreamParser {
           : (token.map?.[1] ?? resolvedStart)
         return {
           tokenStart: i,
-          tokenEnd: tokens.length,
+          tokenEnd: end,
           lineStart: resolvedStart,
           lineEnd: resolvedEnd,
-          srcOffset: this.getLineStartOffset(src, resolvedStart),
+          srcOffset: lineIndex ? lineIndex.offsetOfLine(resolvedStart) : this.getLineStartOffset(src, resolvedStart),
         }
       }
     }
@@ -1235,20 +1253,20 @@ export class StreamParser {
       this.setListParagraphVisibility(inserted, 0, inserted.length, listOpen.level, false)
     }
 
+    const oldSrcLength = cached.src.length
+    const lineIndex = this.ensureLineIndex(cached)
     cached.tokens.splice(cached.tokens.length - 1, 0, ...inserted)
     cached.src = src
     cached.env = env
     cached.globalStateReason = detectGlobalMarkdownState(src)
-    cached.lineCount = countLines(src)
+    lineIndex.append(appended, oldSrcLength)
+    cached.lineCount = lineIndex.lineCount()
     if (listOpen.map)
       listOpen.map[1] = this.getDocLineCount(src)
-    cached.lastSegment = {
-      tokenStart: lastSegment.tokenStart,
-      tokenEnd: cached.tokens.length,
-      lineStart: lastSegment.lineStart,
-      lineEnd: this.getDocLineCount(src),
-      srcOffset: lastSegment.srcOffset,
-    }
+    const segmentIndex = this.ensureSegmentIndex(cached)
+    segmentIndex.truncateFromToken(lastSegment.tokenStart)
+    segmentIndex.appendFromTokens(cached.tokens, lastSegment.tokenStart, lineIndex)
+    cached.lastSegment = segmentIndex.last()
     return cached.tokens
   }
 
@@ -1306,11 +1324,14 @@ export class StreamParser {
     const insertAt = cachedSection.tbodyCloseIndex >= 0
       ? cachedSection.tbodyCloseIndex
       : cachedSection.tableCloseIndex
+    const oldSrcLength = cached.src.length
+    const lineIndex = this.ensureLineIndex(cached)
     cached.tokens.splice(insertAt, 0, ...inserted)
     cached.src = src
     cached.env = env
     cached.globalStateReason = detectGlobalMarkdownState(src)
-    cached.lineCount = countLines(src)
+    lineIndex.append(appended, oldSrcLength)
+    cached.lineCount = lineIndex.lineCount()
 
     const nextDocLineCount = this.getDocLineCount(src)
     if (tableOpen.map)
@@ -1321,13 +1342,10 @@ export class StreamParser {
         tbodyOpen.map[1] = nextDocLineCount
     }
 
-    cached.lastSegment = {
-      tokenStart: lastSegment.tokenStart,
-      tokenEnd: cached.tokens.length,
-      lineStart: lastSegment.lineStart,
-      lineEnd: nextDocLineCount,
-      srcOffset: lastSegment.srcOffset,
-    }
+    const segmentIndex = this.ensureSegmentIndex(cached)
+    segmentIndex.truncateFromToken(lastSegment.tokenStart)
+    segmentIndex.appendFromTokens(cached.tokens, lastSegment.tokenStart, lineIndex)
+    cached.lastSegment = segmentIndex.last()
     return cached.tokens
   }
 
@@ -1513,8 +1531,9 @@ export class StreamParser {
     if (offset === 0)
       return
 
-    // Use iterative approach with a stack to avoid recursion overhead
-    const stack: Token[] = [...tokens]
+    const stack: Token[] = []
+    for (let i = tokens.length - 1; i >= 0; i--)
+      stack.push(tokens[i])
 
     while (stack.length > 0) {
       const token = stack.pop()!
