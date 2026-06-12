@@ -12,7 +12,6 @@
       "markdown-it-ts": ["../../src/index.ts"],
       "markdown-it-ts/core": ["../../src/core.ts"],
       "markdown-it-ts/experimental": ["../../src/experimental.ts"],
-      "markdown-it-ts/stream/cached": ["../../src/stream/cached.ts"],
       "markdown-it-ts/render/renderer": ["../../src/render/renderer.ts"]
     },
     "lib": ["DOM", "ES2022"]

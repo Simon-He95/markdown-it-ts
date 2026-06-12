@@ -46,7 +46,7 @@
 
 Same-source 可以直接命中完整 token cache。中间编辑仍会扫描并切分当前文档；只有 hard boundary 和精确内容比较都保持安全时，才会跳过未变 chunk 的重新解析。若 dirty range、content lookup candidates 或逐字符比较次数超过内部成本上限，本次会回退到 full parse，并在 diagnostics 中标记 `fallbackReason: 'chunk-cache-cost-limit'`。
 
-注册插件或直接修改 parser ruler 后，per-chunk cache 会清空并停用；普通 `StreamParser` 的 same-source、append、tail reparse 路径仍然可以继续工作。`md.linkify.add()` / `set()` / `tlds()` 这类运行时 linkify mutation 会清空 stream cache，并让 chunk cache 在下一次 parse 前失效。`CachedStreamParser` 通过 `markdown-it-ts/experimental` 和 `markdown-it-ts/stream/cached` 暴露；公开 constructor 默认不启用 per-chunk reuse，direct 调用方只有同时传入 `assumeCoreRulesOnly: true` 和 `unsafeDirectApiAcknowledged: true`，并保证没有 plugin/custom rule/env side effects，才会启用 direct chunk reuse。direct 调用方如果之后注册插件，必须显式调用 `setPluginUsed(true)`；如果修改规则且确认新规则仍是 chunk-local、没有 env side effect，必须调用 `noteSafeRuleChange(md)`。`invalidate()` 只清空缓存，不会在 unsafe rule change 后重新允许 chunk reuse。`ChunkTable` 通过 `markdown-it-ts/experimental` 和 `markdown-it-ts/stream/chunk-table` 暴露。token materialization helper 仍不作为 package public API 暴露，也不提供 `markdown-it-ts/stream/cached_parser` 或 `markdown-it-ts/stream/chunk_cache` 子路径入口。
+注册插件或直接修改 parser ruler 后，per-chunk cache 会清空并停用；普通 `StreamParser` 的 same-source、append、tail reparse 路径仍然可以继续工作。`md.linkify.add()` / `set()` / `tlds()` 这类运行时 linkify mutation 会清空 stream cache，并让 chunk cache 在下一次 parse 前失效。`CachedStreamParser` 和 `ChunkTable` 只通过 `markdown-it-ts/experimental` 暴露；公开 constructor 默认不启用 per-chunk reuse，direct 调用方只有同时传入 `assumeCoreRulesOnly: true` 和 `unsafeDirectApiAcknowledged: true`，并保证没有 plugin/custom rule/env side effects，才会启用 direct chunk reuse。direct 调用方如果之后注册插件，必须显式调用 `setPluginUsed(true)`；如果修改规则且确认新规则仍是 chunk-local、没有 env side effect，必须调用 `noteSafeRuleChange(md)`。`invalidate()` 只清空缓存，不会在 unsafe rule change 后重新允许 chunk reuse。token materialization helper 仍不作为 package public API 暴露，也不提供 `markdown-it-ts/stream/cached`、`markdown-it-ts/stream/chunk-table`、`markdown-it-ts/stream/cached_parser` 或 `markdown-it-ts/stream/chunk_cache` 子路径入口。
 
 默认上限是 `256` 个 chunk、`1_000_000` 个 chunk source chars、`100_000` 个 cached token weight。token weight 会递归统计 inline children、attrs 和 content 字符串，避免 inline-heavy 文档低估缓存占用。可以按运行环境调低：
 
@@ -63,7 +63,7 @@ const md = MarkdownIt({
 })
 ```
 
-Bundle 成本需要显式接受：同步 `md.stream.parse()` opt-in 路径会让 `CachedStreamParser` 从根入口可达。当前构建输出为 `dist/index.js` 96.41 kB / gzip 19.57 kB；直接子路径 `markdown-it-ts/stream/cached` 对应 `dist/stream/cached.js` 21.07 kB / gzip 5.14 kB。修改 chunk cache internals 后用 `pnpm run build` 重新核对。
+Bundle 成本需要显式接受：同步 `md.stream.parse()` opt-in 路径会让 `CachedStreamParser` 从根入口可达。修改 chunk cache internals 后用 `pnpm run build` 重新核对构建输出。
 
 ## chunked / streaming 正确性说明
 

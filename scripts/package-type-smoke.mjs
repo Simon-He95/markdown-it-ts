@@ -25,6 +25,7 @@ import {
 } from 'markdown-it-ts/core'
 import {
   ChunkTable,
+  CachedStreamParser,
   chunkedParse,
   EditableBuffer,
   PieceTable,
@@ -35,19 +36,12 @@ import {
   parseAsyncIterableToSink,
   parseIterable,
   parseIterableToSink,
+  type CachedStreamStats,
   type StreamStats,
 } from 'markdown-it-ts/experimental'
 import Renderer, { type RendererRule } from 'markdown-it-ts/render/renderer'
 import { StreamBuffer as StreamBufferSubpath } from 'markdown-it-ts/stream/buffer'
 import { chunkedParse as chunkedParseSubpath } from 'markdown-it-ts/stream/chunked'
-import {
-  CachedStreamParser,
-  type CachedStreamStats,
-} from 'markdown-it-ts/stream/cached'
-import {
-  ChunkTable as ChunkTableSubpath,
-  computeContentFingerprint,
-} from 'markdown-it-ts/stream/chunk-table'
 import {
   DebouncedStreamParser,
   ThrottledStreamParser,
@@ -143,20 +137,6 @@ const streamStats: StreamStats = typedMd.stream.stats()
 const cachedStreamParser = new CachedStreamParser(typedMd.core)
 const cachedStreamStats: CachedStreamStats = cachedStreamParser.getStats()
 const chunkTable = new ChunkTable()
-const chunkTableSubpath = new ChunkTableSubpath()
-const chunkTableSource = 'typed chunk'
-chunkTable.store({
-  startOffset: 0,
-  endOffset: chunkTableSource.length,
-  startLine: 0,
-  lineCount: 1,
-  sourceText: chunkTableSource,
-  fingerprint: computeContentFingerprint(chunkTableSource, 0, chunkTableSource.length),
-  tokens: [],
-  generation: 0,
-  charLength: chunkTableSource.length,
-  tokenWeight: 0,
-})
 const chunkedTokens: Token[] = chunkedParse(typedMd, '# Title\\n\\nBody', env)
 const diagnostics = getParseDiagnostics(env)
 const iterableTokens: Token[] = parseIterable(typedMd, ['# A\\n', '\\nB'], env)
@@ -182,7 +162,6 @@ void streamStats
 void cachedStreamParser
 void cachedStreamStats
 void chunkTable
-void chunkTableSubpath
 void chunkedTokens
 void diagnostics
 void namespacedOptionsMd
@@ -264,8 +243,11 @@ import type { UnboundedBufferOptions } from 'markdown-it-ts'
 // @ts-expect-error ChunkCache alias must not be exported; use CachedStreamParser.
 import { ChunkCache } from 'markdown-it-ts/experimental'
 
-// @ts-expect-error ChunkCache alias must not be exported; use CachedStreamParser.
-import { ChunkCache as ChunkCacheSubpath } from 'markdown-it-ts/stream/cached'
+// @ts-expect-error chunk cache parser is experimental-only.
+import { CachedStreamParser as CachedStreamParserSubpath } from 'markdown-it-ts/stream/cached'
+
+// @ts-expect-error chunk table is experimental-only.
+import { ChunkTable as ChunkTableSubpath } from 'markdown-it-ts/stream/chunk-table'
 
 // @ts-expect-error private implementation subpath must not be exported.
 import { CachedStreamParser as PrivateCachedStreamParser } from 'markdown-it-ts/stream/cached_parser'

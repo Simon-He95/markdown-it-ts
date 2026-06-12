@@ -7,9 +7,7 @@ import MarkdownIt, {
   type RendererOptions,
 } from 'markdown-it-ts'
 import { ParserCore } from 'markdown-it-ts/core'
-import { chunkedParse, StreamBuffer } from 'markdown-it-ts/experimental'
-import { CachedStreamParser, type CachedStreamStats } from 'markdown-it-ts/stream/cached'
-import type { StreamStats } from 'markdown-it-ts/experimental'
+import { CachedStreamParser, chunkedParse, StreamBuffer, type CachedStreamStats, type StreamStats } from 'markdown-it-ts/experimental'
 import type { RendererRule } from 'markdown-it-ts/render/renderer'
 
 // @ts-expect-error Experimental helpers must stay out of the stable root entry.

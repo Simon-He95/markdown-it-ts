@@ -40,7 +40,7 @@
 | --- | --- |
 | 稳定目标 | `MarkdownIt()`、`parse`、`render`、`renderInline`、`renderAsync`、`renderer.rules`、`Token`、公开 ruler/plugin API |
 | 高级用法 | Root `withRenderer`，以及已文档化的子路径导出，例如 `core`、renderer helper、common utilities |
-| 实验性 | `stream`、`chunkedParse`、`StreamBuffer`、`UnboundedBuffer`、`EditableBuffer`、`PieceTable`、`CachedStreamParser`、`ChunkTable`、iterable/sink parsing、chunk strategy recommender 通过 `markdown-it-ts/experimental` 使用；部分 helper 也有显式子路径，例如 `markdown-it-ts/stream/buffer`、`markdown-it-ts/stream/chunked`、`markdown-it-ts/stream/cached`、`markdown-it-ts/stream/chunk-table`、`markdown-it-ts/stream/debounced`、`markdown-it-ts/support/chunk_recommend` |
+| 实验性 | `stream`、`chunkedParse`、`StreamBuffer`、`UnboundedBuffer`、`EditableBuffer`、`PieceTable`、`CachedStreamParser`、`ChunkTable`、iterable/sink parsing、chunk strategy recommender 通过 `markdown-it-ts/experimental` 使用；部分 helper 也有显式子路径，例如 `markdown-it-ts/stream/buffer`、`markdown-it-ts/stream/chunked`、`markdown-it-ts/stream/debounced`、`markdown-it-ts/support/chunk_recommend` |
 
 根入口不再以顶层 named export 暴露实验性 helper。部分高级实例方法和选项仍保留给既有的大输入集成使用，并会在类型声明中标记为 experimental。
 

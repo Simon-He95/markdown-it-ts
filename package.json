@@ -58,14 +58,6 @@
       "types": "./dist/stream/chunked.d.ts",
       "import": "./dist/stream/chunked.js"
     },
-    "./stream/cached": {
-      "types": "./dist/stream/cached.d.ts",
-      "import": "./dist/stream/cached.js"
-    },
-    "./stream/chunk-table": {
-      "types": "./dist/stream/chunk-table.d.ts",
-      "import": "./dist/stream/chunk-table.js"
-    },
     "./stream/debounced": {
       "types": "./dist/stream/debounced.d.ts",
       "import": "./dist/stream/debounced.js"

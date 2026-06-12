@@ -25,9 +25,7 @@ import { withRenderer } from 'markdown-it-ts/plugins/with-renderer'
 import { Renderer } from 'markdown-it-ts/render/renderer'
 import { StreamBuffer } from 'markdown-it-ts/stream/buffer'
 import { chunkedParse } from 'markdown-it-ts/stream/chunked'
-import { CachedStreamParser } from 'markdown-it-ts/stream/cached'
-import { ChunkTable } from 'markdown-it-ts/stream/chunk-table'
-import { chunkedParse as experimentalChunkedParse, UnboundedBuffer } from 'markdown-it-ts/experimental'
+import { CachedStreamParser, ChunkTable, chunkedParse as experimentalChunkedParse, UnboundedBuffer } from 'markdown-it-ts/experimental'
 
 const md = withRenderer(MarkdownIt({ stream: true }))
 const html = md.render('# bundled')

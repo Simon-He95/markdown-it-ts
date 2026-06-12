@@ -40,7 +40,7 @@ A TypeScript migration of [markdown-it](https://github.com/markdown-it/markdown-
 | --- | --- |
 | Stable target | `MarkdownIt()`, `parse`, `render`, `renderInline`, `renderAsync`, `renderer.rules`, `Token`, and public ruler/plugin APIs |
 | Advanced | Root `withRenderer`, documented subpath exports such as `core`, renderer helpers, and common utilities |
-| Experimental | `stream`, `chunkedParse`, `StreamBuffer`, `UnboundedBuffer`, `EditableBuffer`, `PieceTable`, `CachedStreamParser`, `ChunkTable`, iterable/sink parsing, and chunk strategy recommenders via `markdown-it-ts/experimental`; selected helpers also have explicit subpaths such as `markdown-it-ts/stream/buffer`, `markdown-it-ts/stream/chunked`, `markdown-it-ts/stream/cached`, `markdown-it-ts/stream/chunk-table`, `markdown-it-ts/stream/debounced`, and `markdown-it-ts/support/chunk_recommend` |
+| Experimental | `stream`, `chunkedParse`, `StreamBuffer`, `UnboundedBuffer`, `EditableBuffer`, `PieceTable`, `CachedStreamParser`, `ChunkTable`, iterable/sink parsing, and chunk strategy recommenders via `markdown-it-ts/experimental`; selected helpers also have explicit subpaths such as `markdown-it-ts/stream/buffer`, `markdown-it-ts/stream/chunked`, `markdown-it-ts/stream/debounced`, and `markdown-it-ts/support/chunk_recommend` |
 
 The root entry no longer exposes experimental helpers as top-level named exports. Some large-input helpers remain available as experimental instance methods for compatibility, but they are not part of the stable markdown-it compatibility contract.
 
@@ -361,8 +361,7 @@ import { withRenderer } from 'markdown-it-ts/plugins/with-renderer'
 import Renderer from 'markdown-it-ts/render/renderer'
 import { StreamBuffer } from 'markdown-it-ts/stream/buffer'
 import { chunkedParse } from 'markdown-it-ts/stream/chunked'
-import { CachedStreamParser } from 'markdown-it-ts/stream/cached'
-import { ChunkTable } from 'markdown-it-ts/stream/chunk-table'
+import { CachedStreamParser, ChunkTable } from 'markdown-it-ts/experimental'
 import { DebouncedStreamParser, ThrottledStreamParser } from 'markdown-it-ts/stream/debounced'
 ```
 

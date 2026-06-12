@@ -16,12 +16,12 @@ describe('root export contract', () => {
     `)
   })
 
-  it('exposes cached stream parser and chunk table subpaths without exposing private internals', () => {
+  it('keeps chunk cache APIs on the experimental entry only', () => {
     const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
 
     expect(pkg.exports).toHaveProperty('./experimental')
-    expect(pkg.exports).toHaveProperty('./stream/cached')
-    expect(pkg.exports).toHaveProperty('./stream/chunk-table')
+    expect(pkg.exports).not.toHaveProperty('./stream/cached')
+    expect(pkg.exports).not.toHaveProperty('./stream/chunk-table')
     expect(pkg.exports).not.toHaveProperty('./stream/cached_parser')
     expect(pkg.exports).not.toHaveProperty('./stream/chunk_cache')
   })
@@ -36,23 +36,14 @@ describe('root export contract', () => {
     expect(experimental).not.toHaveProperty('materializeCachedTokens')
   })
 
-  it('keeps low-level chunk table internals out of the cached stream subpath', async () => {
-    const cached = await import('../src/stream/cached')
+  it('keeps low-level chunk table internals out of experimental', async () => {
+    const experimental = await import('../src/experimental')
 
-    expect(cached).toHaveProperty('CachedStreamParser')
-    expect(cached).not.toHaveProperty('ChunkCache')
-    expect(cached).not.toHaveProperty('ChunkTable')
-    expect(cached).not.toHaveProperty('computeSourceHash')
-    expect(cached).not.toHaveProperty('detectHardBoundaries')
-    expect(cached).not.toHaveProperty('splitIntoSafeChunkRanges')
-  })
-
-  it('exposes the chunk table subpath without token materialization helpers', async () => {
-    const chunkTable = await import('../src/stream/chunk-table')
-
-    expect(chunkTable).toHaveProperty('ChunkTable')
-    expect(chunkTable).toHaveProperty('computeContentFingerprint')
-    expect(chunkTable).not.toHaveProperty('cloneTokens')
-    expect(chunkTable).not.toHaveProperty('materializeCachedTokens')
+    expect(experimental).not.toHaveProperty('computeSourceHash')
+    expect(experimental).not.toHaveProperty('computeContentFingerprint')
+    expect(experimental).not.toHaveProperty('detectHardBoundaries')
+    expect(experimental).not.toHaveProperty('splitIntoSafeChunkRanges')
+    expect(experimental).not.toHaveProperty('cloneTokens')
+    expect(experimental).not.toHaveProperty('materializeCachedTokens')
   })
 })
