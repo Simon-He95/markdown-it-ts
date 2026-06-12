@@ -97,6 +97,12 @@ function makeEmptyStats(): CachedStreamStats {
   }
 }
 
+function nowMs(): number {
+  return typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? performance.now()
+    : Date.now()
+}
+
 // ---------------------------------------------------------------------------
 // CachedStreamParser
 //
@@ -145,6 +151,7 @@ export class CachedStreamParser {
   private readonly MAX_CONTENT_LOOKUP_CANDIDATES_PER_PARSE = 1024
   private readonly MAX_CONTENT_LOOKUP_COMPARISONS_PER_PARSE = 256
   private readonly MAX_DIRTY_RANGE_RATIO = 0.25
+  private readonly MAX_CACHED_TO_FULL_PARSE_RATIO = 2
 
   // Whether any plugin has been registered (env-sensitive).
   private pluginUsed = false
@@ -162,6 +169,8 @@ export class CachedStreamParser {
   private ruleVersions: ParserRuleVersions | null = null
 
   private observedTableEvictions = 0
+  private chunkReuseDisabledByCost = false
+  private lastFullParseMs = 0
 
   constructor(
     core: ParserCore,
@@ -263,6 +272,21 @@ export class CachedStreamParser {
         reason: 'plugin-used',
       })
       this.setChunkCacheDiagnostics(workingEnv, 'plugin-used')
+      return tokens
+    }
+
+    if (this.chunkReuseDisabledByCost) {
+      this.table.invalidateAll()
+      this.observedTableEvictions = 0
+      const tokens = this.fullParse(src, workingEnv, md, null)
+      this.stats.fullParses++
+      this.stats.lastMode = 'full'
+      setStrategyDiagnostics(workingEnv, {
+        area: 'stream',
+        path: 'stream-full',
+        reason: 'chunk-cache-cost-limit',
+      })
+      this.setChunkCacheDiagnostics(workingEnv, 'chunk-cache-cost-limit')
       return tokens
     }
 
@@ -476,6 +500,7 @@ export class CachedStreamParser {
     md: MarkdownIt,
     lastChunk: { startOffset: number, startLine: number },
   ): Token[] {
+    const startedAt = nowMs()
     const anchorSrcOffset = lastChunk.startOffset
     const anchorLine = lastChunk.startLine
     const anchorTokenCount = this.findSplitIndex(this.lastTokens, anchorLine)
@@ -536,6 +561,7 @@ export class CachedStreamParser {
       path: 'stream-append',
       reason: 'chunk-anchored-append',
     })
+    this.maybeDisableChunkReuseForCost(nowMs() - startedAt, true)
     this.setChunkCacheDiagnostics(env)
     return newTokens
   }
@@ -603,6 +629,7 @@ export class CachedStreamParser {
     env: Record<string, unknown>,
     md: MarkdownIt,
   ): Token[] {
+    const startedAt = nowMs()
     // For small documents, just do a full parse (chunk overhead not worth it).
     if (src.length < this.MIN_CHUNK_CHARS) {
       const tokens = this.fullParse(src, env, md, null)
@@ -776,6 +803,7 @@ export class CachedStreamParser {
     this.stats.lastDirtyRangeChars = dirtyRangeChars
     this.stats.lastShiftedTokenCount = shiftedTokenCount
     this.syncTableEvictions()
+    this.maybeDisableChunkReuseForCost(nowMs() - startedAt, hasCacheHits)
 
     if (hasCacheHits && !hasCacheMisses) {
       this.stats.lastMode = 'chunked'
@@ -808,6 +836,15 @@ export class CachedStreamParser {
 
     this.setChunkCacheDiagnostics(env)
     return out
+  }
+
+  private maybeDisableChunkReuseForCost(elapsedMs: number, hadCacheHits: boolean): void {
+    if (!hadCacheHits || this.lastFullParseMs <= 0)
+      return
+    if (elapsedMs > this.lastFullParseMs * this.MAX_CACHED_TO_FULL_PARSE_RATIO) {
+      this.chunkReuseDisabledByCost = true
+      this.stats.invalidations++
+    }
   }
 
   private shouldUseFullParseForCost(
@@ -908,9 +945,11 @@ export class CachedStreamParser {
     md: MarkdownIt,
     globalStateReason: GlobalMarkdownStateReason | null,
   ): Token[] {
+    const startedAt = nowMs()
     const tokens = runWithKnownGlobalMarkdownState(env, globalStateReason, () => {
       return this.core.parse(src, env, md).tokens
     })
+    this.lastFullParseMs = nowMs() - startedAt
     this.fullCache = { tokens, env, globalStateReason }
     this.lastSrc = src
     this.lastTokens = tokens

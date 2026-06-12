@@ -612,6 +612,35 @@ describe('Cache invalidation (P0-1)', () => {
     })
   })
 
+  it('falls back after observed chunk reuse is slower than a recent full parse', () => {
+    const md = markdownit({
+      experimental: {
+        streamChunkCacheMinChunkChars: 1,
+      },
+    })
+    const parser = makeParser(md)
+    const src = largeDoc(220)
+    const env: Record<string, unknown> = {}
+
+    parser.parse(src, env, md)
+    const adaptiveParser = parser as unknown as { lastFullParseMs: number }
+    adaptiveParser.lastFullParseMs = 0.001
+    parser.parse(`Inserted paragraph before cached chunks.\n\n${src}`, env, md)
+
+    parser.resetStats()
+    const next = `Second inserted paragraph before cached chunks.\n\n${src}`
+    const tokens = parser.parse(next, env, md)
+    const html = md.renderer.render(tokens, md.options, env)
+
+    expect(html).toBe(renderBaseline(next, md.options))
+    expect(parser.getStats().lastMode).toBe('full')
+    expect(getParseDiagnostics(env)?.chunkCache).toMatchObject({
+      path: 'fallback-full',
+      fallback: true,
+      fallbackReason: 'chunk-cache-cost-limit',
+    })
+  })
+
   it('coalesces short hard-boundary blocks by default', () => {
     const md = markdownit()
     const parser = makeParser(md)
