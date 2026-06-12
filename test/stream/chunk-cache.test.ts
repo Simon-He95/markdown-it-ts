@@ -26,6 +26,9 @@ function makeParser(md = markdownit()) {
     block: typedMd.block.ruler.version,
     inline: typedMd.inline.ruler.version,
     inline2: typedMd.inline.ruler2.version,
+  }, {
+    assumeCoreRulesOnly: true,
+    unsafeDirectApiAcknowledged: true,
   })
 }
 

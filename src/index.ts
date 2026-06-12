@@ -482,6 +482,7 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
         limits.maxTotalTokenWeight = maxTotalTokenWeight
       cachedStreamParser = new CachedStreamParser(core, limits, safeParserRuleVersions ?? undefined, {
         assumeCoreRulesOnly: true,
+        unsafeDirectApiAcknowledged: true,
       })
     }
     return cachedStreamParser

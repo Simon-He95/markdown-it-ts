@@ -51,6 +51,9 @@ function makeParser(md = markdownit()) {
     block: typedMd.block.ruler.version,
     inline: typedMd.inline.ruler.version,
     inline2: typedMd.inline.ruler2.version,
+  }, {
+    assumeCoreRulesOnly: true,
+    unsafeDirectApiAcknowledged: true,
   })
 }
 
@@ -305,6 +308,59 @@ describe('Cache invalidation (P0-1)', () => {
     expect(html).toBe(renderFull(modified, md))
     expect(parser.getStats().lastMode).toBe('chunked')
     expect(parser.getStats().chunkHits).toBeGreaterThan(0)
+  })
+
+  it('keeps direct chunk cache disabled without explicit unsafe acknowledgement', () => {
+    const md = markdownit()
+    const typedMd = md as any
+    const parser = new CachedStreamParser(typedMd.core as ParserCore, undefined, {
+      core: typedMd.core.ruler.version,
+      block: typedMd.block.ruler.version,
+      inline: typedMd.inline.ruler.version,
+      inline2: typedMd.inline.ruler2.version,
+    })
+    const src = largeDoc(240)
+    const modified = src.replace('Paragraph 120 with some', 'ModifiedP 120 with some')
+    const env: Record<string, unknown> = {}
+
+    parser.parse(src, env, md)
+    parser.resetStats()
+    parser.parse(modified, env, md)
+
+    expect(parser.getStats().lastMode).toBe('full')
+    expect(parser.getStats().chunkHits).toBe(0)
+    expect(getParseDiagnostics(env)?.chunkCache).toMatchObject({
+      enabled: false,
+      fallback: true,
+      fallbackReason: 'plugin-used',
+    })
+  })
+
+  it('direct parser preserves md.use env writes without manual setPluginUsed', () => {
+    const md = markdownit()
+    const typedMd = md as any
+    const parser = new CachedStreamParser(typedMd.core as ParserCore, undefined, {
+      core: typedMd.core.ruler.version,
+      block: typedMd.block.ruler.version,
+      inline: typedMd.inline.ruler.version,
+      inline2: typedMd.inline.ruler2.version,
+    })
+    const src = largeDoc(220)
+    const env: Record<string, unknown> = {}
+
+    parser.parse(src, env, md)
+    md.use((md) => {
+      md.core.ruler.push('direct_plugin_env_write', (state) => {
+        state.env.pluginRan = true
+      })
+    })
+
+    parser.resetStats()
+    parser.parse(src.replace('Paragraph 110 with some', 'ModifiedP 110 with some'), env, md)
+
+    expect(env.pluginRan).toBe(true)
+    expect(parser.getStats().lastMode).toBe('full')
+    expect(parser.getStats().chunkHits).toBe(0)
   })
 
   it('disables chunk cache after md.use()', () => {
@@ -1221,9 +1277,13 @@ describe('Chunk cache parse parity', () => {
     ['reference definition', '[ref]: https://example.com\n\nText with [ref][]\n\n'],
     ['lazy continuation', '- item\n  continuation\n\nparagraph\nlazy continuation\n\n'],
     ['nested list', '- item 1\n  - nested\n\n    continuation\n\n- item 2\n\n'],
+    ['nested list with fence', '- item\n\n  ```js\n  code\n  ```\n\nAfter\n\n'],
     ['blockquote marker blank', '> quote\n>\n> continued\n\n'],
+    ['blockquote lazy continuation', '> quote\n>\ncontinuation?\n\n'],
     ['html type 1', '<script>\nconst a = 1\n</script>\n\nAfter\n\n'],
     ['html type 6', '<div>\ninline html\n\n</div>\n\n'],
+    ['html type 6 with closing tag', '<div>\nmarkdown?\n</div>\n\nAfter\n\n'],
+    ['setext h1', 'Title\n=====\n\nNext\n\n'],
     ['table', '| a | b |\n| - | - |\n| 1 | 2 |\n\nAfter table\n\n'],
     ['fence', '```ts\nconst x = 1\n```\n\nAfter fence\n\n'],
     ['non-ascii', 'Emoji 😀 and CJK 文本 with [link](https://example.com)\n\n'],
@@ -1432,6 +1492,9 @@ describe('ChunkTable memory limits (P0-9)', () => {
       block: typedMd.block.ruler.version,
       inline: typedMd.inline.ruler.version,
       inline2: typedMd.inline.ruler2.version,
+    }, {
+      assumeCoreRulesOnly: true,
+      unsafeDirectApiAcknowledged: true,
     })
     let src = ''
     for (let i = 0; i < 160; i++) {

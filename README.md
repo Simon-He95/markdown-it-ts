@@ -366,6 +366,11 @@ import { ChunkTable } from 'markdown-it-ts/stream/chunk-table'
 import { DebouncedStreamParser, ThrottledStreamParser } from 'markdown-it-ts/stream/debounced'
 ```
 
+`CachedStreamParser` is experimental. The public constructor keeps per-chunk
+reuse disabled unless you pass both `assumeCoreRulesOnly: true` and
+`unsafeDirectApiAcknowledged: true`; direct callers that use plugins, custom
+rules, or env side effects must call `setPluginUsed(true)` or `invalidate()`.
+
 ### Plugin Authoring (Type-Safe)
 
 Plugins are regular functions that receive the `markdown-it-ts` instance. For full type-safety use the exported `MarkdownItPlugin` type:
@@ -396,8 +401,11 @@ const md = markdownIt({
     stream: true, // enable stream mode
     streamChunkedFallback: true, // use chunked on first large parse or large non-append edits
     // optional per-chunk cache for repeated long-document edits; off by default
-    // This improves repeated edit throughput, not memory use; avoid enabling it for one-shot large document display/restores.
+    // Best fit: long-running, append-heavy, large documents with high reuse.
+    // Avoid it for small files, low-reuse workloads, frequent middle edits,
+    // one-shot large document display/restores, or plugin-heavy env side effects.
     // Treat returned stream tokens as immutable; mutating them can affect same-source cache hits.
+    // Chunk cache diagnostics use conservative entry-level accounting for moved-content aliases, not exact heap size.
     // It is disabled after .use() or custom parser-rule changes to preserve plugin/env behavior.
     // Runtime linkify mutations invalidate the stream caches.
     streamChunkCache: true,

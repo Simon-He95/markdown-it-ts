@@ -31,7 +31,16 @@ export interface ParserRuleVersions {
 }
 
 export interface CachedStreamParserOptions {
+  /**
+   * Enable chunk reuse only when the caller owns parser/plugin state and can
+   * guarantee core markdown-it-ts rules without plugin/env side effects.
+   */
   assumeCoreRulesOnly?: boolean
+  /**
+   * Direct API acknowledgement for the env/plugin safety boundary. Without
+   * this, the public constructor keeps per-chunk reuse disabled.
+   */
+  unsafeDirectApiAcknowledged?: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -163,7 +172,7 @@ export class CachedStreamParser {
     this.core = core
     this.tableLimits = limits
     this.ruleVersions = initialRuleVersions ? { ...initialRuleVersions } : null
-    this.pluginUsed = !initialRuleVersions && !opts?.assumeCoreRulesOnly
+    this.pluginUsed = !(initialRuleVersions && opts?.assumeCoreRulesOnly && opts?.unsafeDirectApiAcknowledged)
     this.table = new ChunkTable(limits)
   }
 
