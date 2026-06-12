@@ -66,6 +66,15 @@ function largeDoc(paragraphs: number): string {
   return src
 }
 
+function countNewlines(src: string): number {
+  let count = 0
+  for (let i = 0; i < src.length; i++) {
+    if (src.charCodeAt(i) === 0x0A)
+      count++
+  }
+  return count
+}
+
 // ---------------------------------------------------------------------------
 // P0-1: Options / rules invalidation
 // ---------------------------------------------------------------------------
@@ -824,6 +833,47 @@ describe('Line map correctness (P0-2)', () => {
     const html = md.renderer.render(tokens, md.options, {})
 
     expect(html).toBe(render(appended))
+  })
+
+  it('does not anchor append on stale moved-content aliases', () => {
+    const md = markdownit()
+    const parser = makeParser(md)
+    const env: Record<string, unknown> = {}
+
+    const src = largeDoc(260)
+    parser.parse(src, env, md)
+
+    const shifted = src.slice(src.indexOf('Paragraph 40 with some'))
+    parser.parse(shifted, env, md)
+
+    const table = (parser as any).table as ChunkTable
+    const chunks = table.getChunks()
+    const validAnchor = chunks[chunks.length - 1]
+    const staleSource = 'stale moved-content alias\n\n'
+    const staleStart = validAnchor.startOffset + 20
+
+    expect(shifted.slice(staleStart, staleStart + staleSource.length)).not.toBe(staleSource)
+
+    table.store({
+      startOffset: staleStart,
+      endOffset: staleStart + staleSource.length,
+      startLine: countNewlines(shifted.slice(0, staleStart)),
+      lineCount: countNewlines(staleSource),
+      sourceText: staleSource,
+      fingerprint: computeContentFingerprint(staleSource, 0, staleSource.length),
+      tokens: [],
+      generation: table.currentGeneration,
+      charLength: staleSource.length,
+      tokenWeight: 0,
+    })
+
+    const appended = `${shifted}tail paragraph\n\n`
+    const tokens = parser.parse(appended, env, md)
+    const html = md.renderer.render(tokens, md.options, env)
+
+    expect(html).toBe(render(appended))
+    expect(parser.getStats().lastMode).toBe('append')
+    expect(parser.getStats().lastReusedChars).toBe(validAnchor.startOffset)
   })
 
   it('stores cached token maps in chunk-local coordinates', () => {

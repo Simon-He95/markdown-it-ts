@@ -440,16 +440,33 @@ export class CachedStreamParser {
     env: Record<string, unknown>,
     md: MarkdownIt,
   ): Token[] {
-    const chunks = this.table.getChunks()
+    const lastValidChunk = this.findLastValidAppendChunk(src)
 
-    if (chunks.length > 0) {
+    if (lastValidChunk) {
       // ---- Chunk-anchored reparse ----
       // Re-parse from the start of the last chunk so we have full context
       // and can cache the new tail properly.
-      return this.handleChunkAnchoredAppend(src, env, md, chunks)
+      return this.handleChunkAnchoredAppend(src, env, md, lastValidChunk)
     }
 
     return this.handleFullParse(src, env, md)
+  }
+
+  private findLastValidAppendChunk(src: string): { startOffset: number, startLine: number } | null {
+    const chunks = this.table.getChunks()
+
+    for (let i = chunks.length - 1; i >= 0; i--) {
+      const chunk = chunks[i]
+      if (
+        chunk.startOffset >= 0
+        && chunk.endOffset <= src.length
+        && src.slice(chunk.startOffset, chunk.endOffset) === chunk.sourceText
+      ) {
+        return chunk
+      }
+    }
+
+    return null
   }
 
   /** Append using the last cached chunk as re-parse anchor. */
@@ -457,9 +474,8 @@ export class CachedStreamParser {
     src: string,
     env: Record<string, unknown>,
     md: MarkdownIt,
-    chunks: ReadonlyArray<{ startOffset: number, startLine: number }>,
+    lastChunk: { startOffset: number, startLine: number },
   ): Token[] {
-    const lastChunk = chunks[chunks.length - 1]
     const anchorSrcOffset = lastChunk.startOffset
     const anchorLine = lastChunk.startLine
     const anchorTokenCount = this.findSplitIndex(this.lastTokens, anchorLine)

@@ -369,7 +369,10 @@ import { DebouncedStreamParser, ThrottledStreamParser } from 'markdown-it-ts/str
 `CachedStreamParser` is experimental. The public constructor keeps per-chunk
 reuse disabled unless you pass both `assumeCoreRulesOnly: true` and
 `unsafeDirectApiAcknowledged: true`; direct callers that use plugins, custom
-rules, or env side effects must call `setPluginUsed(true)` or `invalidate()`.
+rules, or env side effects must call `setPluginUsed(true)`. If a direct caller
+changes parser rules and knows the new rules are still chunk-local and have no
+env side effects, it must call `noteSafeRuleChange(md)`; `invalidate()` only
+clears cached data and does not re-enable reuse after an unsafe rule change.
 
 ### Plugin Authoring (Type-Safe)
 
