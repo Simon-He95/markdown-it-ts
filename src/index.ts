@@ -50,6 +50,7 @@ export interface MarkdownItExperimentalOptions {
   streamChunkAdaptive?: boolean
   streamChunkTargetChunks?: number
   streamChunkMaxChunks?: number
+  streamLargeCachePolicy?: 'retain' | 'skip'
   streamSkipCacheAboveChars?: number
   streamSkipCacheAboveLines?: number
   fullChunkedFallback?: boolean
@@ -103,6 +104,8 @@ export interface MarkdownItOptions {
   streamChunkTargetChunks?: number
   /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamChunkMaxChunks instead. */
   streamChunkMaxChunks?: number
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamLargeCachePolicy instead. */
+  streamLargeCachePolicy?: 'retain' | 'skip'
   /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamSkipCacheAboveChars instead. */
   streamSkipCacheAboveChars?: number
   /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamSkipCacheAboveLines instead. */
@@ -343,6 +346,7 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
     streamChunkAdaptive: true,
     streamChunkTargetChunks: 8,
     streamChunkMaxChunks: undefined,
+    streamLargeCachePolicy: 'retain',
     streamSkipCacheAboveChars: 1_000_000,
     streamSkipCacheAboveLines: 100_000,
     fullChunkedFallback: false,

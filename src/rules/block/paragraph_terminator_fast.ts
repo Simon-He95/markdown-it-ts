@@ -1,4 +1,5 @@
 import type { ParseSource } from '../../parse/source'
+import { LineFlag } from '../../parse/parser_block/state_block'
 
 function hasPipeOnLine(src: ParseSource, start: number, max: number): boolean {
   for (let pos = start; pos < max; pos++) {
@@ -16,7 +17,10 @@ export function canUseParagraphTerminatorFastPath(state: any): boolean {
   return ruler.version === ruler.__mdtsDefaultVersion
 }
 
-export function couldTerminateParagraph(src: ParseSource, start: number, max: number): boolean {
+export function couldTerminateParagraph(state: any, line: number, src: ParseSource, start: number, max: number): boolean {
+  if (state.lineFlags && (state.lineFlags[line] & LineFlag.ParagraphTerminator) === 0)
+    return false
+
   if (start >= max)
     return false
 

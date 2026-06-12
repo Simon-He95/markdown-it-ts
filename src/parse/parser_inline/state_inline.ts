@@ -23,6 +23,7 @@ export class StateInline {
   public backticks: Record<number, number>
   public backticksScanned: boolean
   public linkLevel: number
+  public linkLabelNoCloseFrom: number
   public maxNesting: number
 
   constructor(src: ParseSource, md: any, env: any, outTokens: Token[]) {
@@ -42,6 +43,7 @@ export class StateInline {
     this.backticks = {}
     this.backticksScanned = false
     this.linkLevel = 0
+    this.linkLabelNoCloseFrom = -1
     this.maxNesting = md.options.maxNesting
   }
 

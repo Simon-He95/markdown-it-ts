@@ -82,7 +82,7 @@ export function paragraph(state: StateBlock, startLine: number, endLine: number)
     const start = bMarks[nextLine] + tShift[nextLine]
     const max = eMarks[nextLine]
 
-    if (canUseFastTerminatorHint && !couldTerminateParagraph(src, start, max))
+    if (canUseFastTerminatorHint && !couldTerminateParagraph(state, nextLine, src, start, max))
       continue
 
     // Some tags can terminate paragraph without empty line.

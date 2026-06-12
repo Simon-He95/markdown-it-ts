@@ -4,6 +4,7 @@
  */
 
 import type { StateBlock } from '../../parse/parser_block/state_block'
+import { LineFlag } from '../../parse/parser_block/state_block'
 
 function isSpace(code: number): boolean {
   switch (code) {
@@ -30,6 +31,9 @@ function getLine(state: StateBlock, line: number): string {
 }
 
 function lineContainsPipe(state: StateBlock, line: number): boolean {
+  if (state.lineFlags)
+    return (state.lineFlags[line] & LineFlag.Pipe) !== 0
+
   for (let pos = state.bMarks[line] + state.tShift[line], max = state.eMarks[line]; pos < max; pos++) {
     if (state.src.charCodeAt(pos) === 0x7C) {
       return true

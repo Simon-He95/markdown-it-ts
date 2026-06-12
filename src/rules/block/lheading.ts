@@ -76,7 +76,7 @@ export function lheading(state: StateBlock, startLine: number, endLine: number):
     if (sCount[nextLine] < 0)
       continue
 
-    if (canUseFastTerminatorHint && !couldTerminateParagraph(src, lineStart, max))
+    if (canUseFastTerminatorHint && !couldTerminateParagraph(state, nextLine, src, lineStart, max))
       continue
 
     // Some tags can terminate paragraph without empty line.

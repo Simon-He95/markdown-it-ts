@@ -236,6 +236,28 @@ const SCENARIOS = [
       return { base: versions[0], updates: versions.slice(1), finalDoc: versions[versions.length - 1] }
     },
   },
+  {
+    name: 'tail-huge-history-paragraph-append',
+    iterations: 6,
+    create() {
+      const seed = `${makePrefix(1_500_000)}Live paragraph`
+      const updates = [
+        `${seed} keeps`,
+        `${seed} keeps streaming`,
+        `${seed} keeps streaming.\n`,
+      ]
+      return { base: seed, updates, finalDoc: updates[updates.length - 1] }
+    },
+  },
+  {
+    name: 'huge-append-reference-definition-fallback',
+    iterations: 4,
+    create() {
+      const base = `${makePrefix(800_000)}See [x][id]\n\n`
+      const finalDoc = `${base}[id]: https://example.com\n\n`
+      return { base, updates: [finalDoc], finalDoc }
+    },
+  },
 ]
 
 function run(cmd, commandArgs, cwd, extra = {}) {
@@ -267,7 +289,7 @@ function setupBaseline(ref) {
   const archiveDir = path.join(tempRoot, 'repo')
   fs.mkdirSync(archiveDir)
 
-  const archive = run('git', ['archive', '--format=tar', ref], repoRoot, { encoding: 'buffer' })
+  const archive = run('git', ['archive', '--format=tar', ref], repoRoot, { encoding: 'buffer', maxBuffer: 512 * 1024 * 1024 })
   run('tar', ['-xf', '-', '-C', archiveDir], repoRoot, { input: archive.stdout })
 
   const repoNodeModules = path.join(repoRoot, 'node_modules')
