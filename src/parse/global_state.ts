@@ -197,6 +197,9 @@ export function detectGlobalMarkdownState(src: string): GlobalMarkdownStateReaso
   if (!src)
     return null
 
+  if (!src.includes(']:') && !src.includes('*['))
+    return null
+
   if (FOOTNOTE_DEF_RE.test(src))
     return 'footnote-definition'
 

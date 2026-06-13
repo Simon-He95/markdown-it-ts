@@ -32,6 +32,14 @@ const cases: Array<{
     name: 'nested bracket label',
     text: '[[8]](https://example.com)',
   },
+  {
+    name: 'balanced bracket text in label',
+    text: '[foo [bar] baz](https://example.com)',
+  },
+  {
+    name: 'nested link-like label',
+    text: '[foo [bar](https://inner.example)](https://outer.example)',
+  },
 ]
 
 describe('link label fast path parity', () => {

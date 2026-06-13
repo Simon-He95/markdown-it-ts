@@ -14,6 +14,29 @@ function isSpace(code: number): boolean {
   return false
 }
 
+export const LineFlag = {
+  Pipe: 1,
+  ParagraphTerminator: 2,
+} as const
+
+function isParagraphTerminatorCandidate(code: number): boolean {
+  switch (code) {
+    case 0x23: // #
+    case 0x2A: // *
+    case 0x2B: // +
+    case 0x2D: // -
+    case 0x3C: // <
+    case 0x3E: // >
+    case 0x5F: // _
+    case 0x60: // `
+    case 0x7C: // |
+    case 0x7E: // ~
+      return true
+  }
+
+  return code >= 0x30 && code <= 0x39
+}
+
 export class StateBlock {
   public src: ParseSource
   public md: any
@@ -27,6 +50,7 @@ export class StateBlock {
   public tShift: number[] = [] // offsets of first non-space characters
   public sCount: number[] = [] // indents for each line (tabs expanded)
   public bsCount: number[] = [] // virtual spaces between bMarks and real line start
+  public lineFlags: number[] = []
 
   // Block parser variables
   public blkIndent: number = 0 // required block content indent
@@ -50,9 +74,13 @@ export class StateBlock {
     let offset = 0
     let start = 0
     let indent_found = false
+    let flags = 0
 
     for (let pos = 0, len = s.length; pos < len; pos++) {
       const ch = s.charCodeAt(pos)
+
+      if (ch === 0x7C /* | */)
+        flags |= LineFlag.Pipe | LineFlag.ParagraphTerminator
 
       if (!indent_found) {
         if (isSpace(ch)) {
@@ -67,6 +95,8 @@ export class StateBlock {
         }
         else {
           indent_found = true
+          if (isParagraphTerminatorCandidate(ch))
+            flags |= LineFlag.ParagraphTerminator
         }
       }
 
@@ -78,10 +108,12 @@ export class StateBlock {
         this.tShift.push(indent)
         this.sCount.push(offset)
         this.bsCount.push(0)
+        this.lineFlags.push(flags)
 
         indent_found = false
         indent = 0
         offset = 0
+        flags = 0
         start = pos + 1
       }
     }
@@ -92,6 +124,7 @@ export class StateBlock {
     this.tShift.push(0)
     this.sCount.push(0)
     this.bsCount.push(0)
+    this.lineFlags.push(0)
 
     this.lineMax = this.bMarks.length - 1
   }

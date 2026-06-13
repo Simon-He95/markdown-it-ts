@@ -668,6 +668,91 @@ describe('stream parser', () => {
     parseSpy.mockRestore()
   })
 
+  it('retains over-threshold stream cache for a later block append by default', () => {
+    const md = MarkdownIt({
+      stream: true,
+      streamOptimizationMinSize: 0,
+      streamSkipCacheAboveChars: 32,
+      streamSkipCacheAboveLines: 2,
+    })
+    md.stream.resetStats()
+    const parseSpy = vi.spyOn(md.core, 'parse')
+
+    const base = `# History\n\n${'Stable paragraph.\n\n'.repeat(4)}`
+    const append = 'Live paragraph.\n\n'
+    const updated = base + append
+
+    md.stream.parse(base)
+    expect(md.stream.peek().length).toBeGreaterThan(0)
+    parseSpy.mockClear()
+
+    const tokens = md.stream.parse(updated)
+
+    expect(parseSpy).toHaveBeenCalledTimes(1)
+    expect(parseSpy.mock.calls[0][0]).toBe(append)
+    expect(md.stream.stats().lastMode).toBe('append')
+
+    const baselineHtml = MarkdownIt().render(updated)
+    const streamHtml = md.renderer.render(tokens, md.options, {})
+    expect(streamHtml).toEqual(baselineHtml)
+
+    parseSpy.mockRestore()
+  })
+
+  it('skips over-threshold stream cache when large cache policy is skip', () => {
+    const md = MarkdownIt({
+      stream: true,
+      streamLargeCachePolicy: 'skip',
+      streamOptimizationMinSize: 0,
+      streamSkipCacheAboveChars: 32,
+      streamSkipCacheAboveLines: 2,
+    })
+    md.stream.resetStats()
+    const parseSpy = vi.spyOn(md.core, 'parse')
+
+    const base = `# History\n\n${'Stable paragraph.\n\n'.repeat(4)}`
+    const updated = `${base}Live paragraph.\n\n`
+
+    md.stream.parse(base)
+    expect(md.stream.peek()).toHaveLength(0)
+
+    const tokens = md.stream.parse(updated)
+
+    expect(parseSpy).toHaveBeenCalledTimes(2)
+    expect(parseSpy.mock.calls[1][0]).toBe(updated)
+    expect(md.stream.stats().lastMode).toBe('full')
+
+    const baselineHtml = MarkdownIt().render(updated)
+    const streamHtml = md.renderer.render(tokens, md.options, {})
+    expect(streamHtml).toEqual(baselineHtml)
+
+    parseSpy.mockRestore()
+  })
+
+  it('falls back when an append completes a reference definition across the cache boundary', () => {
+    const md = MarkdownIt({ stream: true, streamOptimizationMinSize: 0 })
+    md.stream.resetStats()
+    const parseSpy = vi.spyOn(md.core, 'parse')
+
+    const base = `See [label][id]\n\n${'x'.repeat(5000)}\n\n[id`
+    const updated = `${base}]: https://example.com\n\n`
+
+    md.stream.parse(base)
+    parseSpy.mockClear()
+
+    const tokens = md.stream.parse(updated)
+
+    expect(parseSpy).toHaveBeenCalledTimes(1)
+    expect(parseSpy.mock.calls[0][0]).toBe(updated)
+    expect(md.stream.stats().lastMode).toBe('full')
+
+    const html = md.renderer.render(tokens, md.options, {})
+    expect(html).toBe(md.render(updated))
+    expect(html).toContain('href="https://example.com"')
+
+    parseSpy.mockRestore()
+  })
+
   it('reparses the last segment when appending a setext underline', () => {
     const md = MarkdownIt({ stream: true })
     md.stream.resetStats()

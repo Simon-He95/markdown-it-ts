@@ -25,6 +25,7 @@
 - 安全 append 优先尝试 append fast-path。
 - 适合重解析尾部容器时优先走 tail reparse。
 - 大文档的一次性 stream 首次解析会按配置进入 chunked fallback。
+- stream 默认保留首次解析 cache，方便“长历史 + 后续 append”继续增量解析；内存敏感场景可设置 `experimental.streamLargeCachePolicy: 'skip'`，并通过 `streamSkipCacheAboveChars` / `streamSkipCacheAboveLines` 控制跳过阈值。
 - 长文本纯 append 场景会自动切到内部 unbounded-backed append，只消费新增 delta。
 - 中间编辑、不安全边界、reference-definition 风险、merge 失败时立即回退到现有 `tail/chunked/full` 路径。
 
