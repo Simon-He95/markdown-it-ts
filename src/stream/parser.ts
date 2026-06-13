@@ -430,7 +430,7 @@ export class StreamParser {
     }
 
     // inspect appended detection
-    const appended = this.getAppendedSegment(cached, src, appendDelta)
+    const appended = this.getAppendedSegment(cached.src, src, appendDelta)
     // debug info suppressed
     if (appended && !this.shouldPreferTailReparseForAppend(cached)) {
       // (no-op) appended preview suppressed
@@ -463,7 +463,6 @@ export class StreamParser {
       ctxLines = Math.min(ctxLines, cachedLineCount)
 
       let appendedState = null
-      let appendedStateMayOverlap = false
       // Context-parse strategy configuration (chars | lines | constructs)
       const ctxStrategy = (md.options?.streamContextParseStrategy as string) ?? 'chars'
       const CONTEXT_PARSE_MIN_CHARS = md.options?.streamContextParseMinChars ?? 200
@@ -527,7 +526,6 @@ export class StreamParser {
             if (shiftBy !== 0)
               this.shiftTokenLines(appendedTokens, shiftBy)
             appendedState = { tokens: appendedTokens }
-            appendedStateMayOverlap = true
           }
         }
         catch {
@@ -593,31 +591,31 @@ export class StreamParser {
         // Avoid duplicating tokens that are already present at the end of the cache.
         // If the beginning of appendedState.tokens matches a trailing sequence in
         // cached.tokens, drop the matching prefix from appendedState.tokens.
+        const cachedTail = cached.tokens
         const a = appendedState.tokens
-        if (appendedStateMayOverlap) {
-          const cachedTail = cached.tokens
-          const maxCheck = Math.min(cachedTail.length, a.length - appendedTokenStart)
+        const maxCheck = Math.min(cachedTail.length, a.length - appendedTokenStart)
 
-          let dup = 0
-          for (let n = maxCheck; n > 0; n--) {
-            let ok = true
-            for (let i = 0; i < n; i++) {
-              const tailToken = cachedTail[cachedTail.length - n + i]
-              const prefToken = a[appendedTokenStart + i]
-              if (!tokenEquals(tailToken, prefToken)) {
-                ok = false
-                break
-              }
-            }
-            if (ok) {
-              dup = n
+        // Debug output suppressed in CI
+        let dup = 0
+        // Try longest prefix match
+        for (let n = maxCheck; n > 0; n--) {
+          let ok = true
+          for (let i = 0; i < n; i++) {
+            const tailToken = cachedTail[cachedTail.length - n + i]
+            const prefToken = a[appendedTokenStart + i]
+            if (!tokenEquals(tailToken, prefToken)) {
+              ok = false
               break
             }
           }
-
-          if (dup > 0)
-            appendedTokenStart += dup
+          if (ok) {
+            dup = n
+            break
+          }
         }
+
+        if (dup > 0)
+          appendedTokenStart += dup
 
         if (a.length > appendedTokenStart)
           this.appendTokens(cached.tokens, a, appendedTokenStart)
@@ -831,8 +829,7 @@ export class StreamParser {
     return countLines(appended) >= this.MIN_UNBOUNDED_APPEND_LINES
   }
 
-  private getAppendedSegment(cache: StreamCache, next: string, knownAppend?: string | null): string | null {
-    const prev = cache.src
+  private getAppendedSegment(prev: string, next: string, knownAppend?: string | null): string | null {
     if (knownAppend === null)
       return null
     if (knownAppend === undefined && !next.startsWith(prev))
@@ -882,34 +879,13 @@ export class StreamParser {
     // Heuristic safety: if previous content ends inside an open fenced code block,
     // avoid append fast-path since closing fence in appended segment would
     // retroactively change prior tokens.
-    if (this.endsInsideOpenFence(prev) || this.cacheEndsWithOpenFence(cache))
+    if (this.endsInsideOpenFence(prev))
       return null
 
     if (this.mayContainReferenceDefinition(segment))
       return null
 
     return segment
-  }
-
-  private cacheEndsWithOpenFence(cache: StreamCache): boolean {
-    const lastSegment = this.ensureLastSegment(cache)
-    if (!lastSegment)
-      return false
-
-    const token = cache.tokens[lastSegment.tokenStart]
-    if (token?.type !== 'fence' || !token.map || !token.markup)
-      return false
-
-    const closingLine = token.map[1] - 1
-    if (closingLine <= token.map[0])
-      return true
-
-    const lineStart = this.getLineStartOffset(cache.src, closingLine)
-    let lineEnd = cache.src.indexOf('\n', lineStart)
-    if (lineEnd === -1)
-      lineEnd = cache.src.length
-
-    return !this.isFenceCloseLine(cache.src, lineStart, lineEnd, token.markup)
   }
 
   private tryTailSegmentReparse(
@@ -1004,129 +980,45 @@ export class StreamParser {
   private endsInsideOpenFence(text: string): boolean {
     const WINDOW = 4000
     const start = text.length > WINDOW ? text.length - WINDOW : 0
-    const firstScan = this.scanFenceState(text, start, start > 0 && text.charCodeAt(start - 1) !== 0x0A)
-    if (!firstScan.inside || start === 0 || firstScan.firstFenceLineStart < 0)
-      return firstScan.inside
-
-    const contextStart = this.findPreviousFenceLineStart(text, firstScan.firstFenceLineStart, WINDOW)
-    if (contextStart < 0)
-      return true
-
-    return this.scanFenceState(text, contextStart).inside
-  }
-
-  private scanFenceState(text: string, start: number, skipFirstPartialLine = false): { inside: boolean, firstFenceLineStart: number } {
-    const len = text.length
+    const chunk = text.slice(start)
+    const len = chunk.length
     let inFence: { marker: number, length: number } | null = null
-    let firstFenceLineStart = -1
-    let lineStart = start
-    let partialLine = skipFirstPartialLine
+    let lineStart = 0
     while (lineStart <= len) {
-      let lineEnd = text.indexOf('\n', lineStart)
+      let lineEnd = chunk.indexOf('\n', lineStart)
       if (lineEnd === -1)
         lineEnd = len
 
-      const marker = partialLine ? null : this.getFenceLineMarker(text, lineStart, lineEnd)
-      if (marker) {
-        if (firstFenceLineStart < 0)
-          firstFenceLineStart = lineStart
-        if (!inFence) {
-          inFence = marker
-        }
-        else if (inFence.marker === marker.marker && marker.length >= inFence.length) {
-          inFence = null
+      // skip leading spaces/tabs
+      let p = lineStart
+      while (p < lineEnd) {
+        const c = chunk.charCodeAt(p)
+        if (c === 0x20 /* space */ || c === 0x09 /* tab */)
+          p++
+        else
+          break
+      }
+
+      if (p < lineEnd) {
+        const ch = chunk.charCodeAt(p)
+        if (ch === 0x60 /* ` */ || ch === 0x7E /* ~ */) {
+          let q = p
+          while (q < lineEnd && chunk.charCodeAt(q) === ch) q++
+          const runLen = q - p
+          if (runLen >= 3) {
+            if (!inFence)
+              inFence = { marker: ch, length: runLen }
+            else if (inFence.marker === ch && runLen >= inFence.length)
+              inFence = null
+          }
         }
       }
 
       if (lineEnd === len)
         break
-      partialLine = false
       lineStart = lineEnd + 1
     }
-    return { inside: inFence !== null, firstFenceLineStart }
-  }
-
-  private findPreviousFenceLineStart(text: string, before: number, window: number): number {
-    const searchStart = before > window ? before - window : 0
-    let lineEnd = before - 1
-    if (lineEnd >= 0 && text.charCodeAt(lineEnd) === 0x0A)
-      lineEnd--
-
-    while (lineEnd >= searchStart) {
-      let lineStart = lineEnd
-      while (lineStart > searchStart && text.charCodeAt(lineStart - 1) !== 0x0A)
-        lineStart--
-
-      if (this.getFenceLineMarker(text, lineStart, lineEnd + 1))
-        return lineStart
-
-      lineEnd = lineStart - 2
-    }
-
-    return -1
-  }
-
-  private getFenceMarker(text: string, pos: number, lineEnd: number): { marker: number, length: number } | null {
-    if (pos >= lineEnd)
-      return null
-
-    const ch = text.charCodeAt(pos)
-    if (ch !== 0x60 /* ` */ && ch !== 0x7E /* ~ */)
-      return null
-
-    let q = pos
-    while (q < lineEnd && text.charCodeAt(q) === ch) q++
-    const runLen = q - pos
-    return runLen >= 3 ? { marker: ch, length: runLen } : null
-  }
-
-  private getFenceLineMarker(text: string, lineStart: number, lineEnd: number): { marker: number, length: number } | null {
-    let pos = lineStart
-    let indent = 0
-    while (pos < lineEnd && indent < 4) {
-      const ch = text.charCodeAt(pos)
-      if (ch === 0x20 /* space */) {
-        pos++
-        indent++
-        continue
-      }
-      if (ch === 0x09 /* tab */) {
-        indent += 4 - (indent % 4)
-        pos++
-        continue
-      }
-      break
-    }
-    if (indent >= 4)
-      return null
-
-    return this.getFenceMarker(text, pos, lineEnd)
-  }
-
-  private isFenceCloseLine(text: string, lineStart: number, lineEnd: number, markup: string): boolean {
-    let pos = lineStart
-    let indent = 0
-    while (pos < lineEnd && text.charCodeAt(pos) === 0x20 /* space */ && indent < 4) {
-      pos++
-      indent++
-    }
-    if (indent >= 4)
-      return false
-
-    const marker = markup.charCodeAt(0)
-    let runEnd = pos
-    while (runEnd < lineEnd && text.charCodeAt(runEnd) === marker)
-      runEnd++
-    if (runEnd - pos < markup.length)
-      return false
-
-    for (let i = runEnd; i < lineEnd; i++) {
-      const ch = text.charCodeAt(i)
-      if (ch !== 0x20 /* space */ && ch !== 0x09 /* tab */ && ch !== 0x0D /* \r */)
-        return false
-    }
-
-    return true
+    return inFence !== null
   }
 
   public peek(): Token[] {

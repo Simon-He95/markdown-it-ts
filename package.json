@@ -131,7 +131,6 @@
     "perf:compare": "node scripts/perf-compare.mjs docs/perf-latest.json",
     "perf:compare:ref": "node scripts/perf-compare-ref.mjs",
     "perf:compare:stream-ref": "node scripts/perf-stream-incremental-ref.mjs",
-    "perf:targeted:ref": "node scripts/perf-targeted-ref.mjs",
     "perf:check": "node scripts/perf-check.mjs --threshold=0.10",
     "perf:check:latest": "node scripts/perf-check.mjs --threshold=0.10 --latest",
     "perf:check:strict": "node scripts/perf-check.mjs --threshold=0.03 --latest",
