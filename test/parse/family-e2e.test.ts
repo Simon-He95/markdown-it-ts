@@ -20,6 +20,10 @@ const fixtureCases: Array<{
   assert?: (html: string) => void
 }> = [
   { name: 'heading', text: readFixture('block-heading.md') },
+  { name: 'paragraph-single-line', text: 'Lorem ipsum dolor sit amet.' },
+  { name: 'paragraph-leading-spaces', text: '  Lorem ipsum dolor sit amet.' },
+  { name: 'paragraph-trailing-spaces', text: 'Lorem ipsum dolor sit amet.  ' },
+  { name: 'paragraph-multiline', text: 'Lorem ipsum dolor sit amet\nconsectetur adipiscing elit.' },
   { name: 'lheading', text: readFixture('block-lheading.md') },
   { name: 'hr', text: readFixture('block-hr.md') },
   { name: 'blockquote', text: readFixture('block-bq-flat.md') },
@@ -30,6 +34,8 @@ const fixtureCases: Array<{
   { name: 'html-block', text: readFixture('block-html.md'), options: { html: true } },
   { name: 'table', text: readFixture('block-tables.md') },
   { name: 'reference', text: readFixture('block-ref-list.md') },
+  { name: 'reference-flat', text: readFixture('block-ref-flat.md') },
+  { name: 'reference-nested', text: readFixture('block-ref-nested.md') },
   { name: 'links', text: readFixture('inline-links-flat.md') },
   { name: 'links-nested', text: readFixture('inline-links-nested.md') },
   { name: 'backticks', text: readFixture('inline-backticks.md') },

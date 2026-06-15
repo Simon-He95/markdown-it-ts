@@ -40,6 +40,22 @@ const cases: Array<{
     name: 'nested link-like label',
     text: '[foo [bar](https://inner.example)](https://outer.example)',
   },
+  {
+    name: 'shortcut reference without definition',
+    text: '[missing]',
+  },
+  {
+    name: 'full reference without definition',
+    text: '[missing][ref]',
+  },
+  {
+    name: 'malformed inline link fallback',
+    text: '[label](https://example.com "title"',
+  },
+  {
+    name: 'nested unresolved reference-looking labels',
+    text: '[[[[[[[foo]]]]]]]\n\n[*[*[*[*[foo]*]*]*]*]',
+  },
 ]
 
 describe('link label fast path parity', () => {
