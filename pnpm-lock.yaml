@@ -36,6 +36,9 @@ importers:
       '@arethetypeswrong/cli':
         specifier: ^0.18.3
         version: 0.18.3
+      '@ox-content/napi':
+        specifier: ^2.74.0
+        version: 2.74.0
       '@rollup/plugin-babel':
         specifier: ^6.1.0
         version: 6.1.0(@babel/core@7.28.5)(rollup@4.62.0)
@@ -721,6 +724,34 @@ packages:
   '@nodelib/fs.walk@1.2.8':
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
+
+  '@ox-content/binding-darwin-arm64@2.74.0':
+    resolution: {integrity: sha512-lMYvIz04z/tqDaxCA1rMqVnJY4AjDXlQ5QySAQB/48jeXbx+OqS4FUzGCcVEYsol28rQaRC1jRqQMW+fmvBgWQ==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@ox-content/binding-darwin-x64@2.74.0':
+    resolution: {integrity: sha512-/4KIE0S+eUy4kZUUrXJ80aOo4NtNzJhmRGheja7jWWOtePrEsZK+eDhewhxhJsnpCpck7Nrr479040cnYsjgtw==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@ox-content/binding-linux-arm64-gnu@2.74.0':
+    resolution: {integrity: sha512-xk5trV903LruDGNEvYg9vw3QbiAE7vXCbekb1e866gX8giPA7Tx+HiGtgfIjfXAuPPPPCwLeMIezFbe7ikCH8w==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@ox-content/binding-linux-x64-gnu@2.74.0':
+    resolution: {integrity: sha512-3yGPhjAfG/bgNbSxAb2YpD9es6zc77b84cn7LUz/tmI98ecjzg4OuEu6J1X/A29H8uI4dc8bIcrxQ8kds8h+hQ==}
+    cpu: [x64]
+    os: [linux]
+
+  '@ox-content/binding-win32-x64-msvc@2.74.0':
+    resolution: {integrity: sha512-Cc90qdObriNaPPpj7k8ee26glRGFffFZrfajUL5cJEUC0Yg+0Pd6eUXIPmOu9L7JxPuI9WmmvT3jowKnft1J1g==}
+    cpu: [x64]
+    os: [win32]
+
+  '@ox-content/napi@2.74.0':
+    resolution: {integrity: sha512-ILmOTX5V9DxYJLaIjWWJGUlZ/7tOVWU9UW+fs9OoJPG6z8w42A/S2+it9UWcCPssjkkhdK2yPx3przqgMmWXmA==}
 
   '@oxc-project/types@0.95.0':
     resolution: {integrity: sha512-vACy7vhpMPhjEJhULNxrdR0D943TkA/MigMpJCHmBHvMXxRStRi/dPtTlfQ3uDwWSzRpT8z+7ImjZVf8JWBocQ==}
@@ -4017,6 +4048,29 @@ snapshots:
     dependencies:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.19.1
+
+  '@ox-content/binding-darwin-arm64@2.74.0':
+    optional: true
+
+  '@ox-content/binding-darwin-x64@2.74.0':
+    optional: true
+
+  '@ox-content/binding-linux-arm64-gnu@2.74.0':
+    optional: true
+
+  '@ox-content/binding-linux-x64-gnu@2.74.0':
+    optional: true
+
+  '@ox-content/binding-win32-x64-msvc@2.74.0':
+    optional: true
+
+  '@ox-content/napi@2.74.0':
+    optionalDependencies:
+      '@ox-content/binding-darwin-arm64': 2.74.0
+      '@ox-content/binding-darwin-x64': 2.74.0
+      '@ox-content/binding-linux-arm64-gnu': 2.74.0
+      '@ox-content/binding-linux-x64-gnu': 2.74.0
+      '@ox-content/binding-win32-x64-msvc': 2.74.0
 
   '@oxc-project/types@0.95.0': {}
 

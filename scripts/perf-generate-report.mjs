@@ -9,6 +9,11 @@ import os from 'node:os'
 import MarkdownIt from '../dist/index.js'
 import { getParseDiagnostics } from '../dist/experimental.js'
 import MarkdownItOriginal from 'markdown-it'
+import {
+  IncrementalMarkdownParser as OxIncrementalMarkdownParser,
+  parse as oxParse,
+  parseAndRender as oxParseAndRender,
+} from '@ox-content/napi'
 import { createMarkdownExit as createMarkdownExitFactory } from 'markdown-exit'
 import { micromark, parse as micromarkParse, preprocess as micromarkPreprocess, postprocess as micromarkPostprocess } from 'micromark'
 import { unified } from 'unified'
@@ -181,6 +186,7 @@ function makeScenarios() {
     { id: 'S5', label: 'stream OFF, chunk OFF', make: s5, type: 'full-plain' },
     { id: 'M1', label: 'markdown-it (baseline)', make: () => MarkdownItOriginal(), type: 'md-original' },
     { id: 'E1', label: 'markdown-exit', make: () => createMarkdownExitFactory(), type: 'md-exit' },
+    { id: 'OX1', label: '@ox-content/napi (parse only)', make: () => ({ parser: new OxIncrementalMarkdownParser() }), type: 'ox-content' },
     // Parse-only using micromark's preprocess + parse + postprocess pipeline (no HTML compile).
     { id: 'MM1', label: 'micromark (parse only)', make: createMicromarkParseOnly, type: 'micromark-parse' },
     // Remark parse-only scenario (parse throughput, no HTML render)
@@ -191,6 +197,8 @@ function makeScenarios() {
 function resetScenario(sc, md) {
   if (sc.type.startsWith('stream'))
     md.stream.reset()
+  if (sc.type === 'ox-content')
+    md.parser.reset()
 }
 
 function runParseScenario(sc, md, input, envStream, envPlain) {
@@ -200,9 +208,17 @@ function runParseScenario(sc, md, input, envStream, envPlain) {
     return md.parse(input, {})
   if (sc.type === 'md-exit')
     return md.parse(input)
+  if (sc.type === 'ox-content')
+    return oxParse(input)
   if (sc.type === 'remark')
     return md.parse(input)
   return md.parse(input, envPlain)
+}
+
+function runAppendParseScenario(sc, md, acc, piece, isFinal, envStream, envPlain) {
+  if (sc.type === 'ox-content')
+    return md.parser.append(piece, { isFinal })
+  return runParseScenario(sc, md, acc, envStream, envPlain)
 }
 
 function createBenchEnvs() {
@@ -212,16 +228,17 @@ function createBenchEnvs() {
   }
 }
 
-function normalizeAppendPiece(acc, piece) {
+function normalizeAppendStep(acc, piece) {
   let next = acc
+  let prefix = ''
   if (next.length && next.charCodeAt(next.length - 1) !== 0x0A)
-    next += '\n'
+    prefix = '\n'
 
   let normalizedPiece = piece
   if (normalizedPiece.length && normalizedPiece.charCodeAt(normalizedPiece.length - 1) !== 0x0A)
     normalizedPiece += '\n'
 
-  return next + normalizedPiece
+  return { next: next + prefix + normalizedPiece, piece: prefix + normalizedPiece }
 }
 
 function measureScenarioOneShot(entry, doc, iters) {
@@ -246,12 +263,13 @@ function measureScenarioAppend(entry, parts, repeatCount = 1) {
     resetScenario(entry.sc, entry.md)
     let acc = ''
     for (let i = 0; i < parts.length; i++) {
-      acc = normalizeAppendPiece(acc, parts[i])
+      const step = normalizeAppendStep(acc, parts[i])
+      acc = step.next
       if (entry.sc.type === 'stream-no-cache-chunk')
         entry.md.stream.reset()
       lastEnvs = createBenchEnvs()
       const t = performance.now()
-      runParseScenario(entry.sc, entry.md, acc, lastEnvs.stream, lastEnvs.plain)
+      runAppendParseScenario(entry.sc, entry.md, acc, step.piece, i === parts.length - 1, lastEnvs.stream, lastEnvs.plain)
       totalMs += performance.now() - t
     }
   }
@@ -290,11 +308,12 @@ function warmAppendScenario(sc, md, parts) {
   resetScenario(sc, md)
   let acc = ''
   for (let i = 0; i < parts.length; i++) {
-    acc = normalizeAppendPiece(acc, parts[i])
+    const step = normalizeAppendStep(acc, parts[i])
+    acc = step.next
     if (sc.type === 'stream-no-cache-chunk')
       md.stream.reset()
     const envs = createBenchEnvs()
-    runParseScenario(sc, md, acc, envs.stream, envs.plain)
+    runAppendParseScenario(sc, md, acc, step.piece, i === parts.length - 1, envs.stream, envs.plain)
   }
 }
 
@@ -349,11 +368,12 @@ function runMatrix() {
           resetScenario(sc, md)
           let acc = ''
           for (let i = 0; i < appParts.length; i++) {
-            acc = normalizeAppendPiece(acc, appParts[i])
+            const step = normalizeAppendStep(acc, appParts[i])
+            acc = step.next
             if (sc.type === 'stream-no-cache-chunk')
               md.stream.reset()
             const t = performance.now()
-            runParseScenario(sc, md, acc, envStream, envAppend)
+            runAppendParseScenario(sc, md, acc, step.piece, i === appParts.length - 1, envStream, envAppend)
             repMs += performance.now() - t
           }
         }
@@ -370,11 +390,12 @@ function runMatrix() {
           resetScenario(sc, md)
           let acc = ''
           for (let i = 0; i < lineParts.length; i++) {
-            acc = normalizeAppendPiece(acc, lineParts[i])
+            const step = normalizeAppendStep(acc, lineParts[i])
+            acc = step.next
             if (sc.type === 'stream-no-cache-chunk')
               md.stream.reset()
             const t = performance.now()
-            runParseScenario(sc, md, acc, envStream, envAppend)
+            runAppendParseScenario(sc, md, acc, step.piece, i === lineParts.length - 1, envStream, envAppend)
             repMs += performance.now() - t
           }
         }
@@ -429,6 +450,7 @@ function measureColdHot() {
   const impls = [
     { id: 'TS', label: 'markdown-it-ts (stream+chunk)', type: 'ts', make: () => MarkdownIt({ stream: true, streamChunkedFallback: true, streamChunkSizeChars: 10_000, streamChunkSizeLines: 200, streamChunkFenceAware: true }) },
     { id: 'MD', label: 'markdown-it (baseline)', type: 'md-original', make: () => MarkdownItOriginal() },
+    { id: 'OX', label: '@ox-content/napi (parse only)', type: 'ox-content', make: () => null },
     { id: 'MM', label: 'micromark (parse only)', type: 'micromark-parse', make: createMicromarkParseOnly },
     { id: 'RM', label: 'remark (parse only)', type: 'remark', make: () => unified().use(remarkParse) },
     { id: 'EX', label: 'markdown-exit', type: 'md-exit', make: () => createMarkdownExitFactory() },
@@ -449,9 +471,11 @@ function measureColdHot() {
             ? coldInst.parse(doc)
             : impl.type === 'md-original'
               ? coldInst.parse(doc, {})
-              : impl.type === 'ts'
-                ? (coldInst.stream.reset(), coldInst.stream.parse(doc, {}))
-                : coldInst.parse(doc, {})
+              : impl.type === 'ox-content'
+                ? oxParse(doc)
+                : impl.type === 'ts'
+                  ? (coldInst.stream.reset(), coldInst.stream.parse(doc, {}))
+                  : coldInst.parse(doc, {})
         )
         coldSamples.push(measure(coldRunner, 1).ms)
 
@@ -461,9 +485,11 @@ function measureColdHot() {
             ? hotInst.parse(doc)
             : impl.type === 'md-original'
               ? hotInst.parse(doc, {})
-              : impl.type === 'ts'
-                ? (hotInst.stream.reset(), hotInst.stream.parse(doc, {}))
-                : hotInst.parse(doc, {})
+              : impl.type === 'ox-content'
+                ? oxParse(doc)
+                : impl.type === 'ts'
+                  ? (hotInst.stream.reset(), hotInst.stream.parse(doc, {}))
+                  : hotInst.parse(doc, {})
         )
         measure(hotRunner, 3)
         hotSamples.push(measure(hotRunner, COLD_HOT_ITERS).ms / COLD_HOT_ITERS)
@@ -480,6 +506,7 @@ function measureRenderComparisons() {
   const impls = [
     { id: 'TS_RENDER', label: 'markdown-it-ts.render', type: 'ts', make: () => MarkdownIt() },
     { id: 'MD_RENDER', label: 'markdown-it.render', type: 'md-original', make: () => MarkdownItOriginal() },
+    { id: 'OX_RENDER', label: '@ox-content/napi', type: 'ox-content', make: () => oxParseAndRender },
     { id: 'MM_RENDER', label: 'micromark (CommonMark)', type: 'micromark', make: () => micromark },
     { id: 'RM_RENDER', label: 'remark+rehype', type: 'remark', make: () => unified().use(remarkParse).use(remarkRehype).use(rehypeStringify) },
     { id: 'EX_RENDER', label: 'markdown-exit', type: 'md-exit', make: () => createMarkdownExitFactory() },
@@ -497,9 +524,11 @@ function measureRenderComparisons() {
           ? inst.processSync(doc).toString()
           : impl.type === 'micromark'
             ? inst(doc)
-            : impl.type === 'md-exit'
-              ? inst.render(doc)
-              : inst.render(doc)
+            : impl.type === 'ox-content'
+              ? inst(doc).html
+              : impl.type === 'md-exit'
+                ? inst.render(doc)
+                : inst.render(doc)
       )
       runner(); runner(); runner()
       const { ms } = measureStableWarm(runner, oneIters, stableSamples, 1)
@@ -524,8 +553,9 @@ function toMarkdown(results, coldHot, environment) {
   lines.push(`- Commit: ${environment.commit}`)
   lines.push('')
   lines.push('Default API note: normal `md.parse(src)` / `md.render(src)` calls may auto-activate an internal large-input path for very large finite strings only when no plugin has been installed and parser rulers have not been modified. Explicit chunk-stream APIs such as `parseIterable` / `UnboundedBuffer` are advanced tools for sources that already arrive as chunks.')
+  lines.push('External parser rows use each library\'s native output shape; this matrix compares throughput, not byte-for-byte output compatibility.')
   lines.push('')
-  const ids = ['S1','S2','S3','S4','S5','M1','E1','MM1']
+  const ids = ['S1','S2','S3','S4','S5','M1','E1','OX1','MM1']
   lines.push('| Size (chars) | ' + ids.map(id => `${id} one`).join(' | ') + ' | ' + ids.map(id => `${id} append(par)`).join(' | ') + ' | ' + ids.map(id => `${id} append(line)`).join(' | ') + ' | ' + ids.map(id => `${id} replace`).join(' | ') + ' |')
   lines.push('|---:|' + ids.map(()=> '---:').join('|') + '|' + ids.map(()=> '---:').join('|') + '|' + ids.map(()=> '---:').join('|') + '|' + ids.map(()=> '---:').join('|') + '|')
   const bySize = new Map()
@@ -613,20 +643,21 @@ function toMarkdown(results, coldHot, environment) {
   lines.push('')
   lines.push('## Render API throughput (markdown → HTML)')
   lines.push('')
-  lines.push('This measures end-to-end `md.render(markdown)` throughput across markdown-it-ts, upstream markdown-it, micromark (CommonMark reference), and remark+rehype (parse + stringify). Lower is better.')
+  lines.push('This measures end-to-end `md.render(markdown)` throughput across markdown-it-ts, upstream markdown-it, @ox-content/napi, micromark (CommonMark reference), and remark+rehype (parse + stringify). Lower is better.')
   lines.push('It is intentionally a full render-API benchmark (`parse + render`), not a renderer-only hot-path benchmark.')
   lines.push('')
   const renderBySize = groupBy(renderComparisons, 'size')
-  lines.push('| Size (chars) | markdown-it-ts.render | markdown-it.render | micromark | remark+rehype | markdown-exit |')
-  lines.push('|---:|---:|---:|---:|---:|---:|')
+  lines.push('| Size (chars) | markdown-it-ts.render | markdown-it.render | @ox-content/napi | micromark | remark+rehype | markdown-exit |')
+  lines.push('|---:|---:|---:|---:|---:|---:|---:|')
   for (const [size, arr] of Array.from(renderBySize.entries()).sort((a, b) => a[0] - b[0])) {
     const get = (id) => arr.find(r => r.scenario === id)?.renderMs
     const ts = get('TS_RENDER')
     const mdRender = get('MD_RENDER')
+    const oxRender = get('OX_RENDER')
     const micromarkRender = get('MM_RENDER')
     const remarkRender = get('RM_RENDER')
     const exitRender = get('EX_RENDER')
-    lines.push(`| ${size} | ${ts != null ? fmt(ts) : '-'} | ${mdRender != null ? fmt(mdRender) : '-'} | ${micromarkRender != null ? fmt(micromarkRender) : '-'} | ${remarkRender != null ? fmt(remarkRender) : '-'} | ${exitRender != null ? fmt(exitRender) : '-'} |`)
+    lines.push(`| ${size} | ${ts != null ? fmt(ts) : '-'} | ${mdRender != null ? fmt(mdRender) : '-'} | ${oxRender != null ? fmt(oxRender) : '-'} | ${micromarkRender != null ? fmt(micromarkRender) : '-'} | ${remarkRender != null ? fmt(remarkRender) : '-'} | ${exitRender != null ? fmt(exitRender) : '-'} |`)
   }
   lines.push('')
   lines.push('Render vs markdown-it:')
@@ -636,6 +667,14 @@ function toMarkdown(results, coldHot, environment) {
     if (!ts || !mdRender) continue
     const ratio = mdRender.renderMs / ts.renderMs
     lines.push(`- ${Number(size).toLocaleString()} chars: ${fmt(ts.renderMs)} vs ${fmt(mdRender.renderMs)} → ${ratio.toFixed(2)}× faster`)
+  }
+  lines.push('')
+  lines.push('Render vs @ox-content/napi:')
+  for (const [size, arr] of Array.from(renderBySize.entries()).sort((a, b) => a[0] - b[0])) {
+    const ts = arr.find(r => r.scenario === 'TS_RENDER')
+    const oxRender = arr.find(r => r.scenario === 'OX_RENDER')
+    if (!ts || !oxRender) continue
+    lines.push(`- ${Number(size).toLocaleString()} chars: ${fmt(ts.renderMs)} vs ${fmt(oxRender.renderMs)} → ${describeComparison(oxRender.renderMs, ts.renderMs)}`)
   }
   lines.push('')
   lines.push('Render vs micromark:')
@@ -687,6 +726,23 @@ function toMarkdown(results, coldHot, environment) {
   lines.push('- Comparison columns are written from markdown-it-ts against the markdown-it baseline.')
   lines.push('- `faster / less time` is better; if a future run regresses, the wording will flip to `slower / more time`.')
   lines.push('')
+  lines.push('## Best-of markdown-it-ts vs @ox-content/napi')
+  lines.push('')
+  lines.push('| Size (chars) | TS best one | @ox-content/napi one | One comparison | TS best append | @ox-content/napi append | Append comparison | TS scenario (one/append) |')
+  lines.push('|---:|---:|---:|:--|---:|---:|:--|:--|')
+  for (const [size, arr] of Array.from(bySize2.entries()).sort((a,b)=>a[0]-b[0])) {
+    const tsOnly = arr.filter(r => isTsScenario(r.scenario))
+    const ox = arr.find(r => r.scenario === 'OX1')
+    if (!ox) continue
+    const bestTsOne = [...tsOnly].sort((a,b)=>a.oneShotMs-b.oneShotMs)[0]
+    const bestTsApp = [...tsOnly].sort((a,b)=>a.appendWorkloadMs-b.appendWorkloadMs)[0]
+    const oneComparison = describeComparison(ox.oneShotMs, bestTsOne.oneShotMs)
+    const appendComparison = describeComparison(ox.appendWorkloadMs, bestTsApp.appendWorkloadMs)
+    lines.push(`| ${size} | ${fmt(bestTsOne.oneShotMs)} | ${fmt(ox.oneShotMs)} | ${oneComparison} | ${fmt(bestTsApp.appendWorkloadMs)} | ${fmt(ox.appendWorkloadMs)} | ${appendComparison} | ${bestTsOne.scenario}/${bestTsApp.scenario} |`)
+  }
+  lines.push('')
+  lines.push('- Append comparison uses markdown-it-ts stream append fast paths against @ox-content/napi incremental parser appends.')
+  lines.push('')
   // Optional diagnostic: chunk info if present
   const hasChunkInfo = results.some(r => r.chunkInfoOne || r.chunkInfoAppendLast)
   if (hasChunkInfo) {
@@ -705,7 +761,7 @@ function toMarkdown(results, coldHot, environment) {
   lines.push('')
   lines.push('## Cold vs Hot (one-shot)')
   lines.push('')
-  lines.push('Cold-start parses instantiate a new parser and run once with no warmup. Hot parses use a fresh instance with warmup plus averaged runs. 表格按不同文档大小分别列出 markdown-it 与 remark 对照。')
+  lines.push('Cold-start parses instantiate a new parser and run once with no warmup. Hot parses use a fresh instance with warmup plus averaged runs across markdown-it-ts and external baselines.')
   lines.push('')
   const grouped = groupBy(coldHot, 'size')
   for (const [size, rows] of Array.from(grouped.entries()).sort((a, b) => a[0] - b[0])) {

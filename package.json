@@ -163,6 +163,7 @@
   "devDependencies": {
     "@antfu/eslint-config": "^6.7.3",
     "@arethetypeswrong/cli": "^0.18.3",
+    "@ox-content/napi": "^2.74.0",
     "@rollup/plugin-babel": "^6.1.0",
     "@rollup/plugin-commonjs": "^25.0.8",
     "@rollup/plugin-node-resolve": "^15.3.1",

@@ -13,6 +13,9 @@ The matrix covers:
   - S4: stream OFF, chunk ON
   - S5: stream OFF, chunk OFF
   - M1: markdown-it baseline
+  - E1: markdown-exit baseline
+  - OX1: @ox-content/napi parse-only/incremental baseline
+  - MM1/R1: micromark and remark parse-only baselines
 - Metrics per scenario:
   - oneShotMs: one full parse time
   - appendWorkloadMs: 1 initial + 5 appends total time

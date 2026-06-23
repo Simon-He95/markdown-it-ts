@@ -5,6 +5,10 @@
 import { performance } from 'node:perf_hooks'
 import MarkdownIt from '../dist/index.js'
 import MarkdownItOriginal from 'markdown-it'
+import {
+  IncrementalMarkdownParser as OxIncrementalMarkdownParser,
+  parse as oxParse,
+} from '@ox-content/napi'
 import { unified } from 'unified'
 import remarkParse from 'remark-parse'
 
@@ -96,6 +100,7 @@ const scenarios = [
   { id: 'S4', label: 'stream OFF, chunk ON', make: makeMd_s4_full_chunk, type: 'full-chunk' },
   { id: 'S5', label: 'stream OFF, chunk OFF', make: makeMd_s5_full_plain, type: 'full-plain' },
   { id: 'M1', label: 'markdown-it (baseline)', make: () => MarkdownItOriginal(), type: 'md-original' },
+  { id: 'OX1', label: '@ox-content/napi (parse only)', make: () => ({ parser: new OxIncrementalMarkdownParser() }), type: 'ox-content' },
   { id: 'R1', label: 'remark (parse only)', make: () => unified().use(remarkParse), type: 'remark' },
 ]
 
@@ -120,6 +125,7 @@ for (const size of SIZES) {
   const one = measure(() => (
     sc.type.startsWith('stream') ? md.stream.parse(doc, envStream)
     : sc.type === 'md-original' ? md.parse(doc, {})
+    : sc.type === 'ox-content' ? oxParse(doc)
     : sc.type === 'remark' ? md.parse(doc)
     : md.parse(doc, {})
   ))
@@ -129,10 +135,12 @@ for (const size of SIZES) {
     let appendMs = 0
     for (let i = 0; i < appParts.length; i++) {
       // ensure prefix ends with newline to satisfy append fast-path preconditions
-      if (acc.length && acc.charCodeAt(acc.length - 1) !== 0x0A) acc += '\n'
+      const prefix = acc.length && acc.charCodeAt(acc.length - 1) !== 0x0A ? '\n' : ''
+      if (prefix) acc += prefix
       let piece = appParts[i]
       // ensure piece ends with newline as well
       if (piece.length && piece.charCodeAt(piece.length - 1) !== 0x0A) piece += '\n'
+      const appendedPiece = prefix + piece
       acc += piece
       if (sc.type === 'stream-no-cache-chunk') {
         // reset to avoid cache before each parse
@@ -143,6 +151,8 @@ for (const size of SIZES) {
         md.stream.parse(acc, envStream)
       } else if (sc.type === 'md-original') {
         md.parse(acc, {})
+      } else if (sc.type === 'ox-content') {
+        md.parser.append(appendedPiece, { isFinal: i === appParts.length - 1 })
       } else if (sc.type === 'remark') {
         md.parse(acc)
       } else {

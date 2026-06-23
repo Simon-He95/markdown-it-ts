@@ -647,7 +647,6 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       // Optional chunked path for full parse (non-stream)
       if (!this.stream.enabled) {
         const chars = src.length
-        const lines = countedLines ?? utils.countLines(src)
         const auto = this.options.autoTuneChunks !== false
         const userForcedChunk = explicitFullChunkConfig
         const allowImplicitChunk = !explicitFullChunkFallbackSetting
@@ -655,15 +654,21 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
         const wantsChunking = !!this.options.fullChunkedFallback
         const shouldAutoChunk = allowImplicitChunk
           && chars >= 200_000
-        const autoRecommendation = auto && !userForcedChunk
+        let lines: number | undefined
+
+        if (wantsChunking || shouldAutoChunk || countedLines !== undefined)
+          lines = countedLines ?? utils.countLines(src)
+
+        const autoRecommendation = (wantsChunking || shouldAutoChunk) && auto && !userForcedChunk
           ? recommendFullChunkStrategy(chars, lines, this.options)
           : null
 
         if (wantsChunking || shouldAutoChunk) {
+          const lineCount = lines ?? 0
           const useChunked = wantsChunking
             ? (
                 chars >= (this.options.fullChunkThresholdChars ?? 20_000)
-                || lines >= (this.options.fullChunkThresholdLines ?? 400)
+                || lineCount >= (this.options.fullChunkThresholdLines ?? 400)
               )
             : shouldAutoChunk
 
@@ -684,7 +689,7 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
               const adaptive = this.options.fullChunkAdaptive !== false
               const target = this.options.fullChunkTargetChunks ?? 8
               const dynMaxChunkChars = clamp(Math.ceil(chars / target), 8000, 64_000)
-              const dynMaxChunkLines = clamp(Math.ceil(lines / target), 150, 700)
+              const dynMaxChunkLines = clamp(Math.ceil(lineCount / target), 150, 700)
               const maxChunkChars = adaptive ? dynMaxChunkChars : (this.options.fullChunkSizeChars ?? 10_000)
               const maxChunkLines = adaptive ? dynMaxChunkLines : (this.options.fullChunkSizeLines ?? 200)
               const maxChunks = adaptive
@@ -703,7 +708,7 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
           }
         }
 
-        if (countedLines !== undefined && canUseImplicitLargeInputStrategy(this) && shouldAutoUseUnbounded(this, chars, lines)) {
+        if (countedLines !== undefined && canUseImplicitLargeInputStrategy(this) && shouldAutoUseUnbounded(this, chars, lines ?? countedLines)) {
           const tokens = parseStringUnbounded(this, src, env)
           setStrategyDiagnostics(env, { area: 'parse', path: 'auto-unbounded', unbounded: true, reason: 'line-threshold' })
           return tokens
