@@ -6,24 +6,38 @@ on:
 
 jobs:
   deploy-docs:
-    if: ${{ secrets.NETLIFY_AUTH_TOKEN && secrets.NETLIFY_SITE_ID_DOCS }}
     runs-on: ubuntu-latest
+    env:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      NETLIFY_SITE_ID_DOCS: ${{ secrets.NETLIFY_SITE_ID_DOCS }}
     steps:
+      - name: Check Netlify configuration
+        id: netlify
+        run: |
+          if [ -z "$NETLIFY_AUTH_TOKEN" ] || [ -z "$NETLIFY_SITE_ID_DOCS" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Netlify docs secrets are not configured; skipping deploy."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/checkout@v4
+        if: ${{ steps.netlify.outputs.configured == 'true' }}
 
       - name: Setup pnpm
+        if: ${{ steps.netlify.outputs.configured == 'true' }}
         uses: pnpm/action-setup@v2
         with:
           node-version: '18'
 
       - name: Install deps
+        if: ${{ steps.netlify.outputs.configured == 'true' }}
         run: pnpm install --frozen-lockfile
 
       - name: Build docs
+        if: ${{ steps.netlify.outputs.configured == 'true' }}
         run: pnpm run doc
 
       - name: Publish to Netlify (docs)
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID_DOCS: ${{ secrets.NETLIFY_SITE_ID_DOCS }}
+        if: ${{ steps.netlify.outputs.configured == 'true' }}
         run: npx netlify deploy --prod --dir=apidoc --site "$NETLIFY_SITE_ID_DOCS" --auth "$NETLIFY_AUTH_TOKEN"

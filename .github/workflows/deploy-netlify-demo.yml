@@ -6,24 +6,38 @@ on:
 
 jobs:
   deploy-demo:
-    if: ${{ secrets.NETLIFY_AUTH_TOKEN && secrets.NETLIFY_SITE_ID_DEMO }}
     runs-on: ubuntu-latest
+    env:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      NETLIFY_SITE_ID_DEMO: ${{ secrets.NETLIFY_SITE_ID_DEMO }}
     steps:
+      - name: Check Netlify configuration
+        id: netlify
+        run: |
+          if [ -z "$NETLIFY_AUTH_TOKEN" ] || [ -z "$NETLIFY_SITE_ID_DEMO" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Netlify demo secrets are not configured; skipping deploy."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/checkout@v4
+        if: ${{ steps.netlify.outputs.configured == 'true' }}
 
       - name: Setup pnpm
+        if: ${{ steps.netlify.outputs.configured == 'true' }}
         uses: pnpm/action-setup@v2
         with:
           node-version: '18'
 
       - name: Install deps
+        if: ${{ steps.netlify.outputs.configured == 'true' }}
         run: pnpm install --frozen-lockfile
 
       - name: Build demo
+        if: ${{ steps.netlify.outputs.configured == 'true' }}
         run: pnpm run demo
 
       - name: Publish to Netlify (demo)
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID_DEMO: ${{ secrets.NETLIFY_SITE_ID_DEMO }}
+        if: ${{ steps.netlify.outputs.configured == 'true' }}
         run: npx netlify deploy --prod --dir=demo --site "$NETLIFY_SITE_ID_DEMO" --auth "$NETLIFY_AUTH_TOKEN"

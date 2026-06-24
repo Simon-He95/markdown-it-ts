@@ -29,7 +29,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: markdown-it/markdown-it
-          ref: ${{ github.event.inputs["markdown-it-ref"] || 'master' }}
+          ref: ${{ github.event.inputs['markdown-it-ref'] || 'master' }}
           path: markdown-it
 
       - name: Setup pnpm
@@ -41,7 +41,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ github.event.inputs["node-version"] || '20' }}
+          node-version: ${{ github.event.inputs['node-version'] || '20' }}
           cache: pnpm
 
       - name: Install dependencies
@@ -51,5 +51,5 @@ jobs:
         env:
           RUN_ORIGINAL: 1
           MARKDOWN_IT_DIR: ${{ github.workspace }}/markdown-it
-          RUN_NETWORK: ${{ github.event.inputs["run-network"] == true && 1 || '' }}
+          RUN_NETWORK: ${{ github.event.inputs['run-network'] == 'true' && '1' || '' }}
         run: pnpm test
