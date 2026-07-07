@@ -44,7 +44,51 @@ function paragraphContent(src: string, start: number, end: number): string {
   return lastCh === 0x20 || lastCh === 0x09 ? src.slice(start, end).trim() : src.slice(start, end)
 }
 
+// Fast lookup table for inline special characters
+const INLINE_NEEDS_ESCAPE = new Uint8Array(256)
+INLINE_NEEDS_ESCAPE[0x22] = 1 // "
+INLINE_NEEDS_ESCAPE[0x0A] = 2 // \n (fallback)
+INLINE_NEEDS_ESCAPE[0x21] = 2 // ! (fallback)
+INLINE_NEEDS_ESCAPE[0x23] = 2 // # (fallback)
+INLINE_NEEDS_ESCAPE[0x24] = 2 // $ (fallback)
+INLINE_NEEDS_ESCAPE[0x25] = 2 // % (fallback)
+INLINE_NEEDS_ESCAPE[0x26] = 2 // & (fallback)
+INLINE_NEEDS_ESCAPE[0x2A] = 2 // * (fallback)
+INLINE_NEEDS_ESCAPE[0x2B] = 2 // + (fallback)
+INLINE_NEEDS_ESCAPE[0x2D] = 2 // - (fallback)
+INLINE_NEEDS_ESCAPE[0x3A] = 2 // : (fallback)
+INLINE_NEEDS_ESCAPE[0x3C] = 2 // < (fallback)
+INLINE_NEEDS_ESCAPE[0x3D] = 2 // = (fallback)
+INLINE_NEEDS_ESCAPE[0x3E] = 2 // > (fallback)
+INLINE_NEEDS_ESCAPE[0x40] = 2 // @ (fallback)
+INLINE_NEEDS_ESCAPE[0x5B] = 2 // [ (fallback)
+INLINE_NEEDS_ESCAPE[0x5C] = 2 // \ (fallback)
+INLINE_NEEDS_ESCAPE[0x5D] = 2 // ] (fallback)
+INLINE_NEEDS_ESCAPE[0x5E] = 2 // ^ (fallback)
+INLINE_NEEDS_ESCAPE[0x5F] = 2 // _ (fallback)
+INLINE_NEEDS_ESCAPE[0x60] = 2 // ` (fallback)
+INLINE_NEEDS_ESCAPE[0x7B] = 2 // { (fallback)
+INLINE_NEEDS_ESCAPE[0x7D] = 2 // } (fallback)
+INLINE_NEEDS_ESCAPE[0x7E] = 2 // ~ (fallback)
+
 function renderPlainInline(src: string): string | null {
+  const len = src.length
+
+  // Fast path for short strings using lookup table
+  if (len <= 32) {
+    let hasQuote = false
+    for (let i = 0; i < len; i++) {
+      const code = src.charCodeAt(i)
+      const flag = code < 256 ? INLINE_NEEDS_ESCAPE[code] : 0
+      if (flag === 2) // fallback character
+        return null
+      if (flag === 1) // quote
+        hasQuote = true
+    }
+    return hasQuote ? src.replace(INLINE_QUOTE_RE, '&quot;') : src
+  }
+
+  // For longer strings, use regex
   if (!INLINE_SPECIAL_RE.test(src))
     return src
 

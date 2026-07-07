@@ -9,30 +9,66 @@ const HTML_ESCAPE_TEST_RE = /[&<>"]/
 const HTML_ESCAPE_REPLACE_RE = /[&<>"]/g
 const HTML_ESCAPE_AMP_RE = /&/g
 const HTML_ESCAPE_NO_AMP_RE = /[<>"]/g
-const HTML_REPLACEMENTS: Record<string, string> = {
-  '&': '&amp;',
-  '<': '&lt;',
-  '>': '&gt;',
-  '"': '&quot;',
-}
+
+// Use array lookup for faster character replacement
+const ESCAPE_LOOKUP: string[] = []
+ESCAPE_LOOKUP[38] = '&amp;' // &
+ESCAPE_LOOKUP[60] = '&lt;' // <
+ESCAPE_LOOKUP[62] = '&gt;' // >
+ESCAPE_LOOKUP[34] = '&quot;' // "
 
 function replaceUnsafeChar(ch: string): string {
-  return HTML_REPLACEMENTS[ch] || ch
+  return ESCAPE_LOOKUP[ch.charCodeAt(0)] || ch
+}
+
+// Optimized manual string builder for short strings
+function escapeShortManual(str: string): string {
+  let result = ''
+  for (let i = 0; i < str.length; i++) {
+    const code = str.charCodeAt(i)
+    const escaped = ESCAPE_LOOKUP[code]
+    result += escaped || str[i]
+  }
+  return result
 }
 
 /**
  * Escape HTML characters to prevent XSS
+ * Optimized version with fast paths for common cases
  */
 export function escapeHtml(str: string): string {
-  if (str.length === 0)
+  const len = str.length
+  if (len === 0)
     return ''
 
-  if (str.length < 32) {
+  // Fast path for very short strings (no test needed)
+  if (len === 1) {
+    const code = str.charCodeAt(0)
+    return ESCAPE_LOOKUP[code] || str
+  }
+
+  if (len <= 8) {
+    // For very short strings (≤8 chars), manual scanning is ~2x faster than regex
+    // due to avoiding regex engine initialization overhead
+    let needsEscape = false
+    for (let i = 0; i < len; i++) {
+      const code = str.charCodeAt(i)
+      if (code === 38 || code === 60 || code === 62 || code === 34) {
+        needsEscape = true
+        break
+      }
+    }
+    return needsEscape ? escapeShortManual(str) : str
+  }
+
+  if (len < 32) {
+    // Medium strings: use regex test + replace (still faster than long-string branching)
     if (HTML_ESCAPE_TEST_RE.test(str))
       return str.replace(HTML_ESCAPE_REPLACE_RE, replaceUnsafeChar)
     return str
   }
 
+  // For longer strings, use includes for branching
   const hasAmp = str.includes('&')
   const hasLt = str.includes('<')
   const hasGt = str.includes('>')

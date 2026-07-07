@@ -44,10 +44,44 @@ function renderAttrName(name: string): string {
   }
 }
 
+// Simple FIFO cache for single-attribute rendering (not LRU for simplicity)
+// Trades true LRU for O(1) operations - acceptable for sequential access patterns
+// typical in HTML rendering where attributes are processed once per element
+const ATTR_CACHE = new Map<string, string>()
+const ATTR_CACHE_MAX_SIZE = 500
+const attrCacheKeys: string[] = []
+
+function getCachedAttr(key: string, builder: () => string): string {
+  const cached = ATTR_CACHE.get(key)
+  if (cached !== undefined)
+    return cached
+
+  const result = builder()
+
+  // FIFO eviction when cache is full
+  if (ATTR_CACHE.size >= ATTR_CACHE_MAX_SIZE) {
+    const evictKey = attrCacheKeys.shift()!
+    ATTR_CACHE.delete(evictKey)
+  }
+
+  ATTR_CACHE.set(key, result)
+  attrCacheKeys.push(key)
+  return result
+}
+
 function renderAttrsFromList(attrs: [string, string][] | null | undefined): string {
   if (!attrs || attrs.length === 0)
     return ''
 
+  // Fast path for single attribute with caching
+  if (attrs.length === 1) {
+    const [name, value] = attrs[0]
+    const cacheKey = `${name}:${value}`
+    return getCachedAttr(cacheKey, () =>
+      ` ${renderAttrName(name)}="${escapeHtml(value)}"`)
+  }
+
+  // Multi-attribute path (less common, no cache)
   const firstAttr = attrs[0]
   let result = ` ${renderAttrName(firstAttr[0])}="${escapeHtml(firstAttr[1])}"`
 

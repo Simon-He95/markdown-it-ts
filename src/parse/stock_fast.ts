@@ -1,10 +1,26 @@
 import { Token } from '../common/token'
 
+// Create a lookup table for special characters (faster than regex for short strings)
+const INLINE_SPECIAL_CHARS = new Uint8Array(256)
+const specialChars = [0x0A, 0x21, 0x23, 0x24, 0x25, 0x26, 0x2A, 0x2B, 0x2D, 0x3A, 0x3C, 0x3D, 0x3E, 0x40, 0x5B, 0x5C, 0x5D, 0x5E, 0x5F, 0x60, 0x7B, 0x7D, 0x7E]
+for (const ch of specialChars) {
+  INLINE_SPECIAL_CHARS[ch] = 1
+}
+
 const INLINE_TERMINATOR_RE = /[\n!#$%&*+\-:<=>@[\]\\^_`{}~]/
 const JSON_CONTROL_CHAR_RANGE = '\\u0000-\\u001F'
 const INLINE_AST_JSON_UNSAFE_RE = new RegExp(`[${JSON_CONTROL_CHAR_RANGE}"!#$%&*+\\-:<=>@[\\]\\\\^_\`{}~]`)
 
 function isPlainInlineText(src: string): boolean {
+  const len = src.length
+  if (len <= 32) {
+    for (let i = 0; i < len; i++) {
+      const code = src.charCodeAt(i)
+      if (code < 256 && INLINE_SPECIAL_CHARS[code])
+        return false
+    }
+    return true
+  }
   return !INLINE_TERMINATOR_RE.test(src)
 }
 
@@ -103,11 +119,21 @@ function isShortPlainInlineTextRange(src: string, start: number, end: number): b
   return true
 }
 
+// Optimized range comparison - avoids creating substring
 function rangeEqualsString(src: string, start: number, end: number, value: string): boolean {
-  if (end - start !== value.length)
+  const len = value.length
+  if (end - start !== len)
     return false
 
-  for (let i = 0; i < value.length; i++) {
+  // Unroll first few comparisons for common short strings
+  if (len > 0 && src.charCodeAt(start) !== value.charCodeAt(0))
+    return false
+  if (len > 1 && src.charCodeAt(start + 1) !== value.charCodeAt(1))
+    return false
+  if (len > 2 && src.charCodeAt(start + 2) !== value.charCodeAt(2))
+    return false
+
+  for (let i = 3; i < len; i++) {
     if (src.charCodeAt(start + i) !== value.charCodeAt(i))
       return false
   }
