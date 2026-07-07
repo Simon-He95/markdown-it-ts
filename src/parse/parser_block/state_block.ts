@@ -68,31 +68,20 @@ export class StateBlock {
     this.env = env
     this.tokens = tokens
 
-    // Pre-count lines for array pre-allocation
+    // Generate line markers (single pass, no pre-scan to avoid O(2n) on large inputs)
     const s = this.src
     const len = s.length
-    let lineCount = 1
-    for (let i = 0; i < len; i++) {
-      if (s.charCodeAt(i) === 0x0A)
-        lineCount++
-    }
-
-    // Pre-allocate arrays with known size + 1 for fake entry
-    const capacity = lineCount + 1
-    this.bMarks = new Array(capacity)
-    this.eMarks = new Array(capacity)
-    this.tShift = new Array(capacity)
-    this.sCount = new Array(capacity)
-    this.bsCount = new Array(capacity)
-    this.lineFlags = new Array(capacity)
-
-    // Generate line markers
     let indent = 0
     let offset = 0
     let start = 0
     let indent_found = false
     let flags = 0
-    let lineIdx = 0
+    const bMarks: number[] = []
+    const eMarks: number[] = []
+    const tShift: number[] = []
+    const sCount: number[] = []
+    const bsCount: number[] = []
+    const lineFlags: number[] = []
 
     for (let pos = 0; pos < len; pos++) {
       const ch = s.charCodeAt(pos)
@@ -121,13 +110,12 @@ export class StateBlock {
       if (ch === 0x0A || pos === len - 1) {
         if (ch !== 0x0A)
           pos++
-        this.bMarks[lineIdx] = start
-        this.eMarks[lineIdx] = pos
-        this.tShift[lineIdx] = indent
-        this.sCount[lineIdx] = offset
-        this.bsCount[lineIdx] = 0
-        this.lineFlags[lineIdx] = flags
-        lineIdx++
+        bMarks.push(start)
+        eMarks.push(pos)
+        tShift.push(indent)
+        sCount.push(offset)
+        bsCount.push(0)
+        lineFlags.push(flags)
 
         indent_found = false
         indent = 0
@@ -138,14 +126,20 @@ export class StateBlock {
     }
 
     // Push fake entry to simplify bounds checks
-    this.bMarks[lineIdx] = s.length
-    this.eMarks[lineIdx] = s.length
-    this.tShift[lineIdx] = 0
-    this.sCount[lineIdx] = 0
-    this.bsCount[lineIdx] = 0
-    this.lineFlags[lineIdx] = 0
+    bMarks.push(s.length)
+    eMarks.push(s.length)
+    tShift.push(0)
+    sCount.push(0)
+    bsCount.push(0)
+    lineFlags.push(0)
 
-    this.lineMax = lineIdx
+    this.bMarks = bMarks
+    this.eMarks = eMarks
+    this.tShift = tShift
+    this.sCount = sCount
+    this.bsCount = bsCount
+    this.lineFlags = lineFlags
+    this.lineMax = bMarks.length - 1
   }
 
   push(type: string, tag: string, nesting: number): Token {

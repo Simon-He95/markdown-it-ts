@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { parse, parseInline } from '../src/parse'
 import { render, renderAsync } from '../src/render'
+import { Token } from '../src/common/token'
+import { Renderer } from '../src/render/renderer'
 import markdownIt from '../src'
 
 describe('renderer', () => {
@@ -70,5 +72,17 @@ describe('renderer', () => {
     })
     const html = await md.renderAsync('```txt\nhello\n```')
     expect(html).toContain('<mark>hello')
+  })
+
+  it('renders attributes with colon in name/value without cache collision', () => {
+    const r = new Renderer()
+
+    const t1 = new Token('x_open', 'x', 1)
+    t1.attrs = [['a:b', 'c']]
+
+    const t2 = new Token('x_open', 'x', 1)
+    t2.attrs = [['a', 'b:c']]
+
+    expect(r.render([t1, t2])).toBe('<x a:b="c"><x a="b:c">')
   })
 })

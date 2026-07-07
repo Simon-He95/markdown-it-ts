@@ -44,28 +44,37 @@ function renderAttrName(name: string): string {
   }
 }
 
-// Simple FIFO cache for single-attribute rendering (not LRU for simplicity)
-// Trades true LRU for O(1) operations - acceptable for sequential access patterns
-// typical in HTML rendering where attributes are processed once per element
-const ATTR_CACHE = new Map<string, string>()
+// Simple FIFO cache for single-attribute rendering.
+// Uses nested Map<string, Map<string, string>> to avoid key collisions
+// from `name:value` concatenation (e.g. `a:b` + `c` vs `a` + `b:c`).
+const ATTR_CACHE = new Map<string, Map<string, string>>()
 const ATTR_CACHE_MAX_SIZE = 500
-const attrCacheKeys: string[] = []
+const attrCacheKeys: [string, string][] = []
 
-function getCachedAttr(key: string, builder: () => string): string {
-  const cached = ATTR_CACHE.get(key)
+function getCachedAttr(name: string, value: string, builder: () => string): string {
+  const byValue = ATTR_CACHE.get(name)
+  const cached = byValue?.get(value)
   if (cached !== undefined)
     return cached
 
   const result = builder()
 
   // FIFO eviction when cache is full
-  if (ATTR_CACHE.size >= ATTR_CACHE_MAX_SIZE) {
-    const evictKey = attrCacheKeys.shift()!
-    ATTR_CACHE.delete(evictKey)
+  if (attrCacheKeys.length >= ATTR_CACHE_MAX_SIZE) {
+    const [evictName, evictValue] = attrCacheKeys.shift()!
+    const evictMap = ATTR_CACHE.get(evictName)
+    evictMap?.delete(evictValue)
+    if (evictMap?.size === 0)
+      ATTR_CACHE.delete(evictName)
   }
 
-  ATTR_CACHE.set(key, result)
-  attrCacheKeys.push(key)
+  let map = ATTR_CACHE.get(name)
+  if (!map) {
+    map = new Map()
+    ATTR_CACHE.set(name, map)
+  }
+  map.set(value, result)
+  attrCacheKeys.push([name, value])
   return result
 }
 
@@ -76,8 +85,7 @@ function renderAttrsFromList(attrs: [string, string][] | null | undefined): stri
   // Fast path for single attribute with caching
   if (attrs.length === 1) {
     const [name, value] = attrs[0]
-    const cacheKey = `${name}:${value}`
-    return getCachedAttr(cacheKey, () =>
+    return getCachedAttr(name, value, () =>
       ` ${renderAttrName(name)}="${escapeHtml(value)}"`)
   }
 
