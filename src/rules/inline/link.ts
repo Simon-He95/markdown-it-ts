@@ -27,7 +27,7 @@ export function link(state: any, silent?: boolean): boolean {
   const max = state.posMax
   const labelStart = state.pos + 1
   const labelEnd = parseLinkLabel(state, state.pos, true)
-  
+
   if (labelEnd < 0)
     return false
 
@@ -39,7 +39,7 @@ export function link(state: any, silent?: boolean): boolean {
   // Try inline link syntax [text](url "title")
   if (pos < max && src.charCodeAt(pos) === 0x28 /* ( */) {
     pos = skipSpaces(src, pos + 1, max)
-    
+
     // Try to parse destination
     const destRes = parseLinkDestination(src, pos, max)
     if (destRes.ok) {
@@ -55,12 +55,12 @@ export function link(state: any, silent?: boolean): boolean {
       href = ''
       parseReference = false
     }
-    
+
     // Continue if we have a valid inline link so far
     if (!parseReference) {
       // Skip spaces before title
       pos = skipSpaces(src, pos, max)
-      
+
       // Try to parse title
       if (pos < max && src.charCodeAt(pos) !== 0x29 /* ) */) {
         const titleRes = parseLinkTitle(src, pos, max)
@@ -69,7 +69,7 @@ export function link(state: any, silent?: boolean): boolean {
           pos = skipSpaces(src, titleRes.pos, max)
         }
       }
-      
+
       // Validate closing paren
       if (pos < max && src.charCodeAt(pos) === 0x29 /* ) */) {
         pos++
@@ -79,17 +79,17 @@ export function link(state: any, silent?: boolean): boolean {
       }
     }
   }
-  
+
   // Reference link syntax [text][ref] or [text]
   if (parseReference) {
     if (typeof state.env.references === 'undefined')
       return false
-    
+
     let label: string
-    
+
     // Reset pos to after label
     pos = labelEnd + 1
-    
+
     // Explicit reference [text][ref] or [text][]
     if (pos < max && src.charCodeAt(pos) === 0x5B /* [ */) {
       const refStart = pos + 1
@@ -111,32 +111,32 @@ export function link(state: any, silent?: boolean): boolean {
       // Implicit reference [text]
       label = src.slice(labelStart, labelEnd)
     }
-    
+
     const ref = state.env.references[normalizeReference(label)]
     if (!ref) {
       state.pos = oldPos
       return false
     }
-    
+
     href = ref.href
     title = ref.title
   }
-  
+
   // Generate tokens
   if (!silent) {
     state.pos = labelStart
     state.posMax = labelEnd
-    
+
     const token_o = state.push('link_open', 'a', 1)
     token_o.attrs = title ? [['href', href], ['title', title]] : [['href', href]]
-    
+
     state.linkLevel++
     state.md.inline.tokenize(state)
     state.linkLevel--
-    
+
     state.push('link_close', 'a', -1)
   }
-  
+
   state.pos = pos
   state.posMax = max
   return true
