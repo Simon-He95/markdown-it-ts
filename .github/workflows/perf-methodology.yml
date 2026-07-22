@@ -1,0 +1,75 @@
+name: Perf Methodology
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/perf-methodology.yml
+      - src/**
+      - scripts/perf-*.mjs
+      - scripts/update-readme-metrics.mjs
+      - test/scripts/perf-corpora.test.ts
+      - README.md
+      - README.zh-CN.md
+      - docs/architecture.md
+      - docs/development.md
+      - docs/security.md
+      - docs/perf-*.md
+      - docs/perf-latest.json
+      - package.json
+      - pnpm-lock.yaml
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/perf-methodology.yml
+      - src/**
+      - scripts/perf-*.mjs
+      - scripts/update-readme-metrics.mjs
+      - test/scripts/perf-corpora.test.ts
+      - README.md
+      - README.zh-CN.md
+      - docs/architecture.md
+      - docs/development.md
+      - docs/security.md
+      - docs/perf-*.md
+      - docs/perf-latest.json
+      - package.json
+      - pnpm-lock.yaml
+  workflow_dispatch: {}
+
+jobs:
+  representative-corpora:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate checked-in benchmark fingerprint and report
+        run: pnpm run perf:methodology:check
+
+      - name: Validate checked-in README blocks against the checked-in JSON
+        run: pnpm run perf:update-readme:check
+
+      - name: Generate stock-subset, feature-mixed, and real-world results
+        run: pnpm run perf:generate
+
+      - name: Update generated README benchmark blocks
+        run: pnpm run perf:update-readme
+
+      - name: Validate comparison semantics and observed paths
+        run: pnpm run perf:methodology:check
+
+      - name: Validate generated README blocks against the current JSON
+        run: pnpm run perf:update-readme:check

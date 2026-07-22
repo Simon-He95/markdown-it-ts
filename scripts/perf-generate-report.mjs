@@ -3,7 +3,7 @@
 // Run: node scripts/perf-generate-report.mjs
 
 import { performance } from 'node:perf_hooks'
-import { writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
 import os from 'node:os'
 import MarkdownIt from '../dist/index.js'
@@ -15,13 +15,22 @@ import {
   parseAndRender as oxParseAndRender,
 } from '@ox-content/napi'
 import { createMarkdownExit as createMarkdownExitFactory } from 'markdown-exit'
+import {
+  FEATURE_MIXED_CORPUS,
+  REAL_WORLD_CORPUS_FILES,
+  STOCK_SUBSET_CORPUS,
+  firstDifference,
+  makeFeatureMixedDocument,
+  makeStockSubsetParts,
+} from './perf-corpora.mjs'
+import { getBenchmarkFingerprint, sha256 } from './perf-fingerprint.mjs'
 import { micromark, parse as micromarkParse, preprocess as micromarkPreprocess, postprocess as micromarkPostprocess } from 'micromark'
 import { unified } from 'unified'
 import remarkParse from 'remark-parse'
 import remarkRehype from 'remark-rehype'
 import rehypeStringify from 'rehype-stringify'
 
-const PERF_BENCHMARK_VERSION = 5
+const PERF_BENCHMARK_VERSION = 7
 
 function safeGitCommit(args = ['rev-parse', 'HEAD']) {
   try {
@@ -44,20 +53,8 @@ function getPerfEnvironment() {
   }
 }
 
-function para(n) {
-  return `## Section ${n}\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod.\n\n- a\n- b\n- c\n\n\`\`\`js\nconsole.log(${n})\n\`\`\`\n\n`
-}
-
-function makeParasByChars(targetChars) {
-  const paras = []
-  let s = ''
-  let i = 0
-  while (s.length < targetChars) {
-    const p = para(i++)
-    paras.push(p)
-    s += p
-  }
-  return paras
+function makeStockSubsetByChars(targetChars) {
+  return makeStockSubsetParts(targetChars)
 }
 
 function splitParasIntoSteps(paras, steps) {
@@ -143,6 +140,31 @@ function rotate(items, offset) {
 
   const start = ((offset % items.length) + items.length) % items.length
   return items.slice(start).concat(items.slice(0, start))
+}
+
+function measureRotatedWarmGroup(runners, iters, requestedSamples, warmupsPerSample = 1) {
+  if (runners.length === 0)
+    throw new Error('measureRotatedWarmGroup requires at least one runner')
+
+  const samples = Math.ceil(requestedSamples / runners.length) * runners.length
+  const measurements = new Map(runners.map(runner => [runner.id, []]))
+
+  for (let sample = 0; sample < samples; sample++) {
+    for (const runner of rotate(runners, sample)) {
+      for (let warm = 0; warm < warmupsPerSample; warm++)
+        runner.run()
+      const measured = measure(runner.run, iters).ms / iters
+      measurements.get(runner.id).push(measured)
+    }
+  }
+
+  return {
+    orderPolicy: 'rotate-each-sample',
+    samples,
+    timings: Object.fromEntries(
+      runners.map(runner => [runner.id, median(measurements.get(runner.id))]),
+    ),
+  }
 }
 
 function pickIters(size) {
@@ -361,7 +383,7 @@ function runMatrix() {
 
   for (let sizeIndex = 0; sizeIndex < SIZES.length; sizeIndex++) {
     const size = SIZES[sizeIndex]
-    const paras = makeParasByChars(size)
+    const paras = makeStockSubsetByChars(size)
     const doc = paras.join('')
     const appParts = splitParasIntoSteps(paras, APP_STEPS)
     const { oneIters, appRepeats, stableSamples, appendSequenceIters, appendLineSequenceIters, replaceSequenceIters } = pickIters(size)
@@ -466,6 +488,8 @@ function runMatrix() {
         appendHits: md.stream?.stats?.().appendHits || 0,
         chunkInfoOne: (sc.type === 'full-chunk') ? (getParseDiagnostics(envOne)?.chunk || null) : (sc.type.startsWith('stream') ? (getParseDiagnostics(envStream)?.chunk || null) : null),
         chunkInfoAppendLast: (sc.type === 'full-chunk') ? (getParseDiagnostics(envAppend)?.chunk || null) : (sc.type.startsWith('stream') ? (getParseDiagnostics(envStream)?.chunk || null) : null),
+        parsePathOne: normalizeParsePath(getParseDiagnostics(sc.type.startsWith('stream') ? envStream : envOne)?.strategy?.path),
+        parseReasonOne: getParseDiagnostics(sc.type.startsWith('stream') ? envStream : envOne)?.strategy?.reason ?? null,
       })
     }
   }
@@ -488,7 +512,7 @@ function measureColdHot() {
   const coldHot = []
 
   for (const size of COLD_HOT_SIZES) {
-    const doc = makeParasByChars(size).join('')
+    const doc = makeStockSubsetByChars(size).join('')
     for (const impl of impls) {
       const coldSamples = []
       const hotSamples = []
@@ -549,7 +573,7 @@ async function measureRenderComparisons() {
   const results = []
   for (let sizeIndex = 0; sizeIndex < SIZES.length; sizeIndex++) {
     const size = SIZES[sizeIndex]
-    const doc = makeParasByChars(size).join('')
+    const doc = makeStockSubsetByChars(size).join('')
     const { oneIters, stableSamples } = pickIters(size)
     for (const impl of rotate(impls.filter(impl => !shouldSkipRenderImplAtSize(impl, size)), sizeIndex)) {
       const inst = impl.make()
@@ -581,12 +605,118 @@ async function measureRenderComparisons() {
   return results
 }
 
+function normalizeParsePath(path) {
+  return path === 'plain' ? 'general' : (path ?? 'unknown')
+}
+
+function inspectMarkdownItStrategies(doc) {
+  const parseEnv = {}
+  MarkdownIt().parse(doc, parseEnv)
+  const parseStrategy = getParseDiagnostics(parseEnv)?.strategy
+
+  const renderEnv = {}
+  MarkdownIt().render(doc, renderEnv)
+  const renderStrategy = getParseDiagnostics(renderEnv)?.strategy
+
+  return {
+    parsePath: normalizeParsePath(parseStrategy?.path),
+    parseReason: parseStrategy?.reason ?? 'unknown',
+    renderPath: renderStrategy?.area === 'render' && renderStrategy.path === 'stock-fast'
+      ? 'stock-fast'
+      : 'token-renderer',
+    renderFallbackParsePath: renderStrategy?.area === 'parse'
+      ? normalizeParsePath(renderStrategy.path)
+      : null,
+  }
+}
+
+function measureNativeCorpusEntry(corpus, doc, oxOptions = undefined) {
+  const { oneIters, stableSamples } = pickIters(doc.length)
+  const strategies = inspectMarkdownItStrategies(doc)
+  const tsParser = MarkdownIt()
+  const tsRenderer = MarkdownIt()
+  const markdownItParser = MarkdownItOriginal()
+  const markdownItRenderer = MarkdownItOriginal()
+
+  const parseGroup = measureRotatedWarmGroup([
+    { id: 'markdownItTsMs', run: () => tsParser.parse(doc) },
+    { id: 'markdownItMs', run: () => markdownItParser.parse(doc) },
+    { id: 'oxContentMs', run: () => oxParse(doc, oxOptions) },
+  ], oneIters, stableSamples)
+  const renderGroup = measureRotatedWarmGroup([
+    { id: 'markdownItTsMs', run: () => tsRenderer.render(doc) },
+    { id: 'markdownItMs', run: () => markdownItRenderer.render(doc) },
+    { id: 'oxContentMs', run: () => oxParseAndRender(doc, oxOptions).html },
+  ], oneIters, stableSamples)
+
+  const tsHtml = tsRenderer.render(doc)
+  const oxHtml = oxParseAndRender(doc, oxOptions).html
+
+  return {
+    corpusId: corpus.id,
+    corpusLabel: corpus.label,
+    corpusKind: corpus.kind,
+    sourcePath: corpus.path ?? null,
+    size: doc.length,
+    targetSize: corpus.targetSize ?? null,
+    measurement: {
+      iterationsPerSample: oneIters,
+      samples: parseGroup.samples,
+      orderPolicy: parseGroup.orderPolicy,
+    },
+    parse: {
+      ...parseGroup.timings,
+      markdownItTsOutput: 'mutable markdown-it-compatible Token[]',
+      oxContentOutput: 'object containing an mdast JSON string',
+      equivalentOutput: false,
+      path: strategies.parsePath,
+      reason: strategies.parseReason,
+    },
+    render: {
+      ...renderGroup.timings,
+      path: strategies.renderPath,
+      fallbackParsePath: strategies.renderFallbackParsePath,
+      outputComparison: firstDifference(tsHtml, oxHtml),
+    },
+    oxOptions: oxOptions ?? {},
+  }
+}
+
+function measureNativeCorpusComparisons() {
+  const comparisons = []
+
+  for (const targetSize of SIZES) {
+    const doc = makeStockSubsetByChars(targetSize).join('')
+    comparisons.push(measureNativeCorpusEntry({ ...STOCK_SUBSET_CORPUS, targetSize }, doc))
+  }
+
+  for (const targetSize of [5_000, 20_000, 50_000, 100_000, 200_000]) {
+    const doc = makeFeatureMixedDocument(targetSize)
+    comparisons.push(measureNativeCorpusEntry(
+      { ...FEATURE_MIXED_CORPUS, targetSize },
+      doc,
+      { tables: true, strikethrough: true },
+    ))
+  }
+
+  for (const corpus of REAL_WORLD_CORPUS_FILES) {
+    const doc = readFileSync(new URL(`../${corpus.path}`, import.meta.url), 'utf8')
+    comparisons.push(measureNativeCorpusEntry(
+      corpus,
+      doc,
+      { tables: true, strikethrough: true },
+    ))
+  }
+
+  return comparisons
+}
+
 function measureStockAstJsonComparisons() {
   const comparisons = []
 
   for (let sizeIndex = 0; sizeIndex < SIZES.length; sizeIndex++) {
     const size = SIZES[sizeIndex]
-    const doc = makeParasByChars(size).join('')
+    const doc = makeStockSubsetByChars(size).join('')
     const { oneIters, stableSamples } = pickIters(size)
 
     const ast = parseStockFastAstJson(doc)
@@ -612,7 +742,61 @@ function measureStockAstJsonComparisons() {
   return comparisons
 }
 
-function toMarkdown(results, coldHot, environment, stockAstJsonComparisons) {
+function markdownExcerpt(value) {
+  return value.replaceAll('`', '\\`').replaceAll('\r', '\\r').replaceAll('\n', '\\n')
+}
+
+function appendNativeCorpusReport(lines, comparisons) {
+  lines.push('## Native API throughput by corpus')
+  lines.push('')
+  lines.push('These rows use fixed configurations: default `MarkdownIt().parse()` / `MarkdownIt().render()`, upstream `markdown-it` defaults, and `@ox-content/napi` native parse/render APIs. The feature-mixed and real-world OX rows enable `tables` and `strikethrough` to more closely match markdown-it defaults. Implementation order rotates for every sample to avoid assigning a stable warmup, GC, or CPU-state advantage to one library.')
+  lines.push('')
+  lines.push('Parse output is **not equivalent work**: markdown-it-ts returns mutable markdown-it-compatible `Token[]`, while OX returns an object containing an mdast JSON string. These rows describe native API throughput only and are not ranked into an overall winner.')
+  lines.push('')
+
+  for (const corpusId of ['stock-subset', 'feature-mixed']) {
+    const rows = comparisons.filter(row => row.corpusId === corpusId)
+    const corpus = corpusId === 'stock-subset' ? STOCK_SUBSET_CORPUS : FEATURE_MIXED_CORPUS
+    lines.push(`### ${corpus.label}`)
+    lines.push('')
+    lines.push(corpus.description)
+    lines.push(corpus.repetition)
+    if (corpusId === 'stock-subset')
+      lines.push('This is a specialized fast-path benchmark, not a proxy for general Markdown performance.')
+    lines.push('')
+    lines.push('| Actual chars | TS parse | markdown-it parse | OX parse | TS parse path | TS render | markdown-it render | OX render | TS render path | HTML equal? |')
+    lines.push('|---:|---:|---:|---:|:--|---:|---:|---:|:--|:--|')
+    for (const row of rows) {
+      lines.push(`| ${row.size.toLocaleString()} | ${fmt(row.parse.markdownItTsMs)} | ${fmt(row.parse.markdownItMs)} | ${fmt(row.parse.oxContentMs)} | ${row.parse.path} | ${fmt(row.render.markdownItTsMs)} | ${fmt(row.render.markdownItMs)} | ${fmt(row.render.oxContentMs)} | ${row.render.path} | ${row.render.outputComparison.equal ? 'yes' : 'no'} |`)
+    }
+    lines.push('')
+
+    const outputComparison = rows[0]?.render.outputComparison
+    if (outputComparison && !outputComparison.equal) {
+      lines.push(`First recorded HTML difference at index ${outputComparison.firstDifferenceIndex}:`)
+      lines.push('')
+      lines.push(`- markdown-it-ts: \`${markdownExcerpt(outputComparison.leftExcerpt)}\``)
+      lines.push(`- @ox-content/napi: \`${markdownExcerpt(outputComparison.rightExcerpt)}\``)
+      lines.push('')
+    }
+  }
+
+  const realWorldRows = comparisons.filter(row => row.corpusKind === 'real-world')
+  lines.push('### Repository-owned real-world documents')
+  lines.push('')
+  lines.push('Each MIT-licensed document is measured independently; files are not concatenated and no aggregate winner is calculated.')
+  lines.push('')
+  lines.push('| File | Chars | TS parse | markdown-it parse | OX parse | TS parse path | TS render | markdown-it render | OX render | TS render path | HTML equal? |')
+  lines.push('|:--|---:|---:|---:|---:|:--|---:|---:|---:|:--|:--|')
+  for (const row of realWorldRows) {
+    lines.push(`| ${row.corpusLabel} | ${row.size.toLocaleString()} | ${fmt(row.parse.markdownItTsMs)} | ${fmt(row.parse.markdownItMs)} | ${fmt(row.parse.oxContentMs)} | ${row.parse.path} | ${fmt(row.render.markdownItTsMs)} | ${fmt(row.render.markdownItMs)} | ${fmt(row.render.oxContentMs)} | ${row.render.path} | ${row.render.outputComparison.equal ? 'yes' : 'no'} |`)
+  }
+  lines.push('')
+  lines.push("Render rows compare each library's native renderer behavior. A `no` in “HTML equal?” means the row must not be described as equivalent-output work; common differences include heading IDs and renderer-specific attributes/tags.")
+  lines.push('')
+}
+
+function toMarkdown(results, coldHot, environment, stockAstJsonComparisons, nativeCorpusComparisons) {
   const lines = []
   lines.push('# Performance Report (latest run)')
   lines.push('')
@@ -624,6 +808,18 @@ function toMarkdown(results, coldHot, environment, stockAstJsonComparisons) {
   lines.push(`- CPU: ${environment.cpu}`)
   lines.push(`- CPU count: ${environment.cpuCount}`)
   lines.push(`- Commit: ${environment.commit}`)
+  lines.push('')
+  lines.push('## Corpus and comparison policy')
+  lines.push('')
+  lines.push(`- \`${STOCK_SUBSET_CORPUS.id}\`: ${STOCK_SUBSET_CORPUS.description} ${STOCK_SUBSET_CORPUS.repetition}`)
+  lines.push(`- \`${FEATURE_MIXED_CORPUS.id}\`: ${FEATURE_MIXED_CORPUS.description} ${FEATURE_MIXED_CORPUS.repetition}`)
+  lines.push('- `real-world`: repository-owned MIT-licensed documents, reported per file.')
+  lines.push('- Fixed-configuration native API, tuned/best-of, and equivalent-output results are kept separate. Do not combine these sections into a general library ranking.')
+  lines.push('')
+  appendNativeCorpusReport(lines, nativeCorpusComparisons)
+  lines.push('## Tuned / best-of stock-subset matrix')
+  lines.push('')
+  lines.push('The matrix below is the specialized `stock-subset` workload. S1–S5 are markdown-it-ts tuning scenarios; external rows use their native output shapes. This section is not the fixed-configuration headline and is not equivalent-output work.')
   lines.push('')
   lines.push('Default API note: normal `md.parse(src)` / `md.render(src)` calls may auto-activate an internal large-input path for very large finite strings only when no plugin has been installed and parser rulers have not been modified. Explicit chunk-stream APIs such as `parseIterable` / `UnboundedBuffer` are advanced tools for sources that already arrive as chunks.')
   lines.push('External parser rows use each library\'s native output shape; this matrix compares throughput, not byte-for-byte output compatibility. `OXJ` adds `JSON.parse` on top of @ox-content/napi\'s AST JSON string to show the cost of materializing a JavaScript object tree.')
@@ -673,27 +869,27 @@ function toMarkdown(results, coldHot, environment, stockAstJsonComparisons) {
     lines.push(`| ${size} | ${oneCells.join(' | ')} | ${appCells.join(' | ')} | ${lineAppCells.join(' | ')} | ${replaceCells.join(' | ')} |`)
   }
   lines.push('')
-  lines.push('Best (one-shot) per size:')
+  lines.push('Best markdown-it-ts configuration (one-shot) per size:')
   for (const [size, arr] of groupBy(results, 'size')) {
-    const best = [...arr].sort((a,b)=>a.oneShotMs-b.oneShotMs)[0]
+    const best = arr.filter(row => row.scenario.startsWith('S')).sort((a,b)=>a.oneShotMs-b.oneShotMs)[0]
     lines.push(`- ${size}: ${best.scenario} ${fmt(best.oneShotMs)} (${best.label})`)
   }
   lines.push('')
-  lines.push('Best (append workload) per size:')
+  lines.push('Best markdown-it-ts configuration (append workload) per size:')
   for (const [size, arr] of groupBy(results, 'size')) {
-    const best = [...arr].sort((a,b)=>a.appendWorkloadMs-b.appendWorkloadMs)[0]
+    const best = arr.filter(row => row.scenario.startsWith('S')).sort((a,b)=>a.appendWorkloadMs-b.appendWorkloadMs)[0]
     lines.push(`- ${size}: ${best.scenario} ${fmt(best.appendWorkloadMs)} (${best.label})`)    
   }
   lines.push('')
-  lines.push('Best (line-append workload) per size:')
+  lines.push('Best markdown-it-ts configuration (line-append workload) per size:')
   for (const [size, arr] of groupBy(results, 'size')) {
-    const best = [...arr].sort((a,b)=>a.appendLineMs-b.appendLineMs)[0]
+    const best = arr.filter(row => row.scenario.startsWith('S')).sort((a,b)=>a.appendLineMs-b.appendLineMs)[0]
     lines.push(`- ${size}: ${best.scenario} ${fmt(best.appendLineMs)} (${best.label})`)    
   }
   lines.push('')
-  lines.push('Best (replace-paragraph workload) per size:')
+  lines.push('Best markdown-it-ts configuration (replace-paragraph workload) per size:')
   for (const [size, arr] of groupBy(results, 'size')) {
-    const best = [...arr].sort((a,b)=>a.replaceParagraphMs-b.replaceParagraphMs)[0]
+    const best = arr.filter(row => row.scenario.startsWith('S')).sort((a,b)=>a.replaceParagraphMs-b.replaceParagraphMs)[0]
     lines.push(`- ${size}: ${best.scenario} ${fmt(best.replaceParagraphMs)} (${best.label})`)    
   }
   lines.push('')
@@ -701,22 +897,23 @@ function toMarkdown(results, coldHot, environment, stockAstJsonComparisons) {
   const winsOne = new Map()
   const winsApp = new Map()
   for (const [size, arr] of groupBy(results, 'size')) {
-    const oneBest = [...arr].sort((a,b)=>a.oneShotMs-b.oneShotMs)[0]
-    const appBest = [...arr].sort((a,b)=>a.appendWorkloadMs-b.appendWorkloadMs)[0]
+    const tsRows = arr.filter(row => row.scenario.startsWith('S'))
+    const oneBest = [...tsRows].sort((a,b)=>a.oneShotMs-b.oneShotMs)[0]
+    const appBest = [...tsRows].sort((a,b)=>a.appendWorkloadMs-b.appendWorkloadMs)[0]
     winsOne.set(oneBest.scenario, (winsOne.get(oneBest.scenario)||0)+1)
     winsApp.set(appBest.scenario, (winsApp.get(appBest.scenario)||0)+1)
   }
   function fmtWins(map){ return Array.from(map.entries()).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${k}(${v})`).join(', ') }
-  lines.push('Recommendations (by majority across sizes):')
+  lines.push('markdown-it-ts tuning recommendations (by majority across sizes):')
   lines.push(`- One-shot: ${fmtWins(winsOne)}`)
   lines.push(`- Append-heavy: ${fmtWins(winsApp)}`)
   lines.push('')
   lines.push('Notes: S2/S3 appendHits should equal 5 when append fast-path triggers (shared env).')
   lines.push('Large-size rows may show `-` for especially heavy parse-only or render-only baselines (currently remark/micromark above 200k) so `perf:all` stays practical.')
   lines.push('')
-  lines.push('## Render API throughput (markdown → HTML)')
+  lines.push('## Specialized stock-subset render API throughput (markdown → HTML)')
   lines.push('')
-  lines.push('This measures end-to-end render API throughput across markdown-it-ts, upstream markdown-it, @ox-content/napi, micromark (CommonMark reference), and remark+rehype (parse + stringify). Lower is better.')
+  lines.push('This measures end-to-end native render API throughput on the specialized stock-subset corpus. Lower is better. The generated HTML is not equivalent across all libraries; see the output comparison above.')
   lines.push('It is intentionally a full render-API benchmark (`parse + render`), not a renderer-only hot-path benchmark.')
   lines.push('')
   const renderBySize = groupBy(renderComparisons, 'size')
@@ -787,7 +984,7 @@ function toMarkdown(results, coldHot, environment, stockAstJsonComparisons) {
     }
   lines.push('')
   // Best-of TS vs baseline summary
-  lines.push('## Best-of markdown-it-ts vs markdown-it (baseline)')
+  lines.push('## Tuned / best-of markdown-it-ts vs markdown-it (stock subset)')
   lines.push('')
   lines.push('| Size (chars) | TS best one | Baseline one | One comparison | TS best append | Baseline append | Append comparison | TS scenario (one/append) |')
   lines.push('|---:|---:|---:|:--|---:|---:|:--|:--|')
@@ -808,7 +1005,7 @@ function toMarkdown(results, coldHot, environment, stockAstJsonComparisons) {
   lines.push('- Comparison columns are written from markdown-it-ts against the markdown-it baseline.')
   lines.push('- `faster / less time` is better; if a future run regresses, the wording will flip to `slower / more time`.')
   lines.push('')
-  lines.push('## Best-of markdown-it-ts vs @ox-content/napi')
+  lines.push('## Tuned / best-of markdown-it-ts vs @ox-content/napi (stock subset)')
   lines.push('')
   lines.push('Note: the @ox-content/napi parse-only API returns an AST JSON string; these parse-only rows do not include a follow-up `JSON.parse` into JavaScript objects.')
   lines.push('')
@@ -841,9 +1038,9 @@ function toMarkdown(results, coldHot, environment, stockAstJsonComparisons) {
   }
   lines.push('')
   if (stockAstJsonComparisons.length > 0) {
-    lines.push('Experimental stock-subset AST JSON output:')
+    lines.push('## Equivalent-output stock-subset AST JSON')
     lines.push('')
-    lines.push('This is not the default markdown-it-compatible `Token[]` API. It emits the same mdast JSON string as @ox-content/napi for the stock subset covered by the internal fast path, to measure how far a compact/string boundary can go without JS Token materialization.')
+    lines.push('This is not the default markdown-it-compatible `Token[]` API. Before timing, the benchmark asserts byte-for-byte identical mdast JSON output with @ox-content/napi for every measured size. It only covers the specialized stock subset.')
     lines.push('')
     lines.push('| Size (chars) | markdown-it-ts stock AST JSON | @ox-content/napi parse | TS vs ox | @ox-content/napi parse + JSON.parse |')
     lines.push('|---:|---:|---:|:--|---:|')
@@ -900,9 +1097,11 @@ const results = runMatrix()
 const coldHot = measureColdHot()
 const renderComparisons = await measureRenderComparisons()
 const stockAstJsonComparisons = measureStockAstJsonComparisons()
+const nativeCorpusComparisons = measureNativeCorpusComparisons()
 const environment = getPerfEnvironment()
-const md = toMarkdown(results, coldHot, environment, stockAstJsonComparisons)
+const md = toMarkdown(results, coldHot, environment, stockAstJsonComparisons, nativeCorpusComparisons)
 writeFileSync(new URL('../docs/perf-latest.md', import.meta.url), md)
+const benchmarkFingerprint = getBenchmarkFingerprint()
 
 // Also write a machine-readable JSON for regression checks
 const shortCommit = environment.commit === 'unknown'
@@ -911,6 +1110,8 @@ const shortCommit = environment.commit === 'unknown'
 
 const payload = {
   benchmarkVersion: PERF_BENCHMARK_VERSION,
+  benchmarkFingerprint,
+  reportSha256: sha256(md),
   generatedAt: environment.generatedAt,
   node: environment.node,
   gitSha: shortCommit === 'unknown' ? null : shortCommit,
@@ -919,6 +1120,13 @@ const payload = {
   coldHot,
   renderComparisons,
   stockAstJsonComparisons,
+  nativeCorpusComparisons,
+  corpora: [STOCK_SUBSET_CORPUS, FEATURE_MIXED_CORPUS, ...REAL_WORLD_CORPUS_FILES],
+  comparisonPolicy: {
+    nativeApiOutputEquivalent: false,
+    stockAstJsonOutputEquivalent: true,
+    tunedResultsAreHeadline: false,
+  },
 }
 writeFileSync(new URL('../docs/perf-latest.json', import.meta.url), JSON.stringify(payload, null, 2))
 

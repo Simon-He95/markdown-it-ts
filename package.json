@@ -130,6 +130,8 @@
     "perf:tune-defaults": "npm run build && node scripts/tune-default-strategies.mjs",
     "perf:tune-editable": "npm run build && node scripts/tune-editable-buffer.mjs",
     "perf:update-readme": "node scripts/update-readme-metrics.mjs",
+    "perf:update-readme:check": "node scripts/update-readme-metrics.mjs --check",
+    "perf:methodology:check": "node scripts/perf-methodology-check.mjs",
     "perf:compare": "node scripts/perf-compare.mjs docs/perf-latest.json",
     "perf:compare:ref": "node scripts/perf-compare-ref.mjs",
     "perf:compare:stream-ref": "node scripts/perf-stream-incremental-ref.mjs",

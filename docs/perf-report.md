@@ -1,8 +1,8 @@
 # Performance Report: Stream vs Chunked vs Full
 
-This report summarizes measured performance across five configurations and four document sizes. Benchmarks were run on Node.js using synthetic paragraph-heavy content.
+This report documents the tuned stream/chunk configuration matrix. Its generated input is the specialized synthetic `stock-subset`: ATX headings, plain single-line paragraphs, flat tight bullet lists, and fenced code. Repeated paragraph/list source intentionally exercises `stock-fast` and its last-output caches.
 
-Treat these numbers as local harness data, not as a blanket claim that every workload is faster. The latest generated snapshot in `docs/perf-latest.json` records `benchmarkVersion`, `generatedAt`, Node version, platform, CPU, CPU count, and commit SHA so results can be reproduced or compared against later runs.
+Treat these numbers as specialized local harness data, not as a blanket claim that every workload is faster. Fixed-configuration native API results for `stock-subset`, `feature-mixed`, and repository-owned real documents—as well as the separate equivalent-mdast-JSON comparison—live in `docs/perf-latest.md`. The JSON snapshot records corpus metadata, observed parser/renderer paths, output-equivalence status, sampling order, `benchmarkVersion`, environment, and commit SHA.
 
 Default API note:
 - Normal callers should keep using `md.parse(src)` / `md.render(src)`.
@@ -92,14 +92,16 @@ node scripts/full-vs-chunked-sweep.mjs
 
 These scripts print best-per-size summaries and can export JSON by setting `PERF_JSON=1`.
 
-When publishing or comparing benchmark numbers, include:
+When publishing or comparing benchmark numbers, keep native API, tuned/best-of, and equivalent-output results separate. Include:
 
 - Node.js version
 - CPU and OS/platform
 - benchmark version
 - commit SHA for this repository
 - baseline package versions
-- content generator or fixture source
+- corpus ID and content generator or fixture source
+- observed parser/renderer path (`stock-fast`, `general`, or `token-renderer`)
+- whether compared output was asserted equivalent; otherwise include the output difference
 - warmup/iteration settings from the harness
 
 ## Baseline: markdown-it (JS) example

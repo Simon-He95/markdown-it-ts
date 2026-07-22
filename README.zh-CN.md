@@ -171,7 +171,7 @@ const html = await md.renderAsync('# 你好，世界', {
 ## 为什么推荐用 markdown-it-ts 渲染？
 
 - **对比 markdown-it**：沿用相同 API/插件生态，但我们用 TypeScript 重写了解析器与渲染器，拆分为可 tree-shaking 的模块并加入流式/分块能力。普通 `parse` / `render` 调用方式保持不变，超大但有限的字符串会自动启用内部大文本优化；如果是编辑器输入，还可以额外启用 `stream`、`streamChunkedFallback` 等策略，仅重算新增内容，而不是每次重跑整篇文档。
-- **对比 markdown-exit**：两者都强调性能，但 markdown-it-ts 保留 markdown-it API/插件面、typed API 与 async render（`renderAsync`），并提供更丰富的调参组合（例如块级 fence 感知、混合模式 fallback）。在本仓库 5k~100k 字符 synthetic harness 中，markdown-it-ts 的 parse one-shot 延迟领先（见“Parse 排名”表）；流式路径对长文 append 的延迟也低于每次汇总重解析。
+- **对比 markdown-exit**：两者都强调性能，但 markdown-it-ts 保留 markdown-it API/插件面、typed API 与 async render（`renderAsync`），并提供更丰富的调参组合（例如块级 fence 感知、混合模式 fallback）。下方 benchmark 按语料和比较语义拆分；专项 stock-subset 的排名不能外推到一般 Markdown。
 - **对比 remark**：remark 生态非常适合 AST 转换，真实项目通常还会叠加 unified/rehype 阶段。这里的数字只比较本仓库 Markdown → HTML harness；markdown-it-ts 直接输出 HTML、保留 markdown-it renderer 语义，并兼容异步高亮、Token 后处理等常见需求。
 - **对比 micromark**：micromark 是面向 CommonMark 的参考实现，目标和 API 都不同。markdown-it-ts 以 markdown-it 的插件 API 与 renderer 语义兼容为目标；下方数字只代表本仓库 harness 覆盖的特定 parse/render 场景。
 - **工程体验**：代码与类型全部开源且随发布同步，可以配合 `docs/stream-optimization.md`、`markdown-it-ts/experimental` 以及 `recommend*Strategy`、`StreamBuffer`、`chunkedParse` 等已开放显式子路径工具，快速搭建自适应流式管线；CI 中的基准脚本 (`perf:generate`, `perf:update-readme`) 也能确保团队持续看到最新对比数据，减少性能回退的顾虑。
@@ -180,8 +180,10 @@ const html = await md.renderAsync('# 你好，世界', {
 
 ## 性能说明（概览）
 
-- 目标：在本仓库 synthetic paragraph-heavy / append-heavy harness 下验证默认路径和流式路径的性能；真实项目请用自己的语料复现，不把这些数字理解成“所有 workload 都更快”。
-- 可复现：本仓库附带快速基准脚本与对比脚本，便于在本机环境复现与比较。
+- 报告把三类问题分开：固定配置的 native API 吞吐、tuned/best-of 场景、已验证等价输出的比较。
+- 历史按尺寸结果使用 synthetic `stock-subset`：ATX 标题、单行纯文本段落、平铺紧凑列表和 fenced code；重复段落/列表会命中 `stock-fast` 与末次输出缓存，因此这是专项快路径基准，不代表一般 Markdown。
+- 新报告另外包含 feature-mixed synthetic 语料和本仓库自有的 MIT 许可真实文档，逐语料/逐文件报告，不合并成一个总体胜负。
+- 可复现：本仓库附带基准脚本与对比脚本，便于在本机环境复现与比较。
 
 本地复现基准：
 
@@ -197,54 +199,72 @@ pnpm run perf:update-readme
 - 性能与 Node.js 版本、CPU 以及具体内容形态相关。请参考 `docs/perf-latest.md` 获取完整表格与运行环境信息。
 - 流式（stream）模式默认以正确性为优先。对于编辑器输入（频繁追加）的场景，可使用 `StreamBuffer` 在“块级边界”进行刷写，以提高追加路径命中率。
 
+### 按语料拆分的固定配置 native API 结果
+
+markdown-it-ts 使用默认 `MarkdownIt()` 实例；feature-mixed 和真实文档的 OX 行启用 tables 与 strikethrough，以更接近地对齐这些特性。Parse 行不是等价输出比较：markdown-it-ts 返回可变 `Token[]`，`@ox-content/napi` 返回包含 mdast JSON 字符串的对象。Render 行比较双方原生行为，并明确记录 HTML 是否相同。不同语料不会合并为一个总体胜负。
+
+<!-- perf-auto:native-corpora:start -->
+| 语料 | 字符数 | TS parse | OX parse | TS parse 路径 | TS render | OX render | TS render 路径 | HTML 相同？ |
+|:--|---:|---:|---:|:--|---:|---:|:--|:--|
+| synthetic stock-subset (~100k) | 100,126 | 0.6125ms | 0.7877ms | stock-fast | 0.2738ms | 0.6829ms | stock-fast | 否 |
+| synthetic feature-mixed (~100k) | 100,450 | 3.7521ms | 0.8735ms | general | 4.4439ms | 0.8063ms | token-renderer | 否 |
+| docs/architecture.md | 6,564 | 0.0929ms | 0.0209ms | general | 0.1040ms | 0.0151ms | token-renderer | 否 |
+| docs/development.md | 4,756 | 0.0987ms | 0.0206ms | general | 0.1120ms | 0.0173ms | token-renderer | 否 |
+| docs/security.md | 1,375 | 0.0259ms | 0.0063ms | general | 0.0298ms | 0.0058ms | token-renderer | 否 |
+<!-- perf-auto:native-corpora:end -->
+
+### Tuned/best-of stock-subset 结果
+
+以下历史按尺寸数字只针对 synthetic `stock-subset`。除非特别说明，parse 取 markdown-it-ts S1–S5 中每个尺寸的最快值；render 使用默认 `MarkdownIt().render()`，两者不能合并理解为同一链路排名。
+
 ## 与 markdown-it 的解析性能对比（一次性解析）
 
-最新一次在本机环境（Node.js 版本、CPU 请见 `docs/perf-latest.md`）的对比结果（取 20 次平均值）：
+最新一次在本机环境（Node.js 版本、CPU 请见 `docs/perf-latest.md`）经预热并取多组采样中位数的对比结果：
 
 <!-- perf-auto:one-examples:start -->
-- 5,000 chars: 0.0370ms vs 0.1864ms → ~5× faster, ~80% less time
-- 20,000 chars: 0.1257ms vs 0.7437ms → ~5.9× faster, ~83% less time
-- 100,000 chars: 0.7012ms vs 3.8789ms → ~5.5× faster, ~82% less time
-- 500,000 chars: 5.8382ms vs 26.13ms → ~4.5× faster, ~78% less time
-- 1,000,000 chars: 13.82ms vs 65.34ms → ~4.7× faster, ~79% less time
+- 5,000 chars: 0.0314ms vs 0.1460ms → ~4.6× faster, ~78% less time
+- 20,000 chars: 0.0985ms vs 0.5863ms → ~6× faster, ~83% less time
+- 100,000 chars: 0.5893ms vs 3.0054ms → ~5.1× faster, ~80% less time
+- 500,000 chars: 4.4061ms vs 22.71ms → ~5.2× faster, ~81% less time
+- 1,000,000 chars: 14.54ms vs 42.75ms → ~2.9× faster, ~66% less time
 <!-- perf-auto:one-examples:end -->
 
 注意：数字会因环境与内容不同而变化，建议在本地按上文“本地复现基准”步骤生成你自己的对比报告。若需在 CI 中进行回归检测，可运行：`pnpm run perf:check`。
 
 ### 与 @ox-content/napi 的解析性能对比（仅解析）
 
-下面对比 markdown-it-ts 在同规模下最快 one-shot 场景与 `@ox-content/napi` 的 native parse-only 基线。
+下面是 synthetic `stock-subset` 上 markdown-it-ts 每个尺寸最快 one-shot 场景与 `@ox-content/napi` native parse-only 的 tuned 比较，不作为固定配置 headline。
 
-注意：`@ox-content/napi` 的 parse-only API 返回 AST JSON 字符串；下面的 parse-only 数据不包含额外 `JSON.parse` 成 JavaScript 对象的成本。
+注意：两边输出 schema 不同，不是等价工作。`@ox-content/napi` 的 parse-only API 返回 AST JSON 字符串；下面的数据也不包含额外 `JSON.parse` 成 JavaScript 对象的成本。
 
 <!-- perf-auto:ox-one:start -->
-- 5,000 chars: 0.0370ms vs 0.0394ms → ~1.1× 更快，约少 6% 耗时
-- 20,000 chars: 0.1257ms vs 0.1519ms → ~1.2× 更快，约少 17% 耗时
-- 100,000 chars: 0.7012ms vs 0.9096ms → ~1.3× 更快，约少 23% 耗时
+- 5,000 chars: 0.0314ms vs 0.0304ms → ~1 倍更慢，约多 3% 耗时
+- 20,000 chars: 0.0985ms vs 0.1180ms → ~1.2× 更快，约少 16% 耗时
+- 100,000 chars: 0.5893ms vs 0.7226ms → ~1.2× 更快，约少 18% 耗时
 <!-- perf-auto:ox-one:end -->
 
 如果把 `@ox-content/napi` 返回的 AST JSON 字符串立即 `JSON.parse` 成 JavaScript 对象：
 
 <!-- perf-auto:ox-json-one:start -->
-- 5,000 chars: 0.0370ms vs 0.1760ms → ~4.8× 更快，约少 79% 耗时
-- 20,000 chars: 0.1257ms vs 0.7056ms → ~5.6× 更快，约少 82% 耗时
-- 100,000 chars: 0.7012ms vs 3.6466ms → ~5.2× 更快，约少 81% 耗时
+- 5,000 chars: 0.0314ms vs 0.1367ms → ~4.4× 更快，约少 77% 耗时
+- 20,000 chars: 0.0985ms vs 0.5493ms → ~5.6× 更快，约少 82% 耗时
+- 100,000 chars: 0.5893ms vs 2.8743ms → ~4.9× 更快，约少 79% 耗时
 <!-- perf-auto:ox-json-one:end -->
 
 实验性 stock-subset AST JSON 输出（`parseStockFastAstJson`）与 `@ox-content/napi` parse-only 对比：
 
 <!-- perf-auto:stock-ast-json:start -->
-- 5,000 chars: 0.0252ms vs 0.0554ms → ~2.2× 更快，约少 54% 耗时
-- 20,000 chars: 0.0876ms vs 0.1644ms → ~1.9× 更快，约少 47% 耗时
-- 100,000 chars: 0.4278ms vs 0.9498ms → ~2.2× 更快，约少 55% 耗时
+- 5,000 chars: 0.0196ms vs 0.0316ms → ~1.6× 更快，约少 38% 耗时
+- 20,000 chars: 0.0666ms vs 0.1226ms → ~1.8× 更快，约少 46% 耗时
+- 100,000 chars: 0.3268ms vs 0.7361ms → ~2.3× 更快，约少 56% 耗时
 <!-- perf-auto:stock-ast-json:end -->
 
-从 native 基线里能学到的优化方向：
+从专项 native 基线里能学到的优化方向：
 
-- `@ox-content/napi` 的 parse-only 很快，关键原因是返回紧凑的 AST JSON 字符串，而不是在 JavaScript 里物化大量 `Token[]` 对象图。
-- 一旦把这段 JSON 字符串继续 `JSON.parse` 成 JavaScript 对象，本 benchmark 里 markdown-it-ts 反而更快。
-- 实验性的 `parseStockFastAstJson` 也验证了同一个方向：如果调用方能消费紧凑 AST/string 边界，就应该避免 JS Token 分配。
-- 默认 `md.parse()` 仍然必须返回 markdown-it 兼容、可变的 token，因此剩余差距主要来自 Token 对象、children 数组、source-map 数组和 GC 成本，而不是简单的行扫描。
+- 双方 native parse API 返回不同 schema、执行不同工作，这些耗时是运行层面的参考，不是等价输出排名。
+- 对 OX 的 JSON 字符串继续执行 `JSON.parse` 代表额外消费成本，但仍不会把 schema 变成 markdown-it tokens。
+- `parseStockFastAstJson` 是单独的等价输出比较：计时前会断言双方 mdast JSON 完全一致。
+- 性能高度依赖语料形态；选择实现前应同时查看 feature-mixed 与真实文件结果。
 
 ### 与 remark 的解析性能对比（仅解析）
 
@@ -253,17 +273,17 @@ pnpm run perf:update-readme
 单次解析耗时（越低越好）：
 
 <!-- perf-auto:remark-one:start -->
-- 5,000 chars: 0.0370ms vs 4.8644ms → 131.4× faster
-- 20,000 chars: 0.1257ms vs 23.29ms → 185.3× faster
-- 100,000 chars: 0.7012ms vs 147.68ms → 210.6× faster
+- 5,000 chars: 0.0314ms vs 2.9947ms → 95.3× faster
+- 20,000 chars: 0.0985ms vs 16.70ms → 169.5× faster
+- 100,000 chars: 0.5893ms vs 124.62ms → 211.5× faster
 <!-- perf-auto:remark-one:end -->
 
 增量工作负载（append workload）：
 
 <!-- perf-auto:remark-append:start -->
-- 5,000 chars: 0.1106ms vs 16.00ms → 144.7× faster
-- 20,000 chars: 0.4237ms vs 62.99ms → 148.7× faster
-- 100,000 chars: 2.5259ms vs 476.09ms → 188.5× faster
+- 5,000 chars: 0.0825ms vs 9.7748ms → 118.4× faster
+- 20,000 chars: 0.3367ms vs 49.99ms → 148.5× faster
+- 100,000 chars: 2.0518ms vs 394.93ms → 192.5× faster
 <!-- perf-auto:remark-append:end -->
 
 说明：
@@ -277,17 +297,17 @@ pnpm run perf:update-readme
 一次性解析（oneShotMs）—— markdown-it-ts vs micromark-based parse：
 
 <!-- perf-auto:micromark-one:start -->
-- 5,000 chars: 0.0370ms vs 3.8927ms → 105.2× faster
-- 20,000 chars: 0.1257ms vs 18.18ms → 144.7× faster
-- 100,000 chars: 0.7012ms vs 93.68ms → 133.6× faster
+- 5,000 chars: 0.0314ms vs 2.4432ms → 77.8× faster
+- 20,000 chars: 0.0985ms vs 13.73ms → 139.4× faster
+- 100,000 chars: 0.5893ms vs 80.37ms → 136.4× faster
 <!-- perf-auto:micromark-one:end -->
 
 追加工作负载（appendWorkloadMs）—— markdown-it-ts vs micromark-based parse：
 
 <!-- perf-auto:micromark-append:start -->
-- 5,000 chars: 0.1106ms vs 12.98ms → 117.3× faster
-- 20,000 chars: 0.4237ms vs 60.38ms → 142.5× faster
-- 100,000 chars: 2.5259ms vs 316.05ms → 125.1× faster
+- 5,000 chars: 0.0825ms vs 7.7842ms → 94.3× faster
+- 20,000 chars: 0.3367ms vs 38.86ms → 115.4× faster
+- 100,000 chars: 2.0518ms vs 258.95ms → 126.2× faster
 <!-- perf-auto:micromark-append:end -->
 
 ## 渲染性能（markdown → HTML）
@@ -298,48 +318,48 @@ pnpm run perf:update-readme
 
 ### 对比 @ox-content/napi render API
 
-下面对比默认 `markdown-it-ts.render` 与 `@ox-content/napi` 的 native parse + render 基线。
+下面对比 synthetic `stock-subset` 上默认 `markdown-it-ts.render` 与 `@ox-content/napi` 的 native parse + render 行为。它不是 S1–S5 best-of，但双方 HTML 不等价（例如 OX 默认生成 heading ID），因此不能称为等价工作，也不能外推到 feature-mixed Markdown。
 
 <!-- perf-auto:render-ox:start -->
-- 5,000 chars: 0.0219ms vs 0.0370ms → ~1.7× 更快，约少 41% 耗时
-- 20,000 chars: 0.0720ms vs 0.1924ms → ~2.7× 更快，约少 63% 耗时
-- 100,000 chars: 0.3470ms vs 0.8208ms → ~2.4× 更快，约少 58% 耗时
+- 5,000 chars: 0.0168ms vs 0.0288ms → ~1.7× 更快，约少 42% 耗时
+- 20,000 chars: 0.0555ms vs 0.1388ms → ~2.5× 更快，约少 60% 耗时
+- 100,000 chars: 0.2714ms vs 0.6589ms → ~2.4× 更快，约少 59% 耗时
 <!-- perf-auto:render-ox:end -->
 
-核心 native 基线表：
+Legacy stock-subset 汇总（tuned parse + 默认 native render）：
 
 <!-- perf-auto:ox-summary:start -->
 | Size | markdown-it-ts parse | @ox-content/napi parse | Parse 对比 | markdown-it-ts render | @ox-content/napi render | Render 对比 |
 |---:|---:|---:|:--|---:|---:|:--|
-| 5,000 | 0.0370ms | 0.0394ms | ~1.1× 更快，约少 6% 耗时 | 0.0219ms | 0.0370ms | ~1.7× 更快，约少 41% 耗时 |
-| 20,000 | 0.1257ms | 0.1519ms | ~1.2× 更快，约少 17% 耗时 | 0.0720ms | 0.1924ms | ~2.7× 更快，约少 63% 耗时 |
-| 100,000 | 0.7012ms | 0.9096ms | ~1.3× 更快，约少 23% 耗时 | 0.3470ms | 0.8208ms | ~2.4× 更快，约少 58% 耗时 |
+| 5,000 | 0.0314ms | 0.0304ms | ~1 倍更慢，约多 3% 耗时 | 0.0168ms | 0.0288ms | ~1.7× 更快，约少 42% 耗时 |
+| 20,000 | 0.0985ms | 0.1180ms | ~1.2× 更快，约少 16% 耗时 | 0.0555ms | 0.1388ms | ~2.5× 更快，约少 60% 耗时 |
+| 100,000 | 0.5893ms | 0.7226ms | ~1.2× 更快，约少 18% 耗时 | 0.2714ms | 0.6589ms | ~2.4× 更快，约少 59% 耗时 |
 <!-- perf-auto:ox-summary:end -->
 
 ### 对比 markdown-it render API
 
 <!-- perf-auto:render-md:start -->
-- 5,000 chars: 0.0219ms vs 0.2310ms → ~10.6× faster
-- 20,000 chars: 0.0720ms vs 0.9308ms → ~12.9× faster
-- 100,000 chars: 0.3470ms vs 4.9021ms → ~14.1× faster
-- 500,000 chars: 2.4839ms vs 32.61ms → ~13.1× faster
-- 1,000,000 chars: 5.0445ms vs 66.44ms → ~13.2× faster
+- 5,000 chars: 0.0168ms vs 0.1875ms → ~11.2× faster
+- 20,000 chars: 0.0555ms vs 0.7291ms → ~13.1× faster
+- 100,000 chars: 0.2714ms vs 3.8918ms → ~14.3× faster
+- 500,000 chars: 1.9236ms vs 27.16ms → ~14.1× faster
+- 1,000,000 chars: 3.9449ms vs 54.80ms → ~13.9× faster
 <!-- perf-auto:render-md:end -->
 
 ### 对比 remark + rehype render API
 
 <!-- perf-auto:render-remark:start -->
-- 5,000 chars: 0.0219ms vs 4.7830ms → ~218.5× faster
-- 20,000 chars: 0.0720ms vs 22.79ms → ~316.7× faster
-- 100,000 chars: 0.3470ms vs 170.11ms → ~490.2× faster
+- 5,000 chars: 0.0168ms vs 4.1402ms → ~247.1× faster
+- 20,000 chars: 0.0555ms vs 18.80ms → ~338.6× faster
+- 100,000 chars: 0.2714ms vs 133.96ms → ~493.6× faster
 <!-- perf-auto:render-remark:end -->
 
 ### 对比 micromark（CommonMark 参考实现）
 
 <!-- perf-auto:render-micromark:start -->
-- 5,000 chars: 0.0219ms vs 4.0283ms → ~184× faster
-- 20,000 chars: 0.0720ms vs 19.04ms → ~264.7× faster
-- 100,000 chars: 0.3470ms vs 116.08ms → ~334.5× faster
+- 5,000 chars: 0.0168ms vs 3.3405ms → ~199.4× faster
+- 20,000 chars: 0.0555ms vs 15.24ms → ~274.4× faster
+- 100,000 chars: 0.2714ms vs 93.06ms → ~342.9× faster
 <!-- perf-auto:render-micromark:end -->
 
 本地复现：
@@ -358,11 +378,11 @@ pnpm run perf:update-readme
 <!-- perf-auto:exit-one:start -->
 | Size (chars) | markdown-it-ts (best one-shot) | markdown-exit (one-shot) |
 |---:|---:|---:|
-| 5,000 | 0.0370ms | 0.2563ms |
-| 20,000 | 0.1257ms | 1.0028ms |
-| 50,000 | 0.3166ms | 2.4976ms |
-| 100,000 | 0.7012ms | 5.2816ms |
-| 200,000 | 1.8757ms | 12.11ms |
+| 5,000 | 0.0314ms | 0.1986ms |
+| 20,000 | 0.0985ms | 0.7924ms |
+| 50,000 | 0.2480ms | 1.9458ms |
+| 100,000 | 0.5893ms | 4.2022ms |
+| 200,000 | 1.6233ms | 9.5993ms |
 <!-- perf-auto:exit-one:end -->
 
 说明：markdown-it-ts 在较小文档上通过流式/分片策略获得显著 one-shot 优势；在非常大的文档（200k）上，各实现的绝对差距缩小。
@@ -372,79 +392,79 @@ pnpm run perf:update-readme
 来自最近一次 perf 快照的 render API（parse + HTML 输出）汇总：
 
 <!-- perf-auto:render-exit:start -->
-- 5,000 chars: 0.0219ms vs 0.3043ms → ~13.9× faster
-- 20,000 chars: 0.0720ms vs 1.1829ms → ~16.4× faster
-- 50,000 chars: 0.1744ms vs 2.9840ms → ~17.1× faster
-- 100,000 chars: 0.3470ms vs 6.1366ms → ~17.7× faster
-- 200,000 chars: 0.7032ms vs 13.81ms → ~19.6× faster
+- 5,000 chars: 0.0168ms vs 0.2412ms → ~14.4× faster
+- 20,000 chars: 0.0555ms vs 0.9254ms → ~16.7× faster
+- 50,000 chars: 0.1359ms vs 2.3473ms → ~17.3× faster
+- 100,000 chars: 0.2714ms vs 4.8490ms → ~17.9× faster
+- 200,000 chars: 0.5384ms vs 10.92ms → ~20.3× faster
 <!-- perf-auto:render-exit:end -->
 
 
-## Parse / Render 对比排名（5k~200k）
+## 非等价输出、仅限 stock-subset 的 Parse / Render 排名（5k~200k）
 
 <!-- perf-auto:ranking-zh:start -->
-为了更直观地查看主要实现（markdown-it-ts、@ox-content/napi、markdown-it、markdown-exit、remark）在不同规模下的 parse / render 名次，下面直接基于最新 `docs/perf-latest.json` 的快照生成。
-其中 parse 排名取 markdown-it-ts 在对应规模下 oneShotMs 最低的场景（S1~S5）；render 排名则使用默认 `MarkdownIt().render()` 的端到端耗时，因此两张表不能直接理解为“同一条 parse + renderer 链路”的组合排名。
+以下 legacy 排名只覆盖专项 synthetic `stock-subset`，直接基于最新 `docs/perf-latest.json` 快照生成；它不是一般 Markdown 排名。
+其中 parse 排名取 markdown-it-ts 在对应规模下 oneShotMs 最低的 tuned 场景（S1~S5）；render 排名使用默认 `MarkdownIt().render()` 的原生行为，且跨库 HTML 未验证等价，因此两张表不能理解为同一条链路或等价工作排名。
 
 **Parse 排名（one-shot 解析耗时，单位：ms）**
 
 | Size | Rank | Library | oneShotMs |
 |---:|---:|---|---:|
-| 5,000 | 1 | markdown-it-ts | 0.0370ms |
-| 5,000 | 2 | @ox-content/napi | 0.0394ms |
-| 5,000 | 3 | markdown-it | 0.1864ms |
-| 5,000 | 4 | markdown-exit | 0.2563ms |
-| 5,000 | 5 | remark | 4.8644ms |
-| 20,000 | 1 | markdown-it-ts | 0.1257ms |
-| 20,000 | 2 | @ox-content/napi | 0.1519ms |
-| 20,000 | 3 | markdown-it | 0.7437ms |
-| 20,000 | 4 | markdown-exit | 1.0028ms |
-| 20,000 | 5 | remark | 23.29ms |
-| 50,000 | 1 | markdown-it-ts | 0.3166ms |
-| 50,000 | 2 | @ox-content/napi | 0.4370ms |
-| 50,000 | 3 | markdown-it | 1.8776ms |
-| 50,000 | 4 | markdown-exit | 2.4976ms |
-| 50,000 | 5 | remark | 64.13ms |
-| 100,000 | 1 | markdown-it-ts | 0.7012ms |
-| 100,000 | 2 | @ox-content/napi | 0.9096ms |
-| 100,000 | 3 | markdown-it | 3.8789ms |
-| 100,000 | 4 | markdown-exit | 5.2816ms |
-| 100,000 | 5 | remark | 147.68ms |
-| 200,000 | 1 | markdown-it-ts | 1.8757ms |
-| 200,000 | 2 | @ox-content/napi | 2.0332ms |
-| 200,000 | 3 | markdown-it | 8.9453ms |
-| 200,000 | 4 | markdown-exit | 12.11ms |
-| 200,000 | 5 | remark | 371.84ms |
+| 5,000 | 1 | @ox-content/napi | 0.0304ms |
+| 5,000 | 2 | markdown-it-ts | 0.0314ms |
+| 5,000 | 3 | markdown-it | 0.1460ms |
+| 5,000 | 4 | markdown-exit | 0.1986ms |
+| 5,000 | 5 | remark | 2.9947ms |
+| 20,000 | 1 | markdown-it-ts | 0.0985ms |
+| 20,000 | 2 | @ox-content/napi | 0.1180ms |
+| 20,000 | 3 | markdown-it | 0.5863ms |
+| 20,000 | 4 | markdown-exit | 0.7924ms |
+| 20,000 | 5 | remark | 16.70ms |
+| 50,000 | 1 | markdown-it-ts | 0.2480ms |
+| 50,000 | 2 | @ox-content/napi | 0.3277ms |
+| 50,000 | 3 | markdown-it | 1.4660ms |
+| 50,000 | 4 | markdown-exit | 1.9458ms |
+| 50,000 | 5 | remark | 52.58ms |
+| 100,000 | 1 | markdown-it-ts | 0.5893ms |
+| 100,000 | 2 | @ox-content/napi | 0.7226ms |
+| 100,000 | 3 | markdown-it | 3.0054ms |
+| 100,000 | 4 | markdown-exit | 4.2022ms |
+| 100,000 | 5 | remark | 124.62ms |
+| 200,000 | 1 | markdown-it-ts | 1.6233ms |
+| 200,000 | 2 | @ox-content/napi | 1.6315ms |
+| 200,000 | 3 | markdown-it | 7.3875ms |
+| 200,000 | 4 | markdown-exit | 9.5993ms |
+| 200,000 | 5 | remark | 300.52ms |
 
 **Render 排名（解析 + HTML 输出耗时，单位：ms）**
 
 | Size | Rank | Library | renderMs |
 |---:|---:|---|---:|
-| 5,000 | 1 | markdown-it-ts | 0.0219ms |
-| 5,000 | 2 | @ox-content/napi | 0.0370ms |
-| 5,000 | 3 | markdown-it | 0.2310ms |
-| 5,000 | 4 | markdown-exit | 0.3043ms |
-| 5,000 | 5 | remark + rehype | 4.7830ms |
-| 20,000 | 1 | markdown-it-ts | 0.0720ms |
-| 20,000 | 2 | @ox-content/napi | 0.1924ms |
-| 20,000 | 3 | markdown-it | 0.9308ms |
-| 20,000 | 4 | markdown-exit | 1.1829ms |
-| 20,000 | 5 | remark + rehype | 22.79ms |
-| 50,000 | 1 | markdown-it-ts | 0.1744ms |
-| 50,000 | 2 | @ox-content/napi | 0.3805ms |
-| 50,000 | 3 | markdown-it | 2.3086ms |
-| 50,000 | 4 | markdown-exit | 2.9840ms |
-| 50,000 | 5 | remark + rehype | 71.58ms |
-| 100,000 | 1 | markdown-it-ts | 0.3470ms |
-| 100,000 | 2 | @ox-content/napi | 0.8208ms |
-| 100,000 | 3 | markdown-it | 4.9021ms |
-| 100,000 | 4 | markdown-exit | 6.1366ms |
-| 100,000 | 5 | remark + rehype | 170.11ms |
-| 200,000 | 1 | markdown-it-ts | 0.7032ms |
-| 200,000 | 2 | @ox-content/napi | 1.7989ms |
-| 200,000 | 3 | markdown-it | 11.17ms |
-| 200,000 | 4 | markdown-exit | 13.81ms |
-| 200,000 | 5 | remark + rehype | 414.05ms |
+| 5,000 | 1 | markdown-it-ts | 0.0168ms |
+| 5,000 | 2 | @ox-content/napi | 0.0288ms |
+| 5,000 | 3 | markdown-it | 0.1875ms |
+| 5,000 | 4 | markdown-exit | 0.2412ms |
+| 5,000 | 5 | remark + rehype | 4.1402ms |
+| 20,000 | 1 | markdown-it-ts | 0.0555ms |
+| 20,000 | 2 | @ox-content/napi | 0.1388ms |
+| 20,000 | 3 | markdown-it | 0.7291ms |
+| 20,000 | 4 | markdown-exit | 0.9254ms |
+| 20,000 | 5 | remark + rehype | 18.80ms |
+| 50,000 | 1 | markdown-it-ts | 0.1359ms |
+| 50,000 | 2 | @ox-content/napi | 0.3011ms |
+| 50,000 | 3 | markdown-it | 1.8166ms |
+| 50,000 | 4 | markdown-exit | 2.3473ms |
+| 50,000 | 5 | remark + rehype | 59.81ms |
+| 100,000 | 1 | markdown-it-ts | 0.2714ms |
+| 100,000 | 2 | @ox-content/napi | 0.6589ms |
+| 100,000 | 3 | markdown-it | 3.8918ms |
+| 100,000 | 4 | markdown-exit | 4.8490ms |
+| 100,000 | 5 | remark + rehype | 133.96ms |
+| 200,000 | 1 | markdown-it-ts | 0.5384ms |
+| 200,000 | 2 | @ox-content/napi | 1.4487ms |
+| 200,000 | 3 | markdown-it | 8.6381ms |
+| 200,000 | 4 | markdown-exit | 10.92ms |
+| 200,000 | 5 | remark + rehype | 330.55ms |
 <!-- perf-auto:ranking-zh:end -->
 
 

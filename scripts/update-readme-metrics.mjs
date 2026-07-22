@@ -173,6 +173,54 @@ function buildStockAstJsonExamples(rows, sizes, locale = 'en') {
   return lines
 }
 
+function buildNativeCorpusSummary(rows, locale = 'en') {
+  const selected = (rows || []).filter((row) => {
+    if (row.corpusId === 'stock-subset' || row.corpusId === 'feature-mixed')
+      return row.targetSize === 100_000
+    return row.corpusKind === 'real-world'
+  })
+  const stockRows = selected.filter(row => row.corpusId === 'stock-subset')
+  const featureRows = selected.filter(row => row.corpusId === 'feature-mixed')
+  const realWorldRows = selected.filter(row => row.corpusKind === 'real-world')
+
+  if (stockRows.length !== 1 || featureRows.length !== 1 || realWorldRows.length < 3)
+    throw new Error(`Expected one 100k stock row, one 100k feature-mixed row, and at least three real-world rows; received ${stockRows.length}, ${featureRows.length}, and ${realWorldRows.length}`)
+
+  for (const row of selected) {
+    const timings = [
+      row.parse?.markdownItTsMs,
+      row.parse?.oxContentMs,
+      row.render?.markdownItTsMs,
+      row.render?.oxContentMs,
+    ]
+    if (!timings.every(Number.isFinite))
+      throw new Error(`Native corpus row ${row.corpusId} contains a missing or non-finite timing`)
+    if (typeof row.render?.outputComparison?.equal !== 'boolean')
+      throw new Error(`Native corpus row ${row.corpusId} is missing its HTML comparison`)
+  }
+
+  const lines = [
+    locale === 'zh'
+      ? '| 语料 | 字符数 | TS parse | OX parse | TS parse 路径 | TS render | OX render | TS render 路径 | HTML 相同？ |'
+      : '| Corpus | Chars | TS parse | OX parse | TS parse path | TS render | OX render | TS render path | HTML equal? |',
+    '|:--|---:|---:|---:|:--|---:|---:|:--|:--|',
+  ]
+
+  for (const row of selected) {
+    const label = row.corpusId === 'stock-subset'
+      ? 'synthetic stock-subset (~100k)'
+      : row.corpusId === 'feature-mixed'
+        ? 'synthetic feature-mixed (~100k)'
+        : row.corpusLabel
+    const equal = row.render.outputComparison.equal
+      ? (locale === 'zh' ? '是' : 'yes')
+      : (locale === 'zh' ? '否' : 'no')
+    lines.push(`| ${label} | ${row.size.toLocaleString()} | ${formatMs(row.parse.markdownItTsMs)} | ${formatMs(row.parse.oxContentMs)} | ${row.parse.path} | ${formatMs(row.render.markdownItTsMs)} | ${formatMs(row.render.oxContentMs)} | ${row.render.path} | ${equal} |`)
+  }
+
+  return lines
+}
+
 function buildRenderVsMarkdownIt(bySize, sizes) {
   const lines = []
   for (const size of sizes) {
@@ -284,8 +332,8 @@ function buildExitOneTable(bySize, sizes) {
 
 function buildZhRanking(bySize, renderBySize, sizes) {
   const lines = []
-  lines.push('为了更直观地查看主要实现（markdown-it-ts、@ox-content/napi、markdown-it、markdown-exit、remark）在不同规模下的 parse / render 名次，下面直接基于最新 `docs/perf-latest.json` 的快照生成。')
-  lines.push('其中 parse 排名取 markdown-it-ts 在对应规模下 oneShotMs 最低的场景（S1~S5）；render 排名则使用默认 `MarkdownIt().render()` 的端到端耗时，因此两张表不能直接理解为“同一条 parse + renderer 链路”的组合排名。')
+  lines.push('以下 legacy 排名只覆盖专项 synthetic `stock-subset`，直接基于最新 `docs/perf-latest.json` 快照生成；它不是一般 Markdown 排名。')
+  lines.push('其中 parse 排名取 markdown-it-ts 在对应规模下 oneShotMs 最低的 tuned 场景（S1~S5）；render 排名使用默认 `MarkdownIt().render()` 的原生行为，且跨库 HTML 未验证等价，因此两张表不能理解为同一条链路或等价工作排名。')
   lines.push('')
   lines.push('**Parse 排名（one-shot 解析耗时，单位：ms）**')
   lines.push('')
@@ -339,8 +387,8 @@ function buildZhRanking(bySize, renderBySize, sizes) {
 
 function buildEnRanking(bySize, renderBySize, sizes) {
   const lines = []
-  lines.push('This compact ranking includes the native `@ox-content/napi` baseline alongside markdown-it-ts and JS implementations. It is generated from the latest `docs/perf-latest.json` snapshot.')
-  lines.push('Parse ranking uses the fastest markdown-it-ts one-shot scenario for each size; render ranking uses the default `MarkdownIt().render()` end-to-end API.')
+  lines.push('This legacy ranking covers only the specialized synthetic `stock-subset`; it is not a general Markdown ranking. It is generated from the latest `docs/perf-latest.json` snapshot.')
+  lines.push('Parse ranking uses the fastest tuned markdown-it-ts one-shot scenario for each size. Render ranking uses default `MarkdownIt().render()` native behavior, and cross-library HTML is not equivalent, so neither table represents one equivalent-work pipeline.')
   lines.push('')
   lines.push('**Parse ranking (one-shot parse, ms)**')
   lines.push('')
@@ -419,13 +467,25 @@ function buildComparisonTable(bySize, sizes) {
   return rows
 }
 
-function replaceBetween(content, startTag, endTag, newLines) {
+function replaceBetween(content, startTag, endTag, newLines, { required = true } = {}) {
+  const startMatches = content.split(startTag).length - 1
+  const endMatches = content.split(endTag).length - 1
+
+  if (!required && startMatches === 0 && endMatches === 0)
+    return content
+  if (startMatches !== 1 || endMatches !== 1)
+    throw new Error(`Expected exactly one marker pair ${startTag} / ${endTag}; received ${startMatches} / ${endMatches}`)
+
   const startIdx = content.indexOf(startTag)
   const endIdx = content.indexOf(endTag)
-  if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) return content
+  if (endIdx <= startIdx)
+    throw new Error(`README markers are out of order: ${startTag} / ${endTag}`)
+  if (!Array.isArray(newLines) || newLines.length === 0)
+    throw new Error(`Generated block for ${startTag} is empty`)
+
   const before = content.slice(0, startIdx + startTag.length)
   const after = content.slice(endIdx)
-  const body = '\n' + newLines.join('\n') + '\n'
+  const body = `\n${newLines.join('\n')}\n`
   return before + body + after
 }
 
@@ -475,6 +535,8 @@ function main() {
     oxJsonOneZh: buildOxJsonOneExamples(bySize, oxSizes, 'zh'),
     stockAstJsonEn: buildStockAstJsonExamples(perf.stockAstJsonComparisons, oxSizes),
     stockAstJsonZh: buildStockAstJsonExamples(perf.stockAstJsonComparisons, oxSizes, 'zh'),
+    nativeCorporaEn: buildNativeCorpusSummary(perf.nativeCorpusComparisons),
+    nativeCorporaZh: buildNativeCorpusSummary(perf.nativeCorpusComparisons, 'zh'),
     oxSummaryEn: buildOxSummaryTable(bySize, renderBySize, oxSizes),
     oxSummaryZh: buildOxSummaryTable(bySize, renderBySize, oxSizes, 'zh'),
     renderMd: buildRenderVsMarkdownIt(renderBySize, renderSizes),
@@ -489,14 +551,26 @@ function main() {
     comparison: buildComparisonTable(bySize, oneSizes),
   }
 
+  const checkOnly = process.argv.includes('--check')
+  const stalePaths = []
+
   for (const path of readmePaths) {
     const content = readFileSync(path, 'utf8')
     const locale = path.pathname.endsWith('README.zh-CN.md') ? 'zh' : 'en'
     const updated = applyBlocks(content, blocks, locale)
-    writeFileSync(path, updated)
+    if (checkOnly) {
+      if (updated !== content)
+        stalePaths.push(path.pathname)
+    }
+    else {
+      writeFileSync(path, updated)
+    }
   }
 
-  console.log('README metrics updated in', readmePaths.map(p => p.pathname).join(', '))
+  if (stalePaths.length > 0)
+    throw new Error(`README performance blocks are stale: ${stalePaths.join(', ')}`)
+
+  console.log(checkOnly ? 'README metrics are current.' : `README metrics updated in ${readmePaths.map(p => p.pathname).join(', ')}`)
 }
 
 function applyBlocks(content, blocks, locale = 'en') {
@@ -517,6 +591,8 @@ function applyBlocks(content, blocks, locale = 'en') {
   const startOxJsonOne = '<!-- perf-auto:ox-json-one:start -->'
   const endOxJsonOne = '<!-- perf-auto:ox-json-one:end -->'
   const startStockAstJson = '<!-- perf-auto:stock-ast-json:start -->'
+  const startNativeCorpora = '<!-- perf-auto:native-corpora:start -->'
+  const endNativeCorpora = '<!-- perf-auto:native-corpora:end -->'
   const endStockAstJson = '<!-- perf-auto:stock-ast-json:end -->'
   const startOxSummary = '<!-- perf-auto:ox-summary:start -->'
   const endOxSummary = '<!-- perf-auto:ox-summary:end -->'
@@ -541,24 +617,32 @@ function applyBlocks(content, blocks, locale = 'en') {
 
   let updated = content
   updated = replaceBetween(updated, startOne, endOne, blocks.one)
-  updated = replaceBetween(updated, startApp, endApp, blocks.append)
-  updated = replaceBetween(updated, startRemarkOne, endRemarkOne, blocks.remarkOne)
-  updated = replaceBetween(updated, startRemarkApp, endRemarkApp, blocks.remarkAppend)
-  updated = replaceBetween(updated, startMicromarkOne, endMicromarkOne, blocks.micromarkOne)
-  updated = replaceBetween(updated, startMicromarkApp, endMicromarkApp, blocks.micromarkAppend)
   updated = replaceBetween(updated, startOxOne, endOxOne, locale === 'zh' ? blocks.oxOneZh : blocks.oxOneEn)
   updated = replaceBetween(updated, startOxJsonOne, endOxJsonOne, locale === 'zh' ? blocks.oxJsonOneZh : blocks.oxJsonOneEn)
   updated = replaceBetween(updated, startStockAstJson, endStockAstJson, locale === 'zh' ? blocks.stockAstJsonZh : blocks.stockAstJsonEn)
+  updated = replaceBetween(updated, startNativeCorpora, endNativeCorpora, locale === 'zh' ? blocks.nativeCorporaZh : blocks.nativeCorporaEn)
   updated = replaceBetween(updated, startOxSummary, endOxSummary, locale === 'zh' ? blocks.oxSummaryZh : blocks.oxSummaryEn)
-  updated = replaceBetween(updated, startRenderMd, endRenderMd, blocks.renderMd)
   updated = replaceBetween(updated, startRenderOx, endRenderOx, locale === 'zh' ? blocks.renderOxZh : blocks.renderOxEn)
-  updated = replaceBetween(updated, startRenderMicromark, endRenderMicromark, blocks.renderMicromark)
-  updated = replaceBetween(updated, startRenderRemark, endRenderRemark, blocks.renderRemark)
-  updated = replaceBetween(updated, startRenderExit, endRenderExit, blocks.renderExit)
-  updated = replaceBetween(updated, startExitOne, endExitOne, blocks.exitOne)
-  updated = replaceBetween(updated, startRankingEn, endRankingEn, blocks.rankingEn)
-  updated = replaceBetween(updated, startRankingZh, endRankingZh, blocks.rankingZh)
-  updated = replaceBetween(updated, startComparison, endComparison, blocks.comparison)
+
+  if (locale === 'zh') {
+    updated = replaceBetween(updated, startRemarkOne, endRemarkOne, blocks.remarkOne)
+    updated = replaceBetween(updated, startRemarkApp, endRemarkApp, blocks.remarkAppend)
+    updated = replaceBetween(updated, startMicromarkOne, endMicromarkOne, blocks.micromarkOne)
+    updated = replaceBetween(updated, startMicromarkApp, endMicromarkApp, blocks.micromarkAppend)
+    updated = replaceBetween(updated, startRenderMd, endRenderMd, blocks.renderMd)
+    updated = replaceBetween(updated, startRenderMicromark, endRenderMicromark, blocks.renderMicromark)
+    updated = replaceBetween(updated, startRenderRemark, endRenderRemark, blocks.renderRemark)
+    updated = replaceBetween(updated, startRenderExit, endRenderExit, blocks.renderExit)
+    updated = replaceBetween(updated, startExitOne, endExitOne, blocks.exitOne)
+    updated = replaceBetween(updated, startRankingZh, endRankingZh, blocks.rankingZh)
+  }
+  else {
+    updated = replaceBetween(updated, startRankingEn, endRankingEn, blocks.rankingEn)
+  }
+
+  // Historical blocks are optional because not every README exposes them.
+  updated = replaceBetween(updated, startApp, endApp, blocks.append, { required: false })
+  updated = replaceBetween(updated, startComparison, endComparison, blocks.comparison, { required: false })
   return updated
 }
 

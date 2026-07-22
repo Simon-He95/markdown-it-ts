@@ -1,5 +1,5 @@
 // Find the most recent archived snapshot and compare it against docs/perf-latest.json
-// Usage: node scripts/perf-check.mjs [--threshold=0.10] [--native-parse-max-ratio=3]
+// Usage: node scripts/perf-check.mjs [--threshold=0.10]
 
 import { readdirSync, statSync, readFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
@@ -33,8 +33,6 @@ function main() {
   const minSignalMs = minSignalArg ? parseFloat(minSignalArg.split('=')[1]) : 0.05
   const appendMinSignalArg = args.find(a => a.startsWith('--append-min-signal-ms='))
   const appendMinSignalMs = appendMinSignalArg ? parseFloat(appendMinSignalArg.split('=')[1]) : 3
-  const nativeParseMaxRatioArg = args.find(a => a.startsWith('--native-parse-max-ratio='))
-  const nativeParseMaxRatio = nativeParseMaxRatioArg ? parseFloat(nativeParseMaxRatioArg.split('=')[1]) : 3
 
   const latestPath = new URL('../docs/perf-latest.json', import.meta.url)
   let currentSha = ''
@@ -131,24 +129,6 @@ function main() {
     }
   }
 
-  for (const c of cur.renderComparisons || []) {
-    if (c.scenario !== 'TS_RENDER' && c.scenario !== 'TS_RENDER_ASYNC')
-      continue
-
-    const ox = curRenderMap.get(`${c.size}-OX_RENDER`)
-    if (!ox)
-      continue
-
-    if (shouldCheckMetric(c.renderMs, ox.renderMs, minSignalMs)) {
-      checkedMetrics++
-      if (pct(c.renderMs, ox.renderMs) > threshold)
-        regressions++
-    }
-    else {
-      skippedMetrics++
-    }
-  }
-
   const curStockAstMap = new Map((cur.stockAstJsonComparisons || []).map(r => [r.size, r]))
   const baseStockAstMap = new Map((base.stockAstJsonComparisons || []).map(r => [r.size, r]))
 
@@ -176,34 +156,12 @@ function main() {
     }
   }
 
-  const sizes = [...new Set(cur.results.map(r => r.size))]
-  for (const size of sizes) {
-    const rows = cur.results.filter(r => r.size === size)
-    const ox = rows.find(r => r.scenario === 'OX1')
-    if (!ox)
-      continue
-
-    const bestInternal = rows
-      .filter(r => isInternalScenario(r.scenario) && Number.isFinite(r.oneShotMs))
-      .sort((a, b) => a.oneShotMs - b.oneShotMs)[0]
-    if (!bestInternal)
-      continue
-
-    if (shouldCheckMetric(bestInternal.oneShotMs, ox.oneShotMs, minSignalMs)) {
-      checkedMetrics++
-      if (bestInternal.oneShotMs / ox.oneShotMs > nativeParseMaxRatio)
-        regressions++
-    }
-    else {
-      skippedMetrics++
-    }
-  }
 
   if (regressions) {
-    console.error(`Perf check failed: ${regressions} metric(s) regressed beyond +${fmtPct(threshold)} vs ${basePath.pathname} (checked=${checkedMetrics}, skipped=${skippedMetrics}, minSignalMs=${minSignalMs}, appendMinSignalMs=${appendMinSignalMs}, nativeParseMaxRatio=${nativeParseMaxRatio})`)
+    console.error(`Perf check failed: ${regressions} metric(s) regressed beyond +${fmtPct(threshold)} vs ${basePath.pathname} (checked=${checkedMetrics}, skipped=${skippedMetrics}, minSignalMs=${minSignalMs}, appendMinSignalMs=${appendMinSignalMs})`)
     process.exit(1)
   } else {
-    console.log(`Perf check passed vs ${basePath.pathname} (checked=${checkedMetrics}, skipped=${skippedMetrics}, minSignalMs=${minSignalMs}, appendMinSignalMs=${appendMinSignalMs}, nativeParseMaxRatio=${nativeParseMaxRatio})`)
+    console.log(`Perf check passed vs ${basePath.pathname} (checked=${checkedMetrics}, skipped=${skippedMetrics}, minSignalMs=${minSignalMs}, appendMinSignalMs=${appendMinSignalMs})`)
   }
 }
 
