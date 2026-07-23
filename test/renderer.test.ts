@@ -57,6 +57,25 @@ describe('renderer', () => {
     expect(inline.children[0].content).toBe('foo!bar')
   })
 
+  it('preserves custom inline rule arguments inside wrapped tokens', () => {
+    const md = markdownIt().use(() => {})
+    const calls: Array<{ length: number, idx: number, content: string }> = []
+    md.renderer.rules.text = (tokens, idx) => {
+      calls.push({ length: tokens.length, idx, content: tokens[idx].content })
+      return tokens[idx].content.toUpperCase()
+    }
+
+    expect(md.render('*em* and **strong**')).toBe('<p><em>EM</em> AND <strong>STRONG</strong></p>\n')
+    expect(calls).toContainEqual({ length: 8, idx: 1, content: 'em' })
+    expect(calls).toContainEqual({ length: 8, idx: 5, content: 'strong' })
+
+    calls.length = 0
+    expect(md.render('[link](https://example.com)')).toBe('<p><a href="https://example.com">LINK</a></p>\n')
+    const linkCall = calls.find(call => call.content === 'link')!
+    expect(linkCall.idx).toBeGreaterThan(0)
+    expect(linkCall.length).toBeGreaterThan(linkCall.idx + 1)
+  })
+
   it('sync render throws when async rule output is provided', () => {
     expect(() => render('```js\n1\n```', {
       highlight: async () => '<span>async</span>',

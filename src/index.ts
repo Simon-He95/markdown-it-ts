@@ -1,6 +1,7 @@
 import type { Token as TokenType } from './common/token'
 import type { ParserBlock } from './parse/parser_block'
 import type { ParserInline } from './parse/parser_inline'
+import type { StockFastDiagnostics } from './parse/strategy_diagnostics'
 import type { RendererOptions } from './render/renderer'
 import type { StreamStats } from './stream/parser'
 import type { UnboundedBufferStats, UnboundedChunkInfo } from './stream/unbounded'
@@ -11,12 +12,12 @@ import { detectGlobalMarkdownState, getKnownGlobalMarkdownState, resetKnownGloba
 import { normalizeLink, normalizeLinkText, validateLink } from './parse/link_utils'
 import { ParserCore } from './parse/parser_core'
 import { parseStockFast } from './parse/stock_fast'
-import { beginParseDiagnostics, getParseDiagnostics, setStrategyDiagnostics } from './parse/strategy_diagnostics'
+import { beginParseDiagnostics, createStockFastDiagnostics, getParseDiagnostics, setStockFastDiagnostics, setStrategyDiagnostics } from './parse/strategy_diagnostics'
 import commonmarkPreset from './presets/commonmark'
 import defaultPreset from './presets/default'
 import zeroPreset from './presets/zero'
 import Renderer from './render/renderer'
-import { renderStockFast } from './render/stock_fast'
+import { renderStockFast, renderStockFastWithDiagnostics } from './render/stock_fast'
 import { chunkedParse } from './stream/chunked'
 import { StreamParser } from './stream/parser'
 import {
@@ -327,6 +328,10 @@ function setFullChunkStrategyDiagnostics(env: Record<string, unknown>, reason: s
   })
 }
 
+function getDiagnosticNow(): number {
+  return typeof performance !== 'undefined' ? performance.now() : Date.now()
+}
+
 function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownItOptions): MarkdownIt {
   // defaults (core-only)
   let opts: MarkdownItOptions = {
@@ -619,10 +624,22 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       return this
     },
     render(this: MarkdownIt, src: string, env?: Record<string, unknown>) {
+      let stockFastDiagnostics: StockFastDiagnostics | undefined
       if (canUseStockRenderFastPath(this, src.length)) {
-        if (env !== undefined)
+        if (env !== undefined) {
           beginParseDiagnostics(env)
-        const html = renderStockFast(src)
+          stockFastDiagnostics = createStockFastDiagnostics('render')
+        }
+        const startedAt = stockFastDiagnostics ? getDiagnosticNow() : 0
+        const html = stockFastDiagnostics
+          ? renderStockFastWithDiagnostics(src, stockFastDiagnostics)
+          : renderStockFast(src)
+        if (stockFastDiagnostics) {
+          stockFastDiagnostics.attemptMs = getDiagnosticNow() - startedAt
+          if (html === null)
+            stockFastDiagnostics.fallbackReason = 'unsupported-stock-subset'
+          setStockFastDiagnostics(env, stockFastDiagnostics)
+        }
         if (html !== null) {
           if (env !== undefined)
             setStrategyDiagnostics(env, { area: 'render', path: 'stock-fast', reason: 'stock-subset' })
@@ -632,13 +649,27 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
 
       const envRef = env ?? {}
       const tokens = this.parse(src, envRef)
+      if (stockFastDiagnostics)
+        setStockFastDiagnostics(envRef, stockFastDiagnostics)
       return getRenderer().render(tokens, this.options, envRef)
     },
     async renderAsync(this: MarkdownIt, src: string, env?: Record<string, unknown>) {
+      let stockFastDiagnostics: StockFastDiagnostics | undefined
       if (canUseStockRenderFastPath(this, src.length)) {
-        if (env !== undefined)
+        if (env !== undefined) {
           beginParseDiagnostics(env)
-        const html = renderStockFast(src)
+          stockFastDiagnostics = createStockFastDiagnostics('render')
+        }
+        const startedAt = stockFastDiagnostics ? getDiagnosticNow() : 0
+        const html = stockFastDiagnostics
+          ? renderStockFastWithDiagnostics(src, stockFastDiagnostics)
+          : renderStockFast(src)
+        if (stockFastDiagnostics) {
+          stockFastDiagnostics.attemptMs = getDiagnosticNow() - startedAt
+          if (html === null)
+            stockFastDiagnostics.fallbackReason = 'unsupported-stock-subset'
+          setStockFastDiagnostics(env, stockFastDiagnostics)
+        }
         if (html !== null) {
           if (env !== undefined)
             setStrategyDiagnostics(env, { area: 'render', path: 'stock-fast', reason: 'stock-subset' })
@@ -648,6 +679,8 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
 
       const envRef = env ?? {}
       const tokens = this.parse(src, envRef)
+      if (stockFastDiagnostics)
+        setStockFastDiagnostics(envRef, stockFastDiagnostics)
       return getRenderer().renderAsync(tokens, this.options, envRef)
     },
     renderIterable(this: MarkdownIt, chunks: Iterable<string>, env: Record<string, unknown> = {}) {
@@ -681,7 +714,15 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
         beginParseDiagnostics(env)
 
       if (canUseStockParseFastPath(this, src.length)) {
-        const tokens = parseStockFast(src)
+        const stockFastDiagnostics = env === undefined ? undefined : createStockFastDiagnostics('parse')
+        const startedAt = stockFastDiagnostics ? getDiagnosticNow() : 0
+        const tokens = parseStockFast(src, stockFastDiagnostics)
+        if (stockFastDiagnostics) {
+          stockFastDiagnostics.attemptMs = getDiagnosticNow() - startedAt
+          if (tokens === null)
+            stockFastDiagnostics.fallbackReason = 'unsupported-stock-subset'
+          setStockFastDiagnostics(env, stockFastDiagnostics)
+        }
         if (tokens !== null) {
           if (env !== undefined)
             setStrategyDiagnostics(env, { area: 'parse', path: 'stock-fast', reason: 'stock-subset' })

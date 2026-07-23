@@ -73,6 +73,8 @@ const PUNCT_CHAR_CACHE = new Map<number, boolean>()
 export function isPunctCode(ch: number): boolean {
   if (isMdAsciiPunct(ch))
     return true
+  if (ch >= 0 && ch < 0x80)
+    return false
 
   const cached = PUNCT_CHAR_CACHE.get(ch)
   if (cached !== undefined)

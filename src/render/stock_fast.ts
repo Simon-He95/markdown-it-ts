@@ -1,3 +1,4 @@
+import type { StockFastDiagnostics } from '../parse/strategy_diagnostics'
 import { escapeHtml } from './utils'
 
 const INLINE_FALLBACK_RE = /[\n!#$%&*+\-:<=>@[\]\\^_`{}~]/
@@ -165,11 +166,17 @@ function fenceLang(src: string, start: number, end: number): string | null {
 }
 
 interface FenceOpenCache {
-  lang: string
+  lang: string | null
   open: string
 }
 
-function renderFence(src: string, pos: number, end: number, cache: FenceOpenCache): { html: string, nextPos: number } | null {
+function renderFence(
+  src: string,
+  pos: number,
+  end: number,
+  cache: FenceOpenCache,
+  diagnostics?: StockFastDiagnostics,
+): { html: string, nextPos: number } | null {
   if (!startsWithFence(src, pos, end))
     return null
 
@@ -187,9 +194,13 @@ function renderFence(src: string, pos: number, end: number, cache: FenceOpenCach
       const content = src.slice(contentStart, contentEnd)
       let open: string
       if (lang === cache.lang) {
+        if (diagnostics)
+          diagnostics.fenceCacheHits++
         open = cache.open
       }
       else {
+        if (diagnostics)
+          diagnostics.fenceCacheMisses++
         open = lang
           ? `<pre><code class="language-${escapeHtml(lang)}">`
           : '<pre><code>'
@@ -215,9 +226,12 @@ function renderFence(src: string, pos: number, end: number, cache: FenceOpenCach
  * Returns HTML for the supported stock subset, or null when the input needs
  * the normal markdown-it-compatible parser and renderer.
  */
-export function renderStockFast(src: string): string | null {
-  if (src.length === 0)
+function renderStockFastInternal(src: string, diagnostics?: StockFastDiagnostics): string | null {
+  if (src.length === 0) {
+    if (diagnostics)
+      diagnostics.matched = true
     return ''
+  }
 
   if (src.includes('\r') || src.includes('\0'))
     return null
@@ -226,7 +240,7 @@ export function renderStockFast(src: string): string | null {
   let html = ''
   const useChunks = src.length >= 250_000
   const chunks: string[] = []
-  const fenceOpenCache: FenceOpenCache = { lang: '', open: '<pre><code>' }
+  const fenceOpenCache: FenceOpenCache = { lang: null, open: '' }
   let lastListSource = ''
   let lastListHtml = ''
   let lastParagraph = ''
@@ -253,6 +267,10 @@ export function renderStockFast(src: string): string | null {
       const heading = renderAtxHeading(src, pos, end)
       if (heading === null)
         return null
+      if (diagnostics) {
+        diagnostics.blocks++
+        diagnostics.headings++
+      }
       if (useChunks)
         chunks.push(heading)
       else
@@ -277,9 +295,13 @@ export function renderStockFast(src: string): string | null {
       const listSource = src.slice(pos, nextPos)
       let listHtml: string
       if (listSource === lastListSource) {
+        if (diagnostics)
+          diagnostics.listCacheHits++
         listHtml = lastListHtml
       }
       else {
+        if (diagnostics)
+          diagnostics.listCacheMisses++
         let itemPos = pos
         listHtml = '<ul>\n'
         while (itemPos < nextPos) {
@@ -312,6 +334,10 @@ export function renderStockFast(src: string): string | null {
         lookahead = lookaheadEnd < src.length ? lookaheadEnd + 1 : lookaheadEnd
       }
 
+      if (diagnostics) {
+        diagnostics.blocks++
+        diagnostics.lists++
+      }
       if (useChunks)
         chunks.push(listHtml)
       else
@@ -321,10 +347,14 @@ export function renderStockFast(src: string): string | null {
     }
 
     if (ch === 0x60) {
-      const fence = renderFence(src, pos, end, fenceOpenCache)
+      const fence = renderFence(src, pos, end, fenceOpenCache, diagnostics)
       if (!fence)
         return null
 
+      if (diagnostics) {
+        diagnostics.blocks++
+        diagnostics.fences++
+      }
       if (useChunks)
         chunks.push(fence.html)
       else
@@ -336,9 +366,13 @@ export function renderStockFast(src: string): string | null {
     const paragraph = paragraphContent(src, pos, end)
     let paragraphHtml: string
     if (paragraph === lastParagraph) {
+      if (diagnostics)
+        diagnostics.paragraphCacheHits++
       paragraphHtml = lastParagraphHtml
     }
     else {
+      if (diagnostics)
+        diagnostics.paragraphCacheMisses++
       const paragraphHtmlContent = renderPlainInline(paragraph)
       if (paragraphHtmlContent === null)
         return null
@@ -351,6 +385,10 @@ export function renderStockFast(src: string): string | null {
     if (nextPos < src.length && src.charCodeAt(nextPos) !== 0x0A && startsParagraphContinuation(src, nextPos))
       return null
 
+    if (diagnostics) {
+      diagnostics.blocks++
+      diagnostics.paragraphs++
+    }
     if (useChunks)
       chunks.push(paragraphHtml)
     else
@@ -358,5 +396,15 @@ export function renderStockFast(src: string): string | null {
     pos = skipEmptyLines(src, nextPos)
   }
 
+  if (diagnostics)
+    diagnostics.matched = true
   return useChunks ? chunks.join('') : html
+}
+
+export function renderStockFast(src: string): string | null {
+  return renderStockFastInternal(src)
+}
+
+export function renderStockFastWithDiagnostics(src: string, diagnostics: StockFastDiagnostics): string | null {
+  return renderStockFastInternal(src, diagnostics)
 }

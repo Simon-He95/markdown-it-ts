@@ -9,6 +9,7 @@ import {
   makeFeatureMixedDocument,
   makeStockSubsetParts,
 } from '../../scripts/perf-corpora.mjs'
+import { FEATURE_STRESS_CORPORA, STOCK_BOUNDARY_CORPORA } from '../../scripts/perf-feature-corpora.mjs'
 
 describe('performance corpora', () => {
   it('keeps the specialized stock corpus on stock-fast', () => {
@@ -40,6 +41,55 @@ describe('performance corpora', () => {
     expect(FEATURE_MIXED_CORPUS.expectedParsePath).toBe('plain')
     expect(getParseDiagnostics(parseEnv)?.strategy?.path).toBe('plain')
     expect(getParseDiagnostics(renderEnv)?.strategy).toMatchObject({ area: 'parse', path: 'plain' })
+  })
+
+  it('keeps every feature-stress corpus on the general parser and token renderer', () => {
+    expect(FEATURE_STRESS_CORPORA.map(corpus => corpus.id)).toEqual([
+      'plain-text',
+      'inline-formatting',
+      'links-media-autolinks',
+      'nested-blocks',
+      'tables-strikethrough',
+      'fenced-code',
+      'feature-mixed',
+    ])
+
+    for (const corpus of FEATURE_STRESS_CORPORA) {
+      const source = corpus.makeDocument(5_000)
+      const parseEnv: Record<string, unknown> = {}
+      const renderEnv: Record<string, unknown> = {}
+      const md = MarkdownIt()
+
+      md.parse(source, parseEnv)
+      md.render(source, renderEnv)
+
+      expect(getParseDiagnostics(parseEnv)?.strategy?.path, corpus.id).toBe(corpus.expectedParsePath)
+      expect(getParseDiagnostics(renderEnv)?.strategy?.path, corpus.id).toBe('plain')
+      expect(corpus.expectedRenderPath, corpus.id).toBe('token-renderer')
+    }
+  })
+
+  it('keeps stock repetition and late fallback boundary cases explicit', () => {
+    expect(STOCK_BOUNDARY_CORPORA.map(corpus => corpus.id)).toEqual([
+      'stock-repeated',
+      'stock-unique',
+      'stock-near-miss',
+    ])
+
+    for (const corpus of STOCK_BOUNDARY_CORPORA) {
+      const source = corpus.makeDocument(20_000)
+      const parseEnv: Record<string, unknown> = {}
+      const renderEnv: Record<string, unknown> = {}
+      const md = MarkdownIt()
+
+      md.parse(source, parseEnv)
+      md.render(source, renderEnv)
+
+      expect(getParseDiagnostics(parseEnv)?.strategy?.path, corpus.id).toBe(corpus.expectedParsePath)
+      const renderStrategy = getParseDiagnostics(renderEnv)?.strategy
+      const renderPath = renderStrategy?.area === 'render' ? renderStrategy.path : 'token-renderer'
+      expect(renderPath, corpus.id).toBe(corpus.expectedRenderPath)
+    }
   })
 
   it('keeps repository-owned real-world files explicit and independent', () => {

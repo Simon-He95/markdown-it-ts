@@ -1,3 +1,4 @@
+import type { StockFastDiagnostics } from './strategy_diagnostics'
 import { Token } from '../common/token'
 
 const INLINE_TERMINATOR_RE = /[\n!#$%&*+\-:<=>@[\]\\^_`{}~]/
@@ -225,13 +226,7 @@ function pushTightBulletListItem(tokens: Token[], content: string, line: number)
   paraOpen.hidden = true
   tokens.push(paraOpen)
 
-  const inline = blockToken('inline', '', 0, 3)
-  inline.map = [line, line + 1]
-  inline.content = content
-  const child = new Token('text', '', 0)
-  child.content = content
-  inline.children = [child]
-  tokens.push(inline)
+  tokens.push(inlineToken(content, line, 3))
 
   const paraClose = blockToken('paragraph_close', 'p', -1, 2)
   paraClose.hidden = true
@@ -575,9 +570,12 @@ export function parseStockFastAstJson(src: string): string | null {
   return useChunks ? `${json}${chunks.join('')}]}` : `${json}]}`
 }
 
-export function parseStockFast(src: string): Token[] | null {
-  if (src.length === 0)
+export function parseStockFast(src: string, diagnostics?: StockFastDiagnostics): Token[] | null {
+  if (src.length === 0) {
+    if (diagnostics)
+      diagnostics.matched = true
     return []
+  }
 
   if (src.includes('\r') || src.includes('\0'))
     return null
@@ -612,6 +610,10 @@ export function parseStockFast(src: string): Token[] | null {
     if (ch === 0x23) {
       if (!pushAtxHeading(tokens, src, pos, end, line))
         return null
+      if (diagnostics) {
+        diagnostics.blocks++
+        diagnostics.headings++
+      }
       const nextPos = end < src.length ? end + 1 : end
       pos = skipEmptyLines(src, nextPos)
       line += 1 + pos - nextPos
@@ -670,6 +672,10 @@ export function parseStockFast(src: string): Token[] | null {
       listOpen.map![1] = lookaheadLine
       lastItemOpen.map![1] = lookaheadLine
       pushTightBulletListClose(tokens)
+      if (diagnostics) {
+        diagnostics.blocks++
+        diagnostics.lists++
+      }
       pos = lookahead
       line = lookaheadLine
       continue
@@ -680,6 +686,10 @@ export function parseStockFast(src: string): Token[] | null {
       if (!fence)
         return null
       tokens.push(fence.token)
+      if (diagnostics) {
+        diagnostics.blocks++
+        diagnostics.fences++
+      }
       pos = skipEmptyLines(src, fence.nextPos)
       line = fence.nextLine + pos - fence.nextPos
       continue
@@ -688,12 +698,18 @@ export function parseStockFast(src: string): Token[] | null {
     const paragraph = paragraphContent(src, pos, end)
     let paragraphIsPlain: boolean
     if (plainInlineCacheMode === PLAIN_CACHE_DISABLED) {
+      if (diagnostics)
+        diagnostics.paragraphCacheBypasses++
       paragraphIsPlain = isPlainInlineText(paragraph)
     }
     else if (plainInlineCacheMode === PLAIN_CACHE_ENABLED && paragraph === lastPlainInline) {
+      if (diagnostics)
+        diagnostics.paragraphCacheHits++
       paragraphIsPlain = lastPlainInlineOk
     }
     else {
+      if (diagnostics)
+        diagnostics.paragraphCacheMisses++
       paragraphIsPlain = isPlainInlineText(paragraph)
       if (plainInlineCacheMode === PLAIN_CACHE_UNKNOWN) {
         if (lastPlainInlineSeen)
@@ -719,9 +735,15 @@ export function parseStockFast(src: string): Token[] | null {
     }
 
     pushParagraph(tokens, paragraph, line)
+    if (diagnostics) {
+      diagnostics.blocks++
+      diagnostics.paragraphs++
+    }
     pos = skipEmptyLines(src, nextPos)
     line += 1 + pos - nextPos
   }
 
+  if (diagnostics)
+    diagnostics.matched = true
   return tokens
 }

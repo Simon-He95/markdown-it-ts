@@ -8,6 +8,7 @@ export type {
   ChunkDiagnostics,
   EditableDiagnostics,
   ParseDiagnostics,
+  StockFastDiagnostics,
   StrategyDiagnostics,
   UnboundedDiagnostics,
 } from './parse/strategy_diagnostics'
