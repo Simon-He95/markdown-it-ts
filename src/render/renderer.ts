@@ -305,17 +305,42 @@ function renderFenceSyncToken(token: Token, options: RendererOptions, _self: Ren
   return renderFence(token, highlighted || fallback, info, langName, options)
 }
 
+function renderDefaultInlineToken(
+  token: Token,
+  rules: Record<string, RendererRule>,
+  inlineBreak: string,
+  softbreak: string,
+): string | null {
+  switch (token.type) {
+    case 'text':
+      return rules.text === defaultRules.text
+        ? (token.content.length === 0 ? '' : escapeHtml(token.content))
+        : null
+    case 'text_special':
+      return rules.text_special === defaultRules.text_special
+        ? (token.content.length === 0 ? '' : escapeHtml(token.content))
+        : null
+    case 'softbreak':
+      return rules.softbreak === defaultRules.softbreak ? softbreak : null
+    case 'hardbreak':
+      return rules.hardbreak === defaultRules.hardbreak ? inlineBreak : null
+    case 'html_inline':
+      return rules.html_inline === defaultRules.html_inline ? token.content : null
+    case 'code_inline':
+      return rules.code_inline === defaultRules.code_inline ? renderCodeInlineToken(token) : null
+    default:
+      return null
+  }
+}
+
 function renderSingleInlineTokenSync(
   tokens: Token[],
   options: RendererOptions,
   env: RendererEnv,
   self: Renderer,
   rules: Record<string, RendererRule>,
-  inlineBreak: string,
-  softbreak: string,
 ): string {
   const token = tokens[0]
-
   switch (token.type) {
     case 'text':
       if (rules.text === defaultRules.text)
@@ -327,11 +352,11 @@ function renderSingleInlineTokenSync(
       break
     case 'softbreak':
       if (rules.softbreak === defaultRules.softbreak)
-        return softbreak
+        return options.breaks ? (options.xhtmlOut ? '<br />\n' : '<br>\n') : '\n'
       break
     case 'hardbreak':
       if (rules.hardbreak === defaultRules.hardbreak)
-        return inlineBreak
+        return options.xhtmlOut ? '<br />\n' : '<br>\n'
       break
     case 'html_inline':
       if (rules.html_inline === defaultRules.html_inline)
@@ -340,8 +365,6 @@ function renderSingleInlineTokenSync(
     case 'code_inline':
       if (rules.code_inline === defaultRules.code_inline)
         return renderCodeInlineToken(token)
-      break
-    default:
       break
   }
 
@@ -816,6 +839,12 @@ export class Renderer {
       return ''
 
     const rules = this.rules
+    if (tokens.length === 1)
+      return renderSingleInlineTokenSync(tokens, options, env, this, rules)
+
+    const xhtmlOut = options.xhtmlOut === true
+    const inlineBreak = xhtmlOut ? '<br />\n' : '<br>\n'
+    const softbreak = options.breaks ? inlineBreak : '\n'
     const textRule = rules.text
     const textSpecialRule = rules.text_special
     const softbreakRule = rules.softbreak
@@ -828,13 +857,6 @@ export class Renderer {
     const emCloseRule = rules.em_close
     const strongOpenRule = rules.strong_open
     const strongCloseRule = rules.strong_close
-    const xhtmlOut = options.xhtmlOut === true
-    const inlineBreak = xhtmlOut ? '<br />\n' : '<br>\n'
-    const softbreak = options.breaks ? inlineBreak : '\n'
-
-    if (tokens.length === 1)
-      return renderSingleInlineTokenSync(tokens, options, env, this, rules, inlineBreak, softbreak)
-
     let result = ''
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i]
@@ -844,19 +866,20 @@ export class Renderer {
         const closeToken = tokens[i + 2]
 
         if (closeToken.type === 'link_close' && canUseLinkInlineFastPath(bodyToken)) {
-          const renderedLink = `${renderLinkOpenToken(token)
-            + renderSingleInlineTokenSync([bodyToken], options, env, this, rules, inlineBreak, softbreak)
-          }</a>`
+          const renderedBody = renderDefaultInlineToken(bodyToken, rules, inlineBreak, softbreak)
+          if (renderedBody !== null) {
+            const renderedLink = `${renderLinkOpenToken(token) + renderedBody}</a>`
 
-          if (softbreakRule === defaultRules.softbreak && i + 3 < tokens.length && tokens[i + 3].type === 'softbreak') {
-            result += renderedLink + softbreak
-            i += 3
+            if (softbreakRule === defaultRules.softbreak && i + 3 < tokens.length && tokens[i + 3].type === 'softbreak') {
+              result += renderedLink + softbreak
+              i += 3
+              continue
+            }
+
+            result += renderedLink
+            i += 2
             continue
           }
-
-          result += renderedLink
-          i += 2
-          continue
         }
       }
 
@@ -874,11 +897,12 @@ export class Renderer {
         const closeToken = tokens[i + 2]
 
         if (closeToken.type === 'em_close' && canUseWrappedInlineFastPath(bodyToken)) {
-          result += `<em>${
-            renderSingleInlineTokenSync([bodyToken], options, env, this, rules, inlineBreak, softbreak)
-          }</em>`
-          i += 2
-          continue
+          const renderedBody = renderDefaultInlineToken(bodyToken, rules, inlineBreak, softbreak)
+          if (renderedBody !== null) {
+            result += `<em>${renderedBody}</em>`
+            i += 2
+            continue
+          }
         }
       }
 
@@ -887,11 +911,12 @@ export class Renderer {
         const closeToken = tokens[i + 2]
 
         if (closeToken.type === 'strong_close' && canUseWrappedInlineFastPath(bodyToken)) {
-          result += `<strong>${
-            renderSingleInlineTokenSync([bodyToken], options, env, this, rules, inlineBreak, softbreak)
-          }</strong>`
-          i += 2
-          continue
+          const renderedBody = renderDefaultInlineToken(bodyToken, rules, inlineBreak, softbreak)
+          if (renderedBody !== null) {
+            result += `<strong>${renderedBody}</strong>`
+            i += 2
+            continue
+          }
         }
       }
 

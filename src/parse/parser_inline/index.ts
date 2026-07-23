@@ -25,6 +25,34 @@ import { StateInline } from './state_inline'
 
 const INLINE_TERMINATOR_RE = /[\n!#$%&*+\-:<=>@[\]\\^_`{}~]/
 
+function runDefaultRule(state: StateInline, silent: boolean): boolean | void {
+  switch (state.src.charCodeAt(state.pos)) {
+    case 0x0A:
+      return newline(state, silent)
+    case 0x21:
+      return image(state, silent)
+    case 0x26:
+      return entity(state, silent)
+    case 0x2A:
+    case 0x5F:
+      return emphasis.tokenize(state, silent)
+    case 0x3A:
+      return state.md.options.linkify && linkify(state, silent)
+    case 0x3C:
+      return autolink(state, silent) || html_inline(state, silent)
+    case 0x5B:
+      return link(state, silent)
+    case 0x5C:
+      return escape(state, silent)
+    case 0x60:
+      return backticks(state, silent)
+    case 0x7E:
+      return strikethrough.tokenize(state, silent)
+    default:
+      return text(state, silent)
+  }
+}
+
 export function isPlainInlineText(src: string): boolean {
   return !INLINE_TERMINATOR_RE.test(src)
 }
@@ -87,19 +115,28 @@ export class ParserInline {
 
     if (state.level < state.maxNesting) {
       if (!shouldProfile) {
-        for (let i = 0; i < len; i++) {
-          // Increment state.level and decrement it later to limit recursion.
-          // It's harmless to do here, because no tokens are created. But ideally,
-          // we'd need a separate private state variable for this purpose.
+        if (this.isDefaultRuleset()) {
           state.level++
-          ok = rules[i](state, true)
+          ok = runDefaultRule(state, true)
           state.level--
+          if (ok && pos >= state.pos)
+            throw new Error('inline rule didn\'t increment state.pos')
+        }
+        else {
+          for (let i = 0; i < len; i++) {
+            // Increment state.level and decrement it later to limit recursion.
+            // It's harmless to do here, because no tokens are created. But ideally,
+            // we'd need a separate private state variable for this purpose.
+            state.level++
+            ok = rules[i](state, true)
+            state.level--
 
-          if (ok) {
-            if (pos >= state.pos) {
-              throw new Error('inline rule didn\'t increment state.pos')
+            if (ok) {
+              if (pos >= state.pos) {
+                throw new Error('inline rule didn\'t increment state.pos')
+              }
+              break
             }
-            break
           }
         }
       }
@@ -159,20 +196,25 @@ export class ParserInline {
     const shouldProfile = !!state.env && (Object.prototype.hasOwnProperty.call(state.env, '__mdtsRuleProfile') || Object.prototype.hasOwnProperty.call(state.env, '__mdtsProfileRules'))
 
     if (!shouldProfile) {
+      const useDefaultDispatch = this.isDefaultRuleset()
       while (state.pos < end) {
         const prevPos = state.pos
         let ok: boolean | void = false
 
         if (state.level < state.maxNesting) {
-          for (let i = 0; i < len; i++) {
-            ok = rules[i](state, false)
-            if (ok) {
-              if (prevPos >= state.pos) {
-                throw new Error('inline rule didn\'t increment state.pos')
-              }
-              break
+          if (useDefaultDispatch) {
+            ok = runDefaultRule(state, false)
+          }
+          else {
+            for (let i = 0; i < len; i++) {
+              ok = rules[i](state, false)
+              if (ok)
+                break
             }
           }
+
+          if (ok && prevPos >= state.pos)
+            throw new Error('inline rule didn\'t increment state.pos')
         }
 
         if (ok) {

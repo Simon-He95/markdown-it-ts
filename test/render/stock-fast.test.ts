@@ -43,6 +43,14 @@ console.log(0)
     expect(Object.getOwnPropertyDescriptor(localMd, 'renderer')?.get).toBeTypeOf('function')
     expect(getParseDiagnostics(env)?.strategy?.area).toBe('render')
     expect(getParseDiagnostics(env)?.strategy?.path).toBe('stock-fast')
+    expect(getParseDiagnostics(env)?.stockFast).toMatchObject({
+      area: 'render',
+      attempted: true,
+      matched: true,
+      headings: 1,
+      blocks: 1,
+    })
+    expect(getParseDiagnostics(env)?.stockFast?.attemptMs).toBeGreaterThanOrEqual(0)
   })
 
   it('uses the stock fast path from renderAsync', async () => {
@@ -114,6 +122,60 @@ if (a < b && c > d) {
     const src = 'Plain text\n\n- a\n- b\n\nPlain text\n\n- a\n- b\n'
 
     expect(renderStockFast(src)).toBe(renderNormal(src))
+  })
+
+  it('records stock renderer cache hits for repeated paragraphs, lists, and fence languages', () => {
+    const localMd = MarkdownIt()
+    const env = {}
+    const src = 'Plain text\n\n- a\n- b\n\n```js\none\n```\n\nPlain text\n\n- a\n- b\n\n```js\ntwo\n```\n'
+
+    localMd.render(src, env)
+
+    expect(getParseDiagnostics(env)?.stockFast).toMatchObject({
+      area: 'render',
+      attempted: true,
+      matched: true,
+      paragraphs: 2,
+      lists: 2,
+      fences: 2,
+      paragraphCacheHits: 1,
+      paragraphCacheMisses: 1,
+      listCacheHits: 1,
+      listCacheMisses: 1,
+      fenceCacheHits: 1,
+      fenceCacheMisses: 1,
+    })
+  })
+
+  it('counts the first unlabelled fence as a cache miss and the second as a hit', () => {
+    const localMd = MarkdownIt()
+    const env = {}
+
+    localMd.render('```\none\n```\n\n```\ntwo\n```\n', env)
+
+    expect(getParseDiagnostics(env)?.stockFast).toMatchObject({
+      area: 'render',
+      matched: true,
+      fences: 2,
+      fenceCacheHits: 1,
+      fenceCacheMisses: 1,
+    })
+  })
+
+  it('preserves stock fallback diagnostics after token rendering', () => {
+    const localMd = MarkdownIt()
+    const env = {}
+
+    expect(localMd.render('Plain text\n\nLate **strong** text\n', env)).toContain('<strong>strong</strong>')
+    expect(getParseDiagnostics(env)?.strategy).toMatchObject({ area: 'parse', path: 'plain' })
+    expect(getParseDiagnostics(env)?.stockFast).toMatchObject({
+      area: 'render',
+      attempted: true,
+      matched: false,
+      fallbackReason: 'unsupported-stock-subset',
+      paragraphs: 1,
+      blocks: 1,
+    })
   })
 
   it('returns null for markdown that needs inline parsing', () => {

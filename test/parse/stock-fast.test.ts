@@ -158,12 +158,53 @@ console.log(0)
     expect(parseStockFastAstJson('```\nunterminated\n')).toBeNull()
   })
 
+  it('does not share mutable token state across stock parses', () => {
+    const first = parseStockFast('# Heading\n\nPlain text\n')!
+    const second = parseStockFast('# Heading\n\nPlain text\n')!
+
+    first[0].map![0] = 99
+    first[1].children![0].content = 'mutated'
+
+    expect(second[0].map).toEqual([0, 1])
+    expect(second[1].children![0].content).toBe('Heading')
+  })
+
   it('uses the stock parse path from default parse', () => {
     const md = MarkdownIt()
     const env = {}
 
     expect(md.parse('# Fast\n\nPlain text\n', env)).toEqual(parseStockFast('# Fast\n\nPlain text\n'))
     expect(getParseDiagnostics(env)?.strategy?.path).toBe('stock-fast')
+    expect(getParseDiagnostics(env)?.stockFast).toMatchObject({
+      area: 'parse',
+      attempted: true,
+      matched: true,
+      headings: 1,
+      paragraphs: 1,
+      blocks: 2,
+      paragraphCacheHits: 0,
+      paragraphCacheMisses: 0,
+      paragraphCacheBypasses: 1,
+    })
+    expect(getParseDiagnostics(env)?.stockFast?.attemptMs).toBeGreaterThanOrEqual(0)
+  })
+
+  it('records a late stock parse fallback before using the general parser', () => {
+    const md = MarkdownIt()
+    const env = {}
+
+    md.parse('# Fast\n\nPlain text\n\nLate **strong** text\n', env)
+
+    expect(getParseDiagnostics(env)?.strategy?.path).toBe('plain')
+    expect(getParseDiagnostics(env)?.stockFast).toMatchObject({
+      area: 'parse',
+      attempted: true,
+      matched: false,
+      fallbackReason: 'unsupported-stock-subset',
+      headings: 1,
+      paragraphs: 1,
+      blocks: 2,
+    })
   })
 
   it('keeps plugin instances on the normal parse path', () => {

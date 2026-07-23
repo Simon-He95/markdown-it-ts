@@ -116,6 +116,7 @@
     "prepublishOnly": "pnpm run audit:prod && pnpm run lint && pnpm run typecheck && pnpm run test:types && pnpm test -- --run && pnpm run build && publint && attw --pack . --profile esm-only && rm -rf /tmp/mdts-pack && mkdir -p /tmp/mdts-pack && pnpm pack --pack-destination /tmp/mdts-pack && node scripts/package-type-smoke.mjs \"$(ls /tmp/mdts-pack/markdown-it-ts-*.tgz)\" && MDTS_PACKAGE_SPEC=\"$(ls /tmp/mdts-pack/markdown-it-ts-*.tgz)\" node scripts/bundler-smoke.mjs",
     "release": "bumpp --commit --tag --push --execute \"pnpm run prepublishOnly\" && npm publish \"$(ls /tmp/mdts-pack/markdown-it-ts-*.tgz)\" --access public --ignore-scripts --provenance=false",
     "perf:matrix": "npm run build && node scripts/perf-matrix.mjs",
+    "perf:profile": "npm run build && node --expose-gc scripts/perf-feature-profile.mjs",
     "perf:families": "npm run build && node scripts/perf-rule-hotspots.mjs",
     "perf:strategies": "npm run build && node scripts/tune-default-strategies.mjs",
     "perf:strategy:check": "node scripts/perf-strategy-check.mjs",
