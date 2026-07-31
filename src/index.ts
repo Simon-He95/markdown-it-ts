@@ -5,7 +5,7 @@ import type { StockFastDiagnostics } from './parse/strategy_diagnostics'
 import type { RendererOptions } from './render/renderer'
 import type { StreamStats } from './stream/parser'
 import type { UnboundedBufferStats, UnboundedChunkInfo } from './stream/unbounded'
-import LinkifyIt from 'linkify-it'
+import { LinkifyIt } from 'linkify-it'
 import * as utils from './common/utils'
 import * as helpers from './helpers'
 import { detectGlobalMarkdownState, getKnownGlobalMarkdownState, resetKnownGlobalMarkdownState, runWithKnownGlobalMarkdownState } from './parse/global_state'
@@ -450,7 +450,9 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
   let linkifyInstance: InstanceType<typeof LinkifyIt> | null = null
   const getLinkify = () => {
     if (!linkifyInstance)
-      linkifyInstance = new LinkifyIt()
+      // linkify-it@6 changed `fuzzyLink` default from `true` to `false`;
+      // keep the v5 default so bare domains (e.g. `example.com`) stay recognized.
+      linkifyInstance = new LinkifyIt({ fuzzyLink: true })
     return linkifyInstance
   }
   const canUseImplicitLargeInputStrategy = (instance: MarkdownIt) => {

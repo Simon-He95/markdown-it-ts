@@ -1,6 +1,6 @@
 import type { CoreNamedRule } from '../rules/core/ruler'
 import type { ParseSource } from './source'
-import LinkifyIt from 'linkify-it'
+import { LinkifyIt } from 'linkify-it'
 import { parseLinkDestination } from '../helpers/parse_link_destination'
 import { parseLinkLabel } from '../helpers/parse_link_label'
 import { parseLinkTitle } from '../helpers/parse_link_title'
@@ -107,7 +107,9 @@ export class ParserCore {
     }
 
     if (!this.linkifyInstance)
-      this.linkifyInstance = new LinkifyIt()
+      // linkify-it@6 changed `fuzzyLink` default from `true` to `false`;
+      // keep the v5 default so bare domains stay recognized.
+      this.linkifyInstance = new LinkifyIt({ fuzzyLink: true })
 
     if (this.fallbackParser.block !== this.block) {
       this.fallbackParser.block = this.block
