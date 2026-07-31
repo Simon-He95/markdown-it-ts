@@ -58,7 +58,9 @@ export function linkify(state: State): void {
   for (let j = 0; j < blockTokens.length; j++) {
     const blockToken = blockTokens[j]
 
-    if (blockToken.type !== 'inline' || !state.md.linkify.pretest(blockToken.content)) {
+    // linkify-it@6 removed `pretest`; `test` is the exact (non-false-negative)
+    // equivalent — it is slightly heavier but never skips a block containing a link.
+    if (blockToken.type !== 'inline' || !state.md.linkify.test(blockToken.content)) {
       continue
     }
 

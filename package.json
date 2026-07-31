@@ -85,7 +85,7 @@
     "provenance": true
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20.19"
   },
   "scripts": {
     "build": "tsdown src/index.ts src/core.ts src/experimental.ts --no-dts && tsdown src/plugins/with-renderer.ts src/render/renderer.ts src/stream/buffer.ts src/stream/chunked.ts src/stream/debounced.ts src/support/chunk_recommend.ts src/common/token.ts src/common/utils.ts --no-clean --no-dts && tsc -p tsconfig.build.json && node scripts/prepare-dts.mjs && node scripts/check-dist-exports.mjs",
@@ -157,13 +157,10 @@
     }
   },
   "dependencies": {
-    "@types/linkify-it": "^5.0.0",
-    "@types/mdurl": "^2.0.0",
-    "entities": "^4.5.0",
-    "linkify-it": "^5.0.2",
+    "entities": "^8.0.0",
+    "linkify-it": "^6.0.0",
     "mdurl": "^2.0.0",
-    "punycode.js": "^2.3.1",
-    "uc.micro": "^2.1.0"
+    "punycode.js": "^2.3.1"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^6.7.3",
