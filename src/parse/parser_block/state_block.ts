@@ -68,65 +68,95 @@ export class StateBlock {
     this.env = env
     this.tokens = tokens
 
-    // Generate line markers
+    // Generate line markers.
+    //
+    // Fast path: short lines are scanned character by character (cheap for
+    // line-heavy documents), while longer lines jump to the next newline with
+    // native `indexOf('\n')` (SIMD in V8). Indentation and pipe detection are
+    // done per line instead of per character. Produces byte-identical
+    // bMarks/eMarks/tShift/sCount/bsCount/lineFlags arrays.
     const s = this.src
-    let indent = 0
-    let offset = 0
+    const len = s.length
+
+    const bMarks = this.bMarks
+    const eMarks = this.eMarks
+    const tShift = this.tShift
+    const sCount = this.sCount
+    const bsCount = this.bsCount
+    const lineFlags = this.lineFlags
+
     let start = 0
-    let indent_found = false
-    let flags = 0
+    // Cursor for the next pipe position. Advancing it monotonically keeps the
+    // total pipe search linear even for documents without any '|' (a naive
+    // per-line `indexOf('|', lineStart)` would re-scan the whole tail of the
+    // string for every line).
+    let pipePos = s.indexOf('|')
+    while (start < len) {
+      // Find the end of this line. Short lines (the common case) are scanned
+      // character by character; once a line is longer than 4 chars we jump to
+      // the next newline natively.
+      let end = start
+      while (end < len && end - start < 4 && s.charCodeAt(end) !== 0x0A)
+        end++
+      if (end - start === 4 && end < len) {
+        const nl = s.indexOf('\n', end)
+        end = nl === -1 ? len : nl
+      }
 
-    for (let pos = 0, len = s.length; pos < len; pos++) {
-      const ch = s.charCodeAt(pos)
-
-      if (ch === 0x7C /* | */)
-        flags |= LineFlag.Pipe | LineFlag.ParagraphTerminator
-
-      if (!indent_found) {
-        if (isSpace(ch)) {
+      let indent = 0
+      let offset = 0
+      let pos = start
+      while (pos < end) {
+        const ch = s.charCodeAt(pos)
+        if (ch === 0x20) {
           indent++
-          if (ch === 0x09) {
-            offset += 4 - offset % 4
-          }
-          else {
-            offset++
-          }
+          offset++
+          pos++
           continue
         }
-        else {
-          indent_found = true
-          if (isParagraphTerminatorCandidate(ch))
-            flags |= LineFlag.ParagraphTerminator
-        }
-      }
-
-      if (ch === 0x0A || pos === len - 1) {
-        if (ch !== 0x0A)
+        if (ch === 0x09) {
+          indent++
+          offset += 4 - offset % 4
           pos++
-        this.bMarks.push(start)
-        this.eMarks.push(pos)
-        this.tShift.push(indent)
-        this.sCount.push(offset)
-        this.bsCount.push(0)
-        this.lineFlags.push(flags)
-
-        indent_found = false
-        indent = 0
-        offset = 0
-        flags = 0
-        start = pos + 1
+          continue
+        }
+        break
       }
+
+      let flags = 0
+      if (pos < end) {
+        if (isParagraphTerminatorCandidate(s.charCodeAt(pos)))
+          flags |= LineFlag.ParagraphTerminator
+
+        if (pipePos < start)
+          pipePos = s.indexOf('|', start)
+        if (pipePos !== -1 && pipePos < end)
+          flags |= LineFlag.Pipe | LineFlag.ParagraphTerminator
+        // Sticky sentinel: once a search returns -1 there are no more pipes,
+        // so later lines must not re-scan the string tail.
+        if (pipePos === -1)
+          pipePos = len
+      }
+
+      bMarks.push(start)
+      eMarks.push(end)
+      tShift.push(indent)
+      sCount.push(offset)
+      bsCount.push(0)
+      lineFlags.push(flags)
+
+      start = end + 1
     }
 
     // Push fake entry to simplify bounds checks
-    this.bMarks.push(s.length)
-    this.eMarks.push(s.length)
-    this.tShift.push(0)
-    this.sCount.push(0)
-    this.bsCount.push(0)
-    this.lineFlags.push(0)
+    bMarks.push(len)
+    eMarks.push(len)
+    tShift.push(0)
+    sCount.push(0)
+    bsCount.push(0)
+    lineFlags.push(0)
 
-    this.lineMax = this.bMarks.length - 1
+    this.lineMax = bMarks.length - 1
   }
 
   push(type: string, tag: string, nesting: number): Token {
@@ -244,7 +274,7 @@ export class StateBlock {
       }
 
       if (lineIndent > indent) {
-        return new Array(lineIndent - indent + 1).join(' ') + src.slice(first, last)
+        return ' '.repeat(lineIndent - indent) + src.slice(first, last)
       }
 
       return src.slice(first, last)
@@ -291,7 +321,7 @@ export class StateBlock {
       }
 
       if (lineIndent > indent) {
-        queue[i] = new Array(lineIndent - indent + 1).join(' ') + src.slice(first, last)
+        queue[i] = ' '.repeat(lineIndent - indent) + src.slice(first, last)
       }
       else {
         queue[i] = src.slice(first, last)

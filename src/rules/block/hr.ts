@@ -50,7 +50,8 @@ export function hr(state: StateBlock, startLine: number, endLine: number, silent
 
   const token = state.push('hr', 'hr', 0)
   token.map = [startLine, state.line]
-  token.markup = new Array(cnt + 1).join(String.fromCharCode(marker))
+  // `new Array(cnt + 1).join(marker)` produced `cnt` copies; keep that exact count.
+  token.markup = String.fromCharCode(marker).repeat(cnt)
 
   return true
 }
