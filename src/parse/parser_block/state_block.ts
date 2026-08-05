@@ -19,23 +19,12 @@ export const LineFlag = {
   ParagraphTerminator: 2,
 } as const
 
-function isParagraphTerminatorCandidate(code: number): boolean {
-  switch (code) {
-    case 0x23: // #
-    case 0x2A: // *
-    case 0x2B: // +
-    case 0x2D: // -
-    case 0x3C: // <
-    case 0x3E: // >
-    case 0x5F: // _
-    case 0x60: // `
-    case 0x7C: // |
-    case 0x7E: // ~
-      return true
-  }
-
-  return code >= 0x30 && code <= 0x39
-}
+// Lookup table mirroring the paragraph-terminator candidates (0 = not a
+// candidate). Called once per line in the StateBlock constructor hot path.
+// Terminator candidates are: # * + - < > _ ` | ~ and 0-9.
+const PARAGRAPH_TERMINATOR_TABLE = new Uint8Array(256)
+for (const code of [0x23, 0x2A, 0x2B, 0x2D, 0x3C, 0x3E, 0x5F, 0x60, 0x7C, 0x7E, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39])
+  PARAGRAPH_TERMINATOR_TABLE[code] = 1
 
 export class StateBlock {
   public src: ParseSource
@@ -125,7 +114,7 @@ export class StateBlock {
 
       let flags = 0
       if (pos < end) {
-        if (isParagraphTerminatorCandidate(s.charCodeAt(pos)))
+        if (PARAGRAPH_TERMINATOR_TABLE[s.charCodeAt(pos)] === 1)
           flags |= LineFlag.ParagraphTerminator
 
         if (pipePos < start)
