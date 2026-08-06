@@ -2,7 +2,6 @@ export type GlobalMarkdownStateReason = 'reference-definition' | 'footnote-defin
 
 const FOOTNOTE_DEF_RE = /(?:^|\n)[ \t]{0,3}\[\^[^\]\n]+\]:/m
 const ABBR_DEF_RE = /(?:^|\n)[ \t]{0,3}\*\[[^\]\n]+\]:/m
-const REFERENCE_DEF_RE = /(?:^|\n)[ \t]{0,3}\[(?!\^)(?:\\[\s\S]|[^\]\\[])+\][ \t]*:/m
 const GLOBAL_STATE_CHUNK_SCAN_WINDOW = 4096
 const GLOBAL_STATE_ENV_KEYS = [
   'references',
@@ -13,6 +12,73 @@ const GLOBAL_STATE_ENV_KEYS = [
 ] as const
 const GLOBAL_STATE_ENV_MARKER = Symbol.for('markdown-it-ts.global-state')
 const hasOwn = Object.prototype.hasOwnProperty
+
+/**
+ * Scanner equivalent of the former reference-definition regex
+ * `(?:^|\n)[ \t]{0,3}\[(?!\^)(?:\\[\s\S]|[^\]\\[])+\][ \t]*:` without a
+ * backtracking regex.
+ *
+ * The reference-definition pattern is expensive to run on large documents
+ * (nested alternation over the whole source). This scanner walks the source
+ * with native `indexOf` and only examines `[` characters that sit at a line
+ * start with up to 3 spaces of indent, which is exactly the pattern shape.
+ */
+function hasReferenceDefinition(src: string): boolean {
+  const len = src.length
+  let searchFrom = 0
+
+  while (searchFrom < len) {
+    const lb = src.indexOf('[', searchFrom)
+    if (lb === -1)
+      return false
+
+    // Only a '[' at the beginning of a line (after up to 3 spaces/tabs) counts.
+    let indent = 0
+    let prev = lb - 1
+    while (prev >= 0 && src.charCodeAt(prev) !== 0x0A) {
+      const ch = src.charCodeAt(prev)
+      if (ch === 0x20 || ch === 0x09) {
+        indent++
+        prev--
+        continue
+      }
+      break
+    }
+
+    if ((prev < 0 || src.charCodeAt(prev) === 0x0A) && indent <= 3 && src.charCodeAt(lb + 1) !== 0x5E /* ^ */) {
+      let pos = lb + 1
+      if (pos >= len || src.charCodeAt(pos) === 0x5D /* ] */) {
+        // empty label — `(?:...)+` requires at least one character
+        searchFrom = lb + 1
+        continue
+      }
+
+      while (pos < len) {
+        const ch = src.charCodeAt(pos)
+        if (ch === 0x5D /* ] */) {
+          // optional spaces/tabs, then ':'
+          let p = pos + 1
+          while (p < len && (src.charCodeAt(p) === 0x20 || src.charCodeAt(p) === 0x09))
+            p++
+          if (p < len && src.charCodeAt(p) === 0x3A /* : */)
+            return true
+          break
+        }
+        if (ch === 0x5B /* [ */)
+          break
+        if (ch === 0x5C /* \ */) {
+          pos += 2
+          continue
+        }
+        pos++
+      }
+    }
+
+    searchFrom = lb + 1
+  }
+
+  return false
+}
 
 type GlobalStateEnvKey = typeof GLOBAL_STATE_ENV_KEYS[number]
 
@@ -206,7 +272,7 @@ export function detectGlobalMarkdownState(src: string): GlobalMarkdownStateReaso
   if (ABBR_DEF_RE.test(src))
     return 'abbreviation-definition'
 
-  if (REFERENCE_DEF_RE.test(src))
+  if (hasReferenceDefinition(src))
     return 'reference-definition'
 
   return null

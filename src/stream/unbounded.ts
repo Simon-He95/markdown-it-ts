@@ -602,9 +602,10 @@ export function getAutoUnboundedDecision(
   if (totalLines !== undefined)
     return totalLines >= thresholdLines ? 'yes' : 'no'
 
-  // A string shorter than (thresholdLines - 1) chars cannot contain enough
-  // newlines to reach the line threshold, so we can skip the extra scan.
-  if (totalChars + 1 < thresholdLines)
+  // A string shorter than 2 * thresholdLines chars cannot contain enough
+  // newlines to reach the line threshold (each line needs at least one char
+  // plus a newline), so we can skip the extra scan.
+  if (totalChars < 2 * thresholdLines - 1)
     return 'no'
 
   return 'need-lines'

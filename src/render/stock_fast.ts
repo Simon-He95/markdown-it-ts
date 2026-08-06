@@ -95,35 +95,19 @@ function startsWithBulletItem(src: string, pos: number, end: number): boolean {
   return pos + 1 < end && src.charCodeAt(pos) === 0x2D && src.charCodeAt(pos + 1) === 0x20
 }
 
+// 0 = must fall back to the full parser, 1 = safe to render as-is.
+// Covers all inline terminators plus the '"' char (rendered as &quot;).
+const BULLET_SAFE_TABLE = new Uint8Array(256).fill(1)
+for (const code of [0x0A, 0x21, 0x23, 0x24, 0x25, 0x26, 0x2A, 0x2B, 0x2D, 0x3A, 0x3C, 0x3D, 0x3E, 0x40, 0x5B, 0x5C, 0x5D, 0x5E, 0x5F, 0x60, 0x7B, 0x7D, 0x7E])
+  BULLET_SAFE_TABLE[code] = 0
+BULLET_SAFE_TABLE[0x22] = 0 // "
+
 function renderSingleCharBulletItem(src: string, pos: number): string | null {
-  switch (src.charCodeAt(pos)) {
-    case 0x22:
-      return '<li>&quot;</li>\n'
-    case 0x0A:
-    case 0x21:
-    case 0x23:
-    case 0x24:
-    case 0x25:
-    case 0x26:
-    case 0x2A:
-    case 0x2B:
-    case 0x2D:
-    case 0x3A:
-    case 0x3C:
-    case 0x3D:
-    case 0x3E:
-    case 0x40:
-    case 0x5B:
-    case 0x5C:
-    case 0x5D:
-    case 0x5E:
-    case 0x5F:
-    case 0x60:
-    case 0x7B:
-    case 0x7D:
-    case 0x7E:
-      return null
-  }
+  const ch = src.charCodeAt(pos)
+  if (ch === 0x22)
+    return '<li>&quot;</li>\n'
+  if (ch < 0x100 && BULLET_SAFE_TABLE[ch] === 0)
+    return null
   return `<li>${src[pos]}</li>\n`
 }
 

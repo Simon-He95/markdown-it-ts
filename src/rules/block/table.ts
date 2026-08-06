@@ -43,6 +43,11 @@ function lineContainsPipe(state: StateBlock, line: number): boolean {
 }
 
 function escapedSplit(str: string): string[] {
+  // Fast path: without backslash escapes, `\|` handling is a no-op and a
+  // plain split is exactly equivalent.
+  if (!str.includes('\\'))
+    return str.split('|')
+
   const result: string[] = []
   const max = str.length
 
