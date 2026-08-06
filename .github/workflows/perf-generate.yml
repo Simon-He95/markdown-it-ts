@@ -42,7 +42,6 @@ jobs:
         if: ${{ github.event.inputs['package-manager'] != 'npm' }}
         uses: pnpm/action-setup@v4
         with:
-          version: 9
           run_install: false
 
       - name: Cache pnpm store
