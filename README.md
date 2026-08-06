@@ -536,11 +536,11 @@ The compact table below reports the synthetic stock subset, a feature-mixed synt
 <!-- perf-auto:native-corpora:start -->
 | Corpus | Chars | TS parse | OX parse | TS parse path | TS render | OX render | TS render path | HTML equal? |
 |:--|---:|---:|---:|:--|---:|---:|:--|:--|
-| synthetic stock-subset (~100k) | 100,126 | 1.1409ms | 0.7852ms | stock-fast | 0.3133ms | 0.6692ms | stock-fast | no |
-| synthetic feature-mixed (~100k) | 100,450 | 7.3600ms | 1.0057ms | general | 7.6755ms | 0.8164ms | token-renderer | no |
-| docs/architecture.md | 6,564 | 0.1159ms | 0.0166ms | general | 0.1173ms | 0.0141ms | token-renderer | no |
-| docs/development.md | 4,756 | 0.0986ms | 0.0177ms | general | 0.1164ms | 0.0169ms | token-renderer | no |
-| docs/security.md | 1,375 | 0.0250ms | 0.0066ms | general | 0.0314ms | 0.0064ms | token-renderer | no |
+| synthetic stock-subset (~100k) | 100,126 | 1.5521ms | 1.0680ms | stock-fast | 0.3836ms | 0.9375ms | stock-fast | no |
+| synthetic feature-mixed (~100k) | 100,450 | 9.3192ms | 1.2882ms | general | 10.30ms | 1.0994ms | token-renderer | no |
+| docs/architecture.md | 6,564 | 0.1486ms | 0.0218ms | general | 0.1438ms | 0.0172ms | token-renderer | no |
+| docs/development.md | 4,756 | 0.1315ms | 0.0247ms | general | 0.1517ms | 0.0228ms | token-renderer | no |
+| docs/security.md | 1,375 | 0.0352ms | 0.0092ms | general | 0.0406ms | 0.0086ms | token-renderer | no |
 <!-- perf-auto:native-corpora:end -->
 
 No aggregate winner is calculated across corpora. See [the generated report](./docs/perf-latest.md) for every size, per-file real-world results, strategy diagnostics, and the first HTML output difference.
@@ -550,11 +550,11 @@ No aggregate winner is calculated across corpora. See [the generated report](./d
 In the latest stock-subset snapshot (Node.js version and CPU are recorded in `docs/perf-latest.md`), tuned one-shot parsing compares as follows with upstream markdown-it:
 
 <!-- perf-auto:one-examples:start -->
-- 5,000 chars: 0.0392ms vs 0.1777ms → ~4.5× faster, ~78% less time
-- 20,000 chars: 0.1620ms vs 0.7419ms → ~4.6× faster, ~78% less time
-- 100,000 chars: 1.2118ms vs 4.5899ms → ~3.8× faster, ~74% less time
-- 500,000 chars: 20.64ms vs 42.43ms → ~2.1× faster, ~51% less time
-- 1,000,000 chars: 38.65ms vs 76.56ms → ~2× faster, ~50% less time
+- 5,000 chars: 0.0523ms vs 0.2421ms → ~4.6× faster, ~78% less time
+- 20,000 chars: 0.2088ms vs 1.0214ms → ~4.9× faster, ~80% less time
+- 100,000 chars: 1.4326ms vs 6.0263ms → ~4.2× faster, ~76% less time
+- 500,000 chars: 22.72ms vs 54.35ms → ~2.4× faster, ~58% less time
+- 1,000,000 chars: 45.69ms vs 96.53ms → ~2.1× faster, ~53% less time
 <!-- perf-auto:one-examples:end -->
 
 Tuned stock-subset parser comparison (`markdown-it-ts` best one-shot vs `@ox-content/napi` parse only):
@@ -562,25 +562,25 @@ Tuned stock-subset parser comparison (`markdown-it-ts` best one-shot vs `@ox-con
 This is a best-of S1–S5 result for markdown-it-ts, not a fixed-configuration headline. The `@ox-content/napi` parse-only API returns an AST JSON string; these rows compare native throughput with different schemas and do not include a follow-up `JSON.parse`.
 
 <!-- perf-auto:ox-one:start -->
-- 5,000 chars: 0.0392ms vs 0.0358ms → ~1.1× slower, ~9% more time
-- 20,000 chars: 0.1620ms vs 0.1251ms → ~1.3× slower, ~30% more time
-- 100,000 chars: 1.2118ms vs 1.2829ms → ~1.1× faster, ~6% less time
+- 5,000 chars: 0.0523ms vs 0.0424ms → ~1.2× slower, ~23% more time
+- 20,000 chars: 0.2088ms vs 0.1637ms → ~1.3× slower, ~28% more time
+- 100,000 chars: 1.4326ms vs 1.9475ms → ~1.4× faster, ~26% less time
 <!-- perf-auto:ox-one:end -->
 
 If the `@ox-content/napi` AST JSON string is immediately materialized into JavaScript objects:
 
 <!-- perf-auto:ox-json-one:start -->
-- 5,000 chars: 0.0392ms vs 0.1766ms → ~4.5× faster, ~78% less time
-- 20,000 chars: 0.1620ms vs 0.7221ms → ~4.5× faster, ~78% less time
-- 100,000 chars: 1.2118ms vs 3.9932ms → ~3.3× faster, ~70% less time
+- 5,000 chars: 0.0523ms vs 0.2624ms → ~5× faster, ~80% less time
+- 20,000 chars: 0.2088ms vs 1.0396ms → ~5× faster, ~80% less time
+- 100,000 chars: 1.4326ms vs 6.4127ms → ~4.5× faster, ~78% less time
 <!-- perf-auto:ox-json-one:end -->
 
 Experimental stock-subset AST JSON output (`parseStockFastAstJson`) compared with `@ox-content/napi` parse-only:
 
 <!-- perf-auto:stock-ast-json:start -->
-- 5,000 chars: 0.0243ms vs 0.0301ms → ~1.2× faster, ~19% less time
-- 20,000 chars: 0.0834ms vs 0.1194ms → ~1.4× faster, ~30% less time
-- 100,000 chars: 0.4535ms vs 0.8119ms → ~1.8× faster, ~44% less time
+- 5,000 chars: 0.0327ms vs 0.0415ms → ~1.3× faster, ~21% less time
+- 20,000 chars: 0.1217ms vs 0.1736ms → ~1.4× faster, ~30% less time
+- 100,000 chars: 0.5790ms vs 1.0365ms → ~1.8× faster, ~44% less time
 <!-- perf-auto:stock-ast-json:end -->
 
 What the specialized native baseline teaches us:
@@ -595,9 +595,9 @@ Specialized stock-subset native render behavior (`markdown-it-ts.render` vs `@ox
 These rows use the default render APIs rather than S1–S5 best-of. They are **not equivalent-output results**: the benchmark records an HTML difference (for example, OX adds heading IDs) and must not be generalized to feature-mixed Markdown.
 
 <!-- perf-auto:render-ox:start -->
-- 5,000 chars: 0.0418ms vs 0.0300ms → ~1.4× slower, ~39% more time
-- 20,000 chars: 0.0651ms vs 0.1283ms → ~2× faster, ~49% less time
-- 100,000 chars: 0.3302ms vs 0.6605ms → ~2× faster, ~50% less time
+- 5,000 chars: 0.0208ms vs 0.0408ms → ~2× faster, ~49% less time
+- 20,000 chars: 0.0776ms vs 0.1567ms → ~2× faster, ~50% less time
+- 100,000 chars: 0.3835ms vs 0.9232ms → ~2.4× faster, ~58% less time
 <!-- perf-auto:render-ox:end -->
 
 Legacy stock-subset summary (tuned parse + default native render):
@@ -605,9 +605,9 @@ Legacy stock-subset summary (tuned parse + default native render):
 <!-- perf-auto:ox-summary:start -->
 | Size | markdown-it-ts parse | @ox-content/napi parse | Parse comparison | markdown-it-ts render | @ox-content/napi render | Render comparison |
 |---:|---:|---:|:--|---:|---:|:--|
-| 5,000 | 0.0392ms | 0.0358ms | ~1.1× slower, ~9% more time | 0.0418ms | 0.0300ms | ~1.4× slower, ~39% more time |
-| 20,000 | 0.1620ms | 0.1251ms | ~1.3× slower, ~30% more time | 0.0651ms | 0.1283ms | ~2× faster, ~49% less time |
-| 100,000 | 1.2118ms | 1.2829ms | ~1.1× faster, ~6% less time | 0.3302ms | 0.6605ms | ~2× faster, ~50% less time |
+| 5,000 | 0.0523ms | 0.0424ms | ~1.2× slower, ~23% more time | 0.0208ms | 0.0408ms | ~2× faster, ~49% less time |
+| 20,000 | 0.2088ms | 0.1637ms | ~1.3× slower, ~28% more time | 0.0776ms | 0.1567ms | ~2× faster, ~50% less time |
+| 100,000 | 1.4326ms | 1.9475ms | ~1.4× faster, ~26% less time | 0.3835ms | 0.9232ms | ~2.4× faster, ~58% less time |
 <!-- perf-auto:ox-summary:end -->
 
 ### Non-equivalent stock-subset-only parse / render ranking (5k-200k)
@@ -620,61 +620,61 @@ Parse ranking uses the fastest tuned markdown-it-ts one-shot scenario for each s
 
 | Size | Rank | Library | oneShotMs |
 |---:|---:|---|---:|
-| 5,000 | 1 | @ox-content/napi | 0.0358ms |
-| 5,000 | 2 | markdown-it-ts | 0.0392ms |
-| 5,000 | 3 | markdown-it | 0.1777ms |
-| 5,000 | 4 | markdown-exit | 0.3306ms |
-| 5,000 | 5 | remark | 7.4498ms |
-| 20,000 | 1 | @ox-content/napi | 0.1251ms |
-| 20,000 | 2 | markdown-it-ts | 0.1620ms |
-| 20,000 | 3 | markdown-it | 0.7419ms |
-| 20,000 | 4 | markdown-exit | 1.1128ms |
-| 20,000 | 5 | remark | 31.99ms |
-| 50,000 | 1 | markdown-it-ts | 0.4329ms |
-| 50,000 | 2 | @ox-content/napi | 0.4571ms |
-| 50,000 | 3 | markdown-it | 1.9492ms |
-| 50,000 | 4 | markdown-exit | 2.9374ms |
-| 50,000 | 5 | remark | 84.16ms |
-| 100,000 | 1 | markdown-it-ts | 1.2118ms |
-| 100,000 | 2 | @ox-content/napi | 1.2829ms |
-| 100,000 | 3 | markdown-it | 4.5899ms |
-| 100,000 | 4 | markdown-exit | 6.8241ms |
-| 100,000 | 5 | remark | 183.46ms |
-| 200,000 | 1 | @ox-content/napi | 2.8994ms |
-| 200,000 | 2 | markdown-it-ts | 4.7805ms |
-| 200,000 | 3 | markdown-it | 8.7339ms |
-| 200,000 | 4 | markdown-exit | 14.27ms |
-| 200,000 | 5 | remark | 471.60ms |
+| 5,000 | 1 | @ox-content/napi | 0.0424ms |
+| 5,000 | 2 | markdown-it-ts | 0.0523ms |
+| 5,000 | 3 | markdown-it | 0.2421ms |
+| 5,000 | 4 | markdown-exit | 0.3921ms |
+| 5,000 | 5 | remark | 11.01ms |
+| 20,000 | 1 | @ox-content/napi | 0.1637ms |
+| 20,000 | 2 | markdown-it-ts | 0.2088ms |
+| 20,000 | 3 | markdown-it | 1.0214ms |
+| 20,000 | 4 | markdown-exit | 1.6048ms |
+| 20,000 | 5 | remark | 42.44ms |
+| 50,000 | 1 | markdown-it-ts | 0.5258ms |
+| 50,000 | 2 | @ox-content/napi | 0.5528ms |
+| 50,000 | 3 | markdown-it | 2.5928ms |
+| 50,000 | 4 | markdown-exit | 3.9167ms |
+| 50,000 | 5 | remark | 121.79ms |
+| 100,000 | 1 | markdown-it-ts | 1.4326ms |
+| 100,000 | 2 | @ox-content/napi | 1.9475ms |
+| 100,000 | 3 | markdown-it | 6.0263ms |
+| 100,000 | 4 | markdown-exit | 9.0567ms |
+| 100,000 | 5 | remark | 276.78ms |
+| 200,000 | 1 | @ox-content/napi | 3.7609ms |
+| 200,000 | 2 | markdown-it-ts | 6.9589ms |
+| 200,000 | 3 | markdown-it | 11.38ms |
+| 200,000 | 4 | markdown-exit | 18.84ms |
+| 200,000 | 5 | remark | 663.79ms |
 
 **Render ranking (parse + HTML output, ms)**
 
 | Size | Rank | Library | renderMs |
 |---:|---:|---|---:|
-| 5,000 | 1 | @ox-content/napi | 0.0300ms |
-| 5,000 | 2 | markdown-it-ts | 0.0418ms |
-| 5,000 | 3 | markdown-it | 0.2061ms |
-| 5,000 | 4 | markdown-exit | 0.3070ms |
-| 5,000 | 5 | remark + rehype | 5.1667ms |
-| 20,000 | 1 | markdown-it-ts | 0.0651ms |
-| 20,000 | 2 | @ox-content/napi | 0.1283ms |
-| 20,000 | 3 | markdown-it | 0.8497ms |
-| 20,000 | 4 | markdown-exit | 1.2717ms |
-| 20,000 | 5 | remark + rehype | 34.03ms |
-| 50,000 | 1 | markdown-it-ts | 0.1575ms |
-| 50,000 | 2 | @ox-content/napi | 0.2786ms |
-| 50,000 | 3 | markdown-it | 2.3249ms |
-| 50,000 | 4 | markdown-exit | 3.4463ms |
-| 50,000 | 5 | remark + rehype | 100.29ms |
-| 100,000 | 1 | markdown-it-ts | 0.3302ms |
-| 100,000 | 2 | @ox-content/napi | 0.6605ms |
-| 100,000 | 3 | markdown-it | 6.6680ms |
-| 100,000 | 4 | markdown-exit | 9.1451ms |
-| 100,000 | 5 | remark + rehype | 200.55ms |
-| 200,000 | 1 | markdown-it-ts | 0.7128ms |
-| 200,000 | 2 | @ox-content/napi | 1.4778ms |
-| 200,000 | 3 | markdown-it | 13.98ms |
-| 200,000 | 4 | markdown-exit | 20.25ms |
-| 200,000 | 5 | remark + rehype | 552.81ms |
+| 5,000 | 1 | markdown-it-ts | 0.0208ms |
+| 5,000 | 2 | @ox-content/napi | 0.0408ms |
+| 5,000 | 3 | markdown-it | 0.2856ms |
+| 5,000 | 4 | markdown-exit | 0.4391ms |
+| 5,000 | 5 | remark + rehype | 10.30ms |
+| 20,000 | 1 | markdown-it-ts | 0.0776ms |
+| 20,000 | 2 | @ox-content/napi | 0.1567ms |
+| 20,000 | 3 | markdown-it | 1.1983ms |
+| 20,000 | 4 | markdown-exit | 1.7918ms |
+| 20,000 | 5 | remark + rehype | 46.62ms |
+| 50,000 | 1 | markdown-it-ts | 0.2098ms |
+| 50,000 | 2 | @ox-content/napi | 0.3930ms |
+| 50,000 | 3 | markdown-it | 3.0301ms |
+| 50,000 | 4 | markdown-exit | 4.6193ms |
+| 50,000 | 5 | remark + rehype | 131.63ms |
+| 100,000 | 1 | markdown-it-ts | 0.3835ms |
+| 100,000 | 2 | @ox-content/napi | 0.9232ms |
+| 100,000 | 3 | markdown-it | 8.6169ms |
+| 100,000 | 4 | markdown-exit | 12.27ms |
+| 100,000 | 5 | remark + rehype | 289.93ms |
+| 200,000 | 1 | markdown-it-ts | 0.8818ms |
+| 200,000 | 2 | @ox-content/napi | 1.8082ms |
+| 200,000 | 3 | markdown-it | 18.64ms |
+| 200,000 | 4 | markdown-exit | 26.62ms |
+| 200,000 | 5 | remark + rehype | 636.92ms |
 <!-- perf-auto:ranking-en:end -->
 
 For append-heavy editor or streaming workloads, enable the stream parser or use `StreamBuffer` / `UnboundedBuffer`. These paths are designed to avoid reparsing stable historical text when the input shape is safe for incremental parsing.
