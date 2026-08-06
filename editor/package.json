@@ -29,12 +29,12 @@
     "@tiptap/vue-3": "^2.27.2",
     "lowlight": "^3.3.0",
     "markdown-it-ts": "file:..",
-    "nanoid": "^5.1.11",
+    "nanoid": "^5.1.16",
     "tippy.js": "^6.3.7",
-    "vue": "^3.5.38"
+    "vue": "^3.5.41"
   },
   "devDependencies": {
-    "@types/node": "^22.19.21",
+    "@types/node": "^22.20.1",
     "@vitejs/plugin-vue": "^5.2.4",
     "typescript": "^5.9.3",
     "vite": "^5.4.21",
