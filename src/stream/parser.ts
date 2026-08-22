@@ -1557,9 +1557,6 @@ export class StreamParser {
       return false
 
     const lastToken = cache.tokens[lastSegment.tokenStart]
-    if (lastToken?.type.startsWith('container_') && lastToken.type.endsWith('_open'))
-      return true
-
     switch (lastToken?.type) {
       case 'bullet_list_open':
       case 'ordered_list_open':
@@ -1571,7 +1568,7 @@ export class StreamParser {
       case 'html_block':
         return !this.endsWithBlankLine(cache.src)
       default:
-        return false
+        return lastToken?.nesting === 1
     }
   }
 

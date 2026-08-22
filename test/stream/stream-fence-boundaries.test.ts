@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import container from 'markdown-it-container'
+import deflist from 'markdown-it-deflist'
 import MarkdownIt from '../../src'
 
 describe('stream append with fenced code boundaries', () => {
@@ -242,6 +243,25 @@ describe('stream append with fenced code boundaries', () => {
     const tokens = md.stream.parse(doc)
 
     const baselineMd = MarkdownIt().use(container, 'note')
+    const baseline = baselineMd.parse(doc)
+    expect(md.renderer.render(tokens, md.options, {}))
+      .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, {}))
+
+    const stats = md.stream.stats()
+    expect(stats.lastMode).not.toBe('append')
+  })
+
+  it('detects an open fence inside a definition list', () => {
+    const md = MarkdownIt({ stream: true }).use(deflist)
+    md.stream.resetStats()
+
+    let doc = 'Term\n: ```text\n  body\n'
+    md.stream.parse(doc)
+
+    doc += '  ```\n\n'
+    const tokens = md.stream.parse(doc)
+
+    const baselineMd = MarkdownIt().use(deflist)
     const baseline = baselineMd.parse(doc)
     expect(md.renderer.render(tokens, md.options, {}))
       .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, {}))
