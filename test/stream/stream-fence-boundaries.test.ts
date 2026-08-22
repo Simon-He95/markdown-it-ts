@@ -509,6 +509,29 @@ describe('stream append with fenced code boundaries', () => {
     expect(stats.tailHits + stats.appendHits).toBeGreaterThan(0)
   })
 
+  it('rejects an in-range map that points at an earlier block', () => {
+    const rebaseLastParagraph = (state: { tokens: Array<{ map?: [number, number] | null }> }) => {
+      for (const token of state.tokens) {
+        if (token.map && token.map[0] >= 2)
+          token.map = [0, 1]
+      }
+    }
+    const md = MarkdownIt({ stream: true })
+    md.core.ruler.after('block', 'rebase_last_paragraph', rebaseLastParagraph)
+
+    let doc = 'First\n\nSecond\n'
+    md.stream.parse(doc)
+
+    doc += 'Third\n\n'
+    const tokens = md.stream.parse(doc)
+
+    const baselineMd = MarkdownIt()
+    baselineMd.core.ruler.after('block', 'rebase_last_paragraph', rebaseLastParagraph)
+    const baseline = baselineMd.parse(doc)
+    expect(md.renderer.render(tokens, md.options, {}))
+      .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, {}))
+  })
+
   it('keeps tail reuse for source-neutral post-block rules without fences', () => {
     const md = MarkdownIt({ stream: true })
     md.core.ruler.after('block', 'observe_tokens', () => {})

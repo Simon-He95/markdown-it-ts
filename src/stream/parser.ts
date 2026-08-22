@@ -469,7 +469,7 @@ export class StreamParser {
     }
 
     // inspect appended detection
-    const preferTailReparse = appendDelta !== null && this.shouldPreferTailReparseForAppend(cached)
+    const preferTailReparse = appendDelta !== null && this.shouldPreferTailReparseForAppend(cached, md)
     const appended = preferTailReparse
       ? null
       : this.getAppendedSegment(cached, src, appendDelta)
@@ -699,7 +699,7 @@ export class StreamParser {
     const fallbackEnv = envProvided ?? cached.env
 
     const lastSegment = this.ensureLastSegment(cached)
-    const tailReparsed = this.tokenMapsTrusted || (lastSegment && this.hasUsableSegmentMap(cached, lastSegment))
+    const tailReparsed = this.tokenMapsTrusted || (lastSegment && this.hasVerifiedSegmentAnchor(cached, lastSegment, md))
       ? this.tryTailSegmentReparse(src, cached, fallbackEnv, md, lastSegment ?? undefined)
       : this.tryUntrustedParagraphTailReparse(src, cached, fallbackEnv, md)
     if (tailReparsed) {
@@ -1066,13 +1066,44 @@ export class StreamParser {
     return count
   }
 
-  private hasUsableSegmentMap(cache: StreamCache, segment: StreamSegment): boolean {
+  private hasVerifiedSegmentAnchor(cache: StreamCache, segment: StreamSegment, md: MarkdownIt): boolean {
     const lineCount = cache.lineCount ?? countLines(cache.src)
     const docLineCount = this.getDocLineCount(cache.src, lineCount)
-    return segment.lineStart >= 0
+    const inRange = segment.lineStart >= 0
       && segment.lineStart <= segment.lineEnd
       && segment.lineEnd <= docLineCount
       && segment.srcOffset < cache.src.length
+    if (!inRange)
+      return false
+
+    const tail = cache.src.slice(segment.srcOffset)
+    try {
+      const state = this.core.createState(tail, {}, md)
+      if (this.normalizeLineEndings)
+        normalize(state)
+      block(state)
+
+      const parsedSegment = this.getLastSegment(state.tokens, tail)
+      if (!parsedSegment || parsedSegment.tokenStart !== 0)
+        return false
+
+      const cachedContents = cache.tokens
+        .slice(segment.tokenStart, segment.tokenEnd)
+        .map(token => token.content)
+        .filter(Boolean)
+      const normalizedTail = typeof state.src === 'string' ? state.src : tail
+      let contentOffset = 0
+      for (const content of cachedContents) {
+        contentOffset = normalizedTail.indexOf(content, contentOffset)
+        if (contentOffset < 0)
+          return false
+        contentOffset += content.length
+      }
+      return true
+    }
+    catch {
+      return false
+    }
   }
 
   private cacheHasFenceMarker(cache: StreamCache): boolean {
@@ -1676,13 +1707,13 @@ export class StreamParser {
     }
   }
 
-  private shouldPreferTailReparseForAppend(cache: StreamCache): boolean {
+  private shouldPreferTailReparseForAppend(cache: StreamCache, md: MarkdownIt): boolean {
     const lastSegment = this.ensureLastSegment(cache)
     if (!lastSegment)
       return false
 
     const lastToken = cache.tokens[lastSegment.tokenStart]
-    if (!this.tokenMapsTrusted && !this.hasUsableSegmentMap(cache, lastSegment)) {
+    if (!this.tokenMapsTrusted && !this.hasVerifiedSegmentAnchor(cache, lastSegment, md)) {
       return lastToken?.type === 'paragraph_open'
         && !this.endsWithBlankLine(cache.src)
     }
