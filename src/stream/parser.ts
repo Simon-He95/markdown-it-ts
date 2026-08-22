@@ -696,9 +696,9 @@ export class StreamParser {
 
     const fallbackEnv = envProvided ?? cached.env
 
-    const tailReparsed = this.tokenMapsTrusted || (!cached.src.includes('```') && !cached.src.includes('~~~'))
+    const tailReparsed = this.tokenMapsTrusted
       ? this.tryTailSegmentReparse(src, cached, fallbackEnv, md)
-      : null
+      : this.tryUntrustedParagraphTailReparse(src, cached, fallbackEnv, md)
     if (tailReparsed) {
       this.stats.total += 1
       this.stats.tailHits += 1
@@ -942,8 +942,9 @@ export class StreamParser {
     cached: StreamCache,
     env: Record<string, unknown>,
     md: MarkdownIt,
+    segmentOverride?: StreamSegment,
   ): Token[] | null {
-    const lastSegment = this.ensureLastSegment(cached)
+    const lastSegment = segmentOverride ?? this.ensureLastSegment(cached)
     if (!lastSegment)
       return null
 
@@ -1004,6 +1005,31 @@ export class StreamParser {
     catch {
       return null
     }
+  }
+
+  private tryUntrustedParagraphTailReparse(
+    src: string,
+    cached: StreamCache,
+    env: Record<string, unknown>,
+    md: MarkdownIt,
+  ): Token[] | null {
+    if (this.endsWithBlankLine(cached.src))
+      return null
+
+    const lastSegment = this.ensureLastSegment(cached)
+    if (!lastSegment || cached.tokens[lastSegment.tokenStart]?.type !== 'paragraph_open')
+      return null
+
+    const boundary = cached.src.lastIndexOf('\n\n')
+    if (boundary < 0)
+      return null
+
+    const srcOffset = boundary + 2
+    return this.tryTailSegmentReparse(src, cached, env, md, {
+      ...lastSegment,
+      lineStart: countLines(cached.src.slice(0, srcOffset)),
+      srcOffset,
+    })
   }
 
   // Get the last N lines (by newline count) without splitting the full string.
@@ -1593,14 +1619,17 @@ export class StreamParser {
   }
 
   private shouldPreferTailReparseForAppend(cache: StreamCache): boolean {
-    if (!this.tokenMapsTrusted && (cache.src.includes('```') || cache.src.includes('~~~')))
-      return false
-
     const lastSegment = this.ensureLastSegment(cache)
     if (!lastSegment)
       return false
 
     const lastToken = cache.tokens[lastSegment.tokenStart]
+    if (!this.tokenMapsTrusted) {
+      return lastToken?.type === 'paragraph_open'
+        && !this.endsWithBlankLine(cache.src)
+        && cache.src.includes('\n\n')
+    }
+
     switch (lastToken?.type) {
       case 'bullet_list_open':
       case 'ordered_list_open':

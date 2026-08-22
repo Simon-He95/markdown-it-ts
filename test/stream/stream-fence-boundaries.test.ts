@@ -482,6 +482,33 @@ describe('stream append with fenced code boundaries', () => {
     expect(stats.lastMode).not.toBe('append')
   })
 
+  it('uses a source boundary instead of shifted maps for a paragraph tail reparse', () => {
+    const shiftTokenMaps = (state: { tokens: Array<{ map?: [number, number] | null }> }) => {
+      for (const token of state.tokens) {
+        if (token.map)
+          token.map = [token.map[0] + 1, token.map[1] + 1]
+      }
+    }
+    const md = MarkdownIt({ stream: true })
+    md.core.ruler.after('block', 'shift_token_maps', shiftTokenMaps)
+    md.stream.resetStats()
+
+    let doc = 'First\n\nSecond\n'
+    md.stream.parse(doc)
+
+    doc += 'Third\n\n'
+    const tokens = md.stream.parse(doc)
+
+    const baselineMd = MarkdownIt()
+    baselineMd.core.ruler.after('block', 'shift_token_maps', shiftTokenMaps)
+    const baseline = baselineMd.parse(doc)
+    expect(md.renderer.render(tokens, md.options, {}))
+      .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, {}))
+
+    const stats = md.stream.stats()
+    expect(stats.tailHits + stats.appendHits).toBeGreaterThan(0)
+  })
+
   it('keeps tail reuse for source-neutral post-block rules without fences', () => {
     const md = MarkdownIt({ stream: true })
     md.core.ruler.after('block', 'observe_tokens', () => {})
