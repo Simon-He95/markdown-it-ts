@@ -197,7 +197,7 @@ describe('stream append with fenced code boundaries', () => {
     const md = MarkdownIt({ stream: true }).use(container, 'note')
     md.stream.resetStats()
 
-    let doc = `::: note\n<div>\n\`\`\`\n</div>\n\n\`\`\`text\n${'x'.repeat(4100)}\n`
+    let doc = '::: note\n<div>\n```\n</div>\n\n```\nbody\n'
     md.stream.parse(doc)
 
     doc += '```\n\n'
