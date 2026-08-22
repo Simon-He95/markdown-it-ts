@@ -6,7 +6,12 @@ import { countLines } from '../common/utils'
 import { detectGlobalMarkdownState, getKnownGlobalMarkdownState, resetKnownGlobalMarkdownState, runWithKnownGlobalMarkdownState } from '../parse/global_state'
 import { beginParseDiagnostics, getParseDiagnostics, setStrategyDiagnostics } from '../parse/strategy_diagnostics'
 import { block } from '../rules/core/block'
+import { inline } from '../rules/core/inline'
+import { linkify } from '../rules/core/linkify'
 import { normalize } from '../rules/core/normalize'
+import { replacements } from '../rules/core/replacements'
+import { smartquotes } from '../rules/core/smartquotes'
+import { text_join } from '../rules/core/text_join'
 import { recommendStreamChunkStrategy } from '../support/chunk_recommend'
 import { chunkedParse } from './chunked'
 import { getAutoUnboundedDecision, parseStringUnbounded, shouldAutoUseUnbounded } from './unbounded'
@@ -228,6 +233,7 @@ export class StreamParser {
   private cache: StreamCache | null = null
   private stats: StreamStats = makeEmptyStats()
   private normalizeLineEndings = true
+  private coreRulerVersion = -1
 
   // Only use stream optimization for documents larger than this threshold
   private readonly MIN_SIZE_FOR_OPTIMIZATION = 1000 // characters
@@ -266,6 +272,11 @@ export class StreamParser {
   }
 
   parse(src: string, env: Record<string, unknown> | undefined, md: MarkdownIt): Token[] {
+    const priorEnv = this.cache?.env
+    if (this.coreRulerVersion >= 0 && this.coreRulerVersion !== md.core.ruler.version)
+      this.cache = null
+    this.coreRulerVersion = md.core.ruler.version
+
     const coreRules = md.core.ruler.getNamedRules('')
     const lineNormalizerIndex = coreRules.findIndex(rule => rule.fn === normalize)
     const blockRuleIndex = coreRules.findIndex(rule => rule.fn === block)
@@ -279,15 +290,23 @@ export class StreamParser {
     const nonstandardBuiltinNormalize = namedNormalizeRule && !this.normalizeLineEndings && src.includes('\r')
     const unknownPreBlockRule = blockRuleIndex < 0
       || coreRules.slice(0, blockRuleIndex).some(rule => rule.fn !== normalize)
-    const cached = customNormalize || nonstandardBuiltinNormalize || unknownPreBlockRule
+    const unknownPostBlockRule = blockRuleIndex < 0
+      || coreRules.slice(blockRuleIndex + 1).some(rule => (
+        rule.fn !== inline
+        && rule.fn !== linkify
+        && rule.fn !== replacements
+        && rule.fn !== smartquotes
+        && rule.fn !== text_join
+      ))
+    const cached = customNormalize || nonstandardBuiltinNormalize || unknownPreBlockRule || unknownPostBlockRule
       ? null
       : previousCache
-    beginParseDiagnostics(envProvided ?? previousCache?.env)
+    beginParseDiagnostics(envProvided ?? previousCache?.env ?? priorEnv)
 
     // Only update the cache on the very first parse or when the current
     // source ends at a safe block boundary (double newline). This prevents
     if (!cached || (envProvided && envProvided !== cached.env)) {
-      const workingEnv = envProvided ?? previousCache?.env ?? {}
+      const workingEnv = envProvided ?? previousCache?.env ?? priorEnv ?? {}
 
       // Allow chunked for first parse when enabled and large enough
       const explicitChunkFallbackSetting = !!(md as any).__explicitStreamChunkFallbackSetting

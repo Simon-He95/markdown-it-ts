@@ -434,6 +434,54 @@ describe('stream append with fenced code boundaries', () => {
     expect(stats.lastMode).not.toBe('append')
   })
 
+  it('invalidates the cache when normalization mode changes', () => {
+    const md = MarkdownIt({ stream: true })
+    md.disable('normalize')
+
+    let doc = 'x\r```\n```\nbody\n'
+    md.stream.parse(doc)
+
+    md.enable('normalize')
+    md.stream.resetStats()
+    doc += '```\n\n'
+    const tokens = md.stream.parse(doc)
+
+    const baselineMd = MarkdownIt()
+    const baseline = baselineMd.parse(doc)
+    expect(md.renderer.render(tokens, md.options, {}))
+      .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, {}))
+
+    const stats = md.stream.stats()
+    expect(stats.lastMode).not.toBe('append')
+  })
+
+  it('bypasses the cache when a post-block rule changes token maps', () => {
+    const shiftTokenMaps = (state: { tokens: Array<{ map?: [number, number] | null }> }) => {
+      for (const token of state.tokens) {
+        if (token.map)
+          token.map = [token.map[0] + 1, token.map[1] + 1]
+      }
+    }
+    const md = MarkdownIt({ stream: true })
+    md.core.ruler.after('block', 'shift_token_maps', shiftTokenMaps)
+    md.stream.resetStats()
+
+    let doc = '```text\nbody\n'
+    md.stream.parse(doc)
+
+    doc += '```\n\n'
+    const tokens = md.stream.parse(doc)
+
+    const baselineMd = MarkdownIt()
+    baselineMd.core.ruler.after('block', 'shift_token_maps', shiftTokenMaps)
+    const baseline = baselineMd.parse(doc)
+    expect(md.renderer.render(tokens, md.options, {}))
+      .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, {}))
+
+    const stats = md.stream.stats()
+    expect(stats.lastMode).not.toBe('append')
+  })
+
   it('new fenced block entirely within appended segment can use append', () => {
     const md = MarkdownIt({ stream: true })
     md.stream.resetStats()
