@@ -430,7 +430,7 @@ export class StreamParser {
     }
 
     // inspect appended detection
-    const preferTailReparse = this.shouldPreferTailReparseForAppend(cached)
+    const preferTailReparse = appendDelta !== null && this.shouldPreferTailReparseForAppend(cached)
     const appended = preferTailReparse
       ? null
       : this.getAppendedSegment(cached, src, appendDelta)
