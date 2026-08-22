@@ -144,14 +144,14 @@ export class ParserCore {
     return this.cachedCoreNamedRules
   }
 
-  public process(state: State): void {
+  public process(state: State, afterRule?: (rule: CoreNamedRule, state: State) => void): void {
     const shouldProfile = !!state.env
       && (
         Object.prototype.hasOwnProperty.call(state.env, '__mdtsRuleProfile')
         || Object.prototype.hasOwnProperty.call(state.env, '__mdtsProfileRules')
       )
 
-    if (!shouldProfile) {
+    if (!shouldProfile && !afterRule) {
       const rules = this.getCoreRules()
       for (let i = 0; i < rules.length; i++)
         rules[i](state)
@@ -164,13 +164,16 @@ export class ParserCore {
         ? performance.now()
         : Date.now()
       namedRules[i].fn(state)
+      afterRule?.(namedRules[i], state)
       const endedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
         ? performance.now()
         : Date.now()
-      recordRuleInvocation(state.env, 'core', namedRules[i].name, endedAt - startedAt, true, false)
+      if (shouldProfile)
+        recordRuleInvocation(state.env, 'core', namedRules[i].name, endedAt - startedAt, true, false)
     }
 
-    finalizeRuleProfile(state.env)
+    if (shouldProfile)
+      finalizeRuleProfile(state.env)
   }
 
   public parseSource(src: ParseSource, env: Record<string, unknown> = {}, md?: any): State {

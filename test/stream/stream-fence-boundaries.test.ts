@@ -1,7 +1,8 @@
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import container from 'markdown-it-container'
 import deflist from 'markdown-it-deflist'
 import MarkdownIt from '../../src'
+import { ParserBlock } from '../../src/parse/parser_block'
 
 describe('stream append with fenced code boundaries', () => {
   it('closing fence that matches an open fence in previous content should not use append', () => {
@@ -532,6 +533,28 @@ describe('stream append with fenced code boundaries', () => {
       .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, {}))
   })
 
+  it('restores global maps before coordinate-sensitive post-block rules', () => {
+    const annotateGlobalLines = (state: { tokens: Array<{ map?: [number, number] | null, meta?: unknown }> }) => {
+      for (const token of state.tokens) {
+        if (token.map)
+          token.meta = { startsAfterPrefix: token.map[0] >= 2 }
+      }
+    }
+    const md = MarkdownIt({ stream: true })
+    md.core.ruler.after('block', 'annotate_global_lines', annotateGlobalLines)
+
+    let doc = 'First\n\nSecond'
+    md.stream.parse(doc)
+
+    doc += ' appended\n\n'
+    const tokens = md.stream.parse(doc)
+
+    const baselineMd = MarkdownIt()
+    baselineMd.core.ruler.after('block', 'annotate_global_lines', annotateGlobalLines)
+    const baseline = baselineMd.parse(doc)
+    expect(tokens.map(token => token.meta)).toEqual(baseline.map(token => token.meta))
+  })
+
   it('keeps tail reuse for source-neutral post-block rules without fences', () => {
     const md = MarkdownIt({ stream: true })
     md.core.ruler.after('block', 'observe_tokens', () => {})
@@ -571,6 +594,34 @@ describe('stream append with fenced code boundaries', () => {
     md.stream.parse(doc)
 
     expect(verificationCalls).toBe(0)
+  })
+
+  it('reuses a verified list anchor after a bounded merge', () => {
+    const md = MarkdownIt({ stream: true })
+    md.core.ruler.after('block', 'observe_tokens', () => {})
+    const configuredBlock = md.block
+    const originalParse = ParserBlock.prototype.parse
+    let verificationParses = 0
+    const parseSpy = vi.spyOn(ParserBlock.prototype, 'parse').mockImplementation(function (...args) {
+      if (this !== configuredBlock)
+        verificationParses++
+      return originalParse.apply(this, args)
+    })
+
+    try {
+      let doc = `First\n\n${Array.from({ length: 100 }, (_, index) => `- item ${index}\n`).join('')}`
+      md.stream.parse(doc)
+
+      doc += '- item 100\n'
+      md.stream.parse(doc)
+      doc += '- item 101\n'
+      md.stream.parse(doc)
+
+      expect(verificationParses).toBe(1)
+    }
+    finally {
+      parseSpy.mockRestore()
+    }
   })
 
   it('keeps a post-block HTML tail reusable when appending a new block', () => {

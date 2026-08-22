@@ -24,6 +24,7 @@ interface StreamCache {
   // Cache line count to avoid recounting
   lineCount?: number
   lastSegment?: StreamSegment | null
+  lastSegmentVerified?: boolean
   hasFenceMarker?: boolean
   globalStateReason?: GlobalMarkdownStateReason | null
   globalStateCarry?: string
@@ -471,8 +472,12 @@ export class StreamParser {
     }
 
     // inspect appended detection
-    const preferTailReparse = appendDelta !== null && this.shouldPreferTailReparseForAppend(cached, md)
-    const appended = preferTailReparse
+    const cachedLastSegment = this.ensureLastSegment(cached)
+    const verifiedUntrustedTail = this.tokenMapsTrusted
+      || cached.lastSegmentVerified === true
+      || !!(cachedLastSegment && this.hasVerifiedSegmentAnchor(cached, cachedLastSegment, md))
+    const preferTailReparse = appendDelta !== null && this.shouldPreferTailReparseForAppend(cached, verifiedUntrustedTail)
+    const appended = preferTailReparse || !this.tokenMapsTrusted
       ? null
       : this.getAppendedSegment(cached, src, appendDelta)
     // debug info suppressed
@@ -683,6 +688,7 @@ export class StreamParser {
       else {
         cached.lastSegment = undefined
       }
+      cached.lastSegmentVerified = undefined
 
       this.stats.total += 1
       this.stats.appendHits += 1
@@ -700,9 +706,8 @@ export class StreamParser {
 
     const fallbackEnv = envProvided ?? cached.env
 
-    const lastSegment = this.ensureLastSegment(cached)
-    const tailReparsed = this.tokenMapsTrusted || (lastSegment && this.hasVerifiedSegmentAnchor(cached, lastSegment, md))
-      ? this.tryTailSegmentReparse(src, cached, fallbackEnv, md, lastSegment ?? undefined)
+    const tailReparsed = verifiedUntrustedTail
+      ? this.tryTailSegmentReparse(src, cached, fallbackEnv, md, cachedLastSegment ?? undefined)
       : this.tryUntrustedParagraphTailReparse(src, cached, fallbackEnv, md)
     if (tailReparsed) {
       this.stats.total += 1
@@ -979,9 +984,17 @@ export class StreamParser {
       return null
 
     try {
-      const tailState = this.core.parse(nextTail, env, md)
-      const localLastSegment = this.getLastSegment(tailState.tokens, nextTail)
-      if (lastSegment.lineStart > 0)
+      const parsedTail = this.parseAtLineOffset(nextTail, env, md, lastSegment.lineStart, src)
+      const tailState = parsedTail.state
+      const localLastSegment = this.getLastSegment(
+        tailState.tokens,
+        nextTail,
+        0,
+        tailState.tokens.length,
+        parsedTail.mapsShifted ? 0 : undefined,
+        parsedTail.mapsShifted ? lastSegment.lineStart : undefined,
+      )
+      if (lastSegment.lineStart > 0 && !parsedTail.mapsShifted)
         this.shiftTokenLines(tailState.tokens, lastSegment.lineStart)
 
       if (appended)
@@ -999,14 +1012,15 @@ export class StreamParser {
         cached.lastSegment = {
           tokenStart: lastSegment.tokenStart + localLastSegment.tokenStart,
           tokenEnd: lastSegment.tokenStart + localLastSegment.tokenEnd,
-          lineStart: lastSegment.lineStart + localLastSegment.lineStart,
-          lineEnd: lastSegment.lineStart + localLastSegment.lineEnd,
+          lineStart: parsedTail.mapsShifted ? localLastSegment.lineStart : lastSegment.lineStart + localLastSegment.lineStart,
+          lineEnd: parsedTail.mapsShifted ? localLastSegment.lineEnd : lastSegment.lineStart + localLastSegment.lineEnd,
           srcOffset: lastSegment.srcOffset + localLastSegment.srcOffset,
         }
       }
       else {
         cached.lastSegment = null
       }
+      cached.lastSegmentVerified = undefined
       return cached.tokens
     }
     catch {
@@ -1121,6 +1135,36 @@ export class StreamParser {
       return
     const boundary = cache.src.slice(-2) + appended
     cache.hasFenceMarker = boundary.includes('```') || boundary.includes('~~~')
+  }
+
+  private parseAtLineOffset(
+    src: string,
+    env: Record<string, unknown>,
+    md: MarkdownIt,
+    lineOffset: number,
+    globalSrc?: string,
+  ): { state: ReturnType<ParserCore['parse']>, mapsShifted: boolean } {
+    if (this.tokenMapsTrusted || lineOffset <= 0)
+      return { state: this.core.parse(src, env, md), mapsShifted: false }
+
+    const state = this.core.createState(src, env, md)
+    let postBlockSrc = globalSrc
+    if (postBlockSrc !== undefined && this.normalizeLineEndings) {
+      const globalState = this.core.createState(postBlockSrc, {}, md)
+      normalize(globalState)
+      if (typeof globalState.src === 'string')
+        postBlockSrc = globalState.src
+    }
+    let mapsShifted = false
+    this.core.process(state, (rule, currentState) => {
+      if (!mapsShifted && rule.fn === block) {
+        this.shiftTokenLines(currentState.tokens, lineOffset)
+        if (postBlockSrc !== undefined)
+          currentState.src = postBlockSrc
+        mapsShifted = true
+      }
+    })
+    return { state, mapsShifted }
   }
 
   // Get the last N lines (by newline count) without splitting the full string.
@@ -1240,6 +1284,7 @@ export class StreamParser {
   private updateCacheLineCount(cache: StreamCache, lineCount?: number): void {
     cache.lineCount = lineCount ?? countLines(cache.src)
     cache.lastSegment = undefined
+    cache.lastSegmentVerified = undefined
     cache.globalStateCarry = undefined
   }
 
@@ -1447,9 +1492,13 @@ export class StreamParser {
       return null
 
     const closeType = listOpen.type === 'bullet_list_open' ? 'bullet_list_close' : 'ordered_list_close'
+    const lineOffset = cached.lineCount ?? countLines(cached.src)
     let parsed: Token[]
+    let mapsShifted = false
     try {
-      parsed = this.core.parse(appended, env, md).tokens
+      const parsedAppend = this.parseAtLineOffset(appended, env, md, lineOffset, src)
+      parsed = parsedAppend.state.tokens
+      mapsShifted = parsedAppend.mapsShifted
     }
     catch {
       return null
@@ -1461,8 +1510,7 @@ export class StreamParser {
     if (inserted.length === 0)
       return null
 
-    const lineOffset = cached.lineCount ?? countLines(cached.src)
-    if (lineOffset > 0)
+    if (lineOffset > 0 && !mapsShifted)
       this.shiftTokenLines(inserted, lineOffset)
 
     const existingMode = this.getListParagraphMode(cached.tokens, lastSegment.tokenStart, cached.tokens.length, listOpen.level)
@@ -1470,7 +1518,7 @@ export class StreamParser {
     const nextLoose = existingMode === 'loose'
       || appendedMode === 'loose'
       || this.endsWithBlankLine(cached.src)
-      || ((parsed[0]?.map?.[0] ?? 0) > 0)
+      || (((parsed[0]?.map?.[0] ?? 0) - (mapsShifted ? lineOffset : 0)) > 0)
 
     if (nextLoose) {
       this.setListParagraphVisibility(cached.tokens, lastSegment.tokenStart, cached.tokens.length, listOpen.level, false)
@@ -1494,6 +1542,7 @@ export class StreamParser {
       lineEnd: nextDocLineCount,
       srcOffset: lastSegment.srcOffset,
     }
+    cached.lastSegmentVerified = true
     return cached.tokens
   }
 
@@ -1521,9 +1570,13 @@ export class StreamParser {
       return null
 
     const syntheticSrc = `${tableContext}${appended}`
+    const lineOffset = lastSegment.lineEnd - 2
     let parsed: Token[]
+    let mapsShifted = false
     try {
-      parsed = this.core.parse(syntheticSrc, env, md).tokens
+      const parsedTable = this.parseAtLineOffset(syntheticSrc, env, md, lineOffset, src)
+      parsed = parsedTable.state.tokens
+      mapsShifted = parsedTable.mapsShifted
     }
     catch {
       return null
@@ -1544,8 +1597,7 @@ export class StreamParser {
     if (inserted.length === 0)
       return null
 
-    const lineOffset = lastSegment.lineEnd - 2
-    if (lineOffset !== 0)
+    if (lineOffset !== 0 && !mapsShifted)
       this.shiftTokenLines(inserted, lineOffset)
 
     const insertAt = cachedSection.tbodyCloseIndex >= 0
@@ -1576,6 +1628,7 @@ export class StreamParser {
       lineEnd: nextDocLineCount,
       srcOffset: lastSegment.srcOffset,
     }
+    cached.lastSegmentVerified = true
     return cached.tokens
   }
 
@@ -1711,16 +1764,14 @@ export class StreamParser {
     }
   }
 
-  private shouldPreferTailReparseForAppend(cache: StreamCache, md: MarkdownIt): boolean {
+  private shouldPreferTailReparseForAppend(cache: StreamCache, verifiedUntrustedTail: boolean): boolean {
     const lastSegment = this.ensureLastSegment(cache)
     if (!lastSegment)
       return false
 
     const lastToken = cache.tokens[lastSegment.tokenStart]
-    if (!this.tokenMapsTrusted && !this.hasVerifiedSegmentAnchor(cache, lastSegment, md)) {
-      return lastToken?.type === 'paragraph_open'
-        && !this.endsWithBlankLine(cache.src)
-    }
+    if (!this.tokenMapsTrusted)
+      return verifiedUntrustedTail
 
     switch (lastToken?.type) {
       case 'bullet_list_open':
