@@ -266,14 +266,14 @@ export class StreamParser {
 
   parse(src: string, env: Record<string, unknown> | undefined, md: MarkdownIt): Token[] {
     const coreRules = md.core.ruler.getNamedRules('')
-    const normalizeRuleIndex = coreRules.findIndex(rule => rule.name === 'normalize')
+    const lineNormalizerIndex = coreRules.findIndex(rule => rule.fn === normalize)
     const blockRuleIndex = coreRules.findIndex(rule => rule.name === 'block')
-    const normalizeRule = coreRules[normalizeRuleIndex]
-    this.normalizeLineEndings = normalizeRule?.fn === normalize
-      && (blockRuleIndex < 0 || normalizeRuleIndex < blockRuleIndex)
+    const namedNormalizeRule = coreRules.find(rule => rule.name === 'normalize')
+    this.normalizeLineEndings = lineNormalizerIndex >= 0
+      && (blockRuleIndex < 0 || lineNormalizerIndex < blockRuleIndex)
     const envProvided = env
     const previousCache = this.cache
-    const cached = normalizeRule && !this.normalizeLineEndings && src.includes('\r')
+    const cached = namedNormalizeRule && !this.normalizeLineEndings && src.includes('\r')
       ? null
       : previousCache
     beginParseDiagnostics(envProvided ?? previousCache?.env)
