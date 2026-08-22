@@ -991,17 +991,27 @@ export class StreamParser {
       if (lineEnd === -1)
         lineEnd = len
 
-      // skip leading spaces/tabs
+      // Fences may be indented by at most three spaces.
       let p = lineStart
+      let indent = 0
       while (p < lineEnd) {
         const c = chunk.charCodeAt(p)
-        if (c === 0x20 /* space */ || c === 0x09 /* tab */)
+        if (c === 0x20 /* space */) {
           p++
-        else
+          indent++
+          if (indent >= 4)
+            break
+        }
+        else if (c === 0x09 /* tab */) {
+          indent = 4
           break
+        }
+        else {
+          break
+        }
       }
 
-      if (p < lineEnd) {
+      if (indent < 4 && p < lineEnd) {
         const ch = chunk.charCodeAt(p)
         if (ch === 0x60 /* ` */ || ch === 0x7E /* ~ */) {
           let q = p
