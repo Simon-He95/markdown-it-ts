@@ -164,12 +164,12 @@ export class ParserCore {
         ? performance.now()
         : Date.now()
       namedRules[i].fn(state)
-      afterRule?.(namedRules[i], state)
       const endedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
         ? performance.now()
         : Date.now()
       if (shouldProfile)
         recordRuleInvocation(state.env, 'core', namedRules[i].name, endedAt - startedAt, true, false)
+      afterRule?.(namedRules[i], state)
     }
 
     if (shouldProfile)

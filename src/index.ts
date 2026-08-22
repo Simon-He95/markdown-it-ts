@@ -46,6 +46,7 @@ export interface MarkdownItExperimentalOptions {
   streamContextParseStrategy?: 'chars' | 'lines' | 'constructs'
   streamContextParseMinChars?: number
   streamContextParseMinLines?: number
+  streamTailLocalPostBlockRules?: boolean
   streamChunkedFallback?: boolean
   streamChunkSizeChars?: number
   streamChunkSizeLines?: number
@@ -93,6 +94,8 @@ export interface MarkdownItOptions {
   streamContextParseMinChars?: number
   /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamContextParseMinLines instead. */
   streamContextParseMinLines?: number
+  /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamTailLocalPostBlockRules instead. */
+  streamTailLocalPostBlockRules?: boolean
   /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamChunkedFallback instead. */
   streamChunkedFallback?: boolean
   /** @experimental Not part of the markdown-it stable compatibility surface. @deprecated Use experimental.streamChunkSizeChars instead. */
@@ -346,6 +349,7 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
     maxNesting: 100,
     stream: false,
     streamOptimizationMinSize: 1000,
+    streamTailLocalPostBlockRules: false,
     streamChunkedFallback: false,
     streamChunkSizeChars: 10000,
     streamChunkSizeLines: 200,

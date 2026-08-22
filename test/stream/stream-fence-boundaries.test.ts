@@ -463,7 +463,7 @@ describe('stream append with fenced code boundaries', () => {
           token.map = [token.map[0] + 1, token.map[1] + 1]
       }
     }
-    const md = MarkdownIt({ stream: true })
+    const md = MarkdownIt({ stream: true, streamTailLocalPostBlockRules: true })
     md.core.ruler.after('block', 'shift_token_maps', shiftTokenMaps)
     md.stream.resetStats()
 
@@ -490,7 +490,7 @@ describe('stream append with fenced code boundaries', () => {
           token.map = [token.map[0] + 1, token.map[1] + 1]
       }
     }
-    const md = MarkdownIt({ stream: true })
+    const md = MarkdownIt({ stream: true, streamTailLocalPostBlockRules: true })
     md.core.ruler.after('block', 'shift_token_maps', shiftTokenMaps)
     md.stream.resetStats()
 
@@ -517,7 +517,7 @@ describe('stream append with fenced code boundaries', () => {
           token.map = [0, 1]
       }
     }
-    const md = MarkdownIt({ stream: true })
+    const md = MarkdownIt({ stream: true, streamTailLocalPostBlockRules: true })
     md.core.ruler.after('block', 'rebase_last_paragraph', rebaseLastParagraph)
 
     let doc = 'First\n\nSecond\n'
@@ -533,6 +533,88 @@ describe('stream append with fenced code boundaries', () => {
       .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, {}))
   })
 
+  it('rejects a paragraph anchor moved onto a preceding closing fence', () => {
+    const moveParagraphToFenceClose = (state: { tokens: Array<{ type: string, map?: [number, number] | null }> }) => {
+      for (const token of state.tokens) {
+        if ((token.type === 'paragraph_open' || token.type === 'inline') && token.map?.[0] === 3)
+          token.map = [2, 4]
+      }
+    }
+    const md = MarkdownIt({ stream: true, streamTailLocalPostBlockRules: true })
+    md.core.ruler.after('block', 'move_paragraph_to_fence_close', moveParagraphToFenceClose)
+
+    let doc = '```\nx\n```\nFinal'
+    md.stream.parse(doc)
+
+    doc += ' continued\n\n'
+    const tokens = md.stream.parse(doc)
+
+    const baselineMd = MarkdownIt()
+    baselineMd.core.ruler.after('block', 'move_paragraph_to_fence_close', moveParagraphToFenceClose)
+    const baseline = baselineMd.parse(doc)
+    expect(md.renderer.render(tokens, md.options, {}))
+      .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, {}))
+  })
+
+  it('falls back for post-block rules that can rewrite earlier tokens', () => {
+    const markHeadings = (state: { src: unknown, tokens: Array<{ type: string, attrSet: (name: string, value: string) => void }> }) => {
+      if (!String(state.src).includes('MARK'))
+        return
+      for (const token of state.tokens) {
+        if (token.type === 'heading_open')
+          token.attrSet('data-marked', 'true')
+      }
+    }
+    const md = MarkdownIt({ stream: true })
+    md.core.ruler.after('block', 'mark_all_headings', markHeadings)
+
+    let doc = '# Heading\n\nTail'
+    md.stream.parse(doc)
+
+    doc += ' MARK\n\n'
+    const tokens = md.stream.parse(doc)
+
+    expect(tokens[0]?.attrGet('data-marked')).toBe('true')
+    expect(md.stream.stats().lastMode).toBe('full')
+  })
+
+  it('accepts a verified display-math block plugin tail', () => {
+    const md = MarkdownIt({ stream: true, streamTailLocalPostBlockRules: true })
+    md.block.ruler.before('paragraph', 'math_block_test', (state: any, startLine: number, endLine: number, silent: boolean) => {
+      const start = state.bMarks[startLine] + state.tShift[startLine]
+      if (state.src.slice(start, state.eMarks[startLine]).trim() !== '$$')
+        return false
+
+      let nextLine = startLine + 1
+      while (nextLine < endLine) {
+        const nextStart = state.bMarks[nextLine] + state.tShift[nextLine]
+        if (state.src.slice(nextStart, state.eMarks[nextLine]).trim() === '$$')
+          break
+        nextLine++
+      }
+      if (nextLine >= endLine)
+        return false
+      if (silent)
+        return true
+
+      const token = state.push('math_block', 'math', 0)
+      token.block = true
+      token.content = state.getLines(startLine + 1, nextLine, state.tShift[startLine], false)
+      token.map = [startLine, nextLine + 1]
+      state.line = nextLine + 1
+      return true
+    })
+    md.core.ruler.after('block', 'observe_tokens', () => {})
+
+    let doc = `${'prefix\n\n'.repeat(150)}$$\nx^2\n$$\n`
+    md.stream.parse(doc)
+    doc += '\nnext\n\n'
+    const tokens = md.stream.parse(doc)
+
+    expect(md.stream.stats().lastMode).toBe('tail')
+    expect(md.renderer.render(tokens, md.options, {})).toBe(md.render(doc))
+  })
+
   it('restores global maps before coordinate-sensitive post-block rules', () => {
     const annotateGlobalLines = (state: { tokens: Array<{ map?: [number, number] | null, meta?: unknown }> }) => {
       for (const token of state.tokens) {
@@ -540,7 +622,7 @@ describe('stream append with fenced code boundaries', () => {
           token.meta = { startsAfterPrefix: token.map[0] >= 2 }
       }
     }
-    const md = MarkdownIt({ stream: true })
+    const md = MarkdownIt({ stream: true, streamTailLocalPostBlockRules: true })
     md.core.ruler.after('block', 'annotate_global_lines', annotateGlobalLines)
 
     let doc = 'First\n\nSecond'
@@ -556,7 +638,7 @@ describe('stream append with fenced code boundaries', () => {
   })
 
   it('keeps tail reuse for source-neutral post-block rules without fences', () => {
-    const md = MarkdownIt({ stream: true })
+    const md = MarkdownIt({ stream: true, streamTailLocalPostBlockRules: true })
     md.core.ruler.after('block', 'observe_tokens', () => {})
     md.stream.resetStats()
 
@@ -578,7 +660,7 @@ describe('stream append with fenced code boundaries', () => {
 
   it('does not execute block plugins while verifying a source tail anchor', () => {
     let verificationCalls = 0
-    const md = MarkdownIt({ stream: true })
+    const md = MarkdownIt({ stream: true, streamTailLocalPostBlockRules: true })
     md.block.ruler.before('paragraph', 'observe_candidate_tail', (state) => {
       if (state.src === 'Second')
         verificationCalls++
@@ -597,7 +679,7 @@ describe('stream append with fenced code boundaries', () => {
   })
 
   it('reuses a verified list anchor after a bounded merge', () => {
-    const md = MarkdownIt({ stream: true })
+    const md = MarkdownIt({ stream: true, streamTailLocalPostBlockRules: true })
     md.core.ruler.after('block', 'observe_tokens', () => {})
     const configuredBlock = md.block
     const originalParse = ParserBlock.prototype.parse
@@ -625,7 +707,7 @@ describe('stream append with fenced code boundaries', () => {
   })
 
   it('keeps a post-block HTML tail reusable when appending a new block', () => {
-    const md = MarkdownIt({ stream: true })
+    const md = MarkdownIt({ stream: true, streamTailLocalPostBlockRules: true })
     md.core.ruler.after('block', 'observe_tokens', () => {})
     md.stream.resetStats()
 
@@ -645,7 +727,7 @@ describe('stream append with fenced code boundaries', () => {
   })
 
   it('keeps a post-block list tail together across appends', () => {
-    const md = MarkdownIt({ stream: true })
+    const md = MarkdownIt({ stream: true, streamTailLocalPostBlockRules: true })
     md.core.ruler.after('block', 'observe_tokens', () => {})
     md.stream.resetStats()
 
@@ -664,7 +746,7 @@ describe('stream append with fenced code boundaries', () => {
   })
 
   it('counts normalized carriage returns in source-derived paragraph anchors', () => {
-    const md = MarkdownIt({ stream: true })
+    const md = MarkdownIt({ stream: true, streamTailLocalPostBlockRules: true })
     md.core.ruler.after('block', 'observe_tokens', () => {})
 
     let doc = 'First\rline\n\nSecond'
@@ -680,7 +762,7 @@ describe('stream append with fenced code boundaries', () => {
   })
 
   it('falls back when an untrusted single paragraph has no reusable anchor', () => {
-    const md = MarkdownIt({ stream: true })
+    const md = MarkdownIt({ stream: true, streamTailLocalPostBlockRules: true })
     md.core.ruler.after('block', 'observe_tokens', () => {})
 
     let doc = 'First\n'
@@ -697,7 +779,7 @@ describe('stream append with fenced code boundaries', () => {
   })
 
   it('does not anchor an untrusted paragraph inside a preceding fence', () => {
-    const md = MarkdownIt({ stream: true })
+    const md = MarkdownIt({ stream: true, streamTailLocalPostBlockRules: true })
     md.core.ruler.after('block', 'observe_tokens', () => {})
 
     let doc = '```\nx\n\ny\n```\nFinal\n'
