@@ -361,6 +361,55 @@ describe('stream append with fenced code boundaries', () => {
       .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, env))
   })
 
+  it('bypasses the cache for a custom normalize rule that changes line coordinates', () => {
+    const prependLine = (state: { src: string }) => {
+      state.src = `\n${state.src}`
+    }
+    const md = MarkdownIt({ stream: true })
+    md.core.ruler.at('normalize', prependLine)
+    md.stream.resetStats()
+
+    let doc = '```text\nbody\n'
+    md.stream.parse(doc)
+
+    doc += '```\n\n'
+    const tokens = md.stream.parse(doc)
+
+    const baselineMd = MarkdownIt()
+    baselineMd.core.ruler.at('normalize', prependLine)
+    const baseline = baselineMd.parse(doc)
+    expect(md.renderer.render(tokens, md.options, {}))
+      .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, {}))
+
+    const stats = md.stream.stats()
+    expect(stats.lastMode).not.toBe('append')
+  })
+
+  it('recognizes the built-in block rule registered under another name', () => {
+    const md = MarkdownIt({ stream: true })
+    const blockRule = md.core.ruler.getNamedRules('').find(rule => rule.name === 'block')!
+    md.disable('block')
+    md.core.ruler.before('normalize', 'renamed_block', blockRule.fn)
+    md.stream.resetStats()
+
+    let doc = 'x\r```\n```\nbody\n'
+    md.stream.parse(doc)
+
+    doc += '```\n\n'
+    const tokens = md.stream.parse(doc)
+
+    const baselineMd = MarkdownIt()
+    const baselineBlock = baselineMd.core.ruler.getNamedRules('').find(rule => rule.name === 'block')!
+    baselineMd.disable('block')
+    baselineMd.core.ruler.before('normalize', 'renamed_block', baselineBlock.fn)
+    const baseline = baselineMd.parse(doc)
+    expect(md.renderer.render(tokens, md.options, {}))
+      .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, {}))
+
+    const stats = md.stream.stats()
+    expect(stats.lastMode).not.toBe('append')
+  })
+
   it('new fenced block entirely within appended segment can use append', () => {
     const md = MarkdownIt({ stream: true })
     md.stream.resetStats()

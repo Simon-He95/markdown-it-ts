@@ -5,6 +5,7 @@ import type { ParserCore } from '../parse/parser_core'
 import { countLines } from '../common/utils'
 import { detectGlobalMarkdownState, getKnownGlobalMarkdownState, resetKnownGlobalMarkdownState, runWithKnownGlobalMarkdownState } from '../parse/global_state'
 import { beginParseDiagnostics, getParseDiagnostics, setStrategyDiagnostics } from '../parse/strategy_diagnostics'
+import { block } from '../rules/core/block'
 import { normalize } from '../rules/core/normalize'
 import { recommendStreamChunkStrategy } from '../support/chunk_recommend'
 import { chunkedParse } from './chunked'
@@ -267,13 +268,16 @@ export class StreamParser {
   parse(src: string, env: Record<string, unknown> | undefined, md: MarkdownIt): Token[] {
     const coreRules = md.core.ruler.getNamedRules('')
     const lineNormalizerIndex = coreRules.findIndex(rule => rule.fn === normalize)
-    const blockRuleIndex = coreRules.findIndex(rule => rule.name === 'block')
+    const blockRuleIndex = coreRules.findIndex(rule => rule.fn === block)
     const namedNormalizeRule = coreRules.find(rule => rule.name === 'normalize')
     this.normalizeLineEndings = lineNormalizerIndex >= 0
-      && (blockRuleIndex < 0 || lineNormalizerIndex < blockRuleIndex)
+      && blockRuleIndex >= 0
+      && lineNormalizerIndex < blockRuleIndex
     const envProvided = env
     const previousCache = this.cache
-    const cached = namedNormalizeRule && !this.normalizeLineEndings && src.includes('\r')
+    const customNormalize = namedNormalizeRule && namedNormalizeRule.fn !== normalize
+    const nonstandardBuiltinNormalize = namedNormalizeRule && !this.normalizeLineEndings && src.includes('\r')
+    const cached = customNormalize || nonstandardBuiltinNormalize
       ? null
       : previousCache
     beginParseDiagnostics(envProvided ?? previousCache?.env)
