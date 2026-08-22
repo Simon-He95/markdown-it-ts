@@ -530,6 +530,56 @@ describe('stream append with fenced code boundaries', () => {
     expect(stats.tailHits + stats.appendHits).toBeGreaterThan(0)
   })
 
+  it('counts normalized carriage returns in source-derived paragraph anchors', () => {
+    const md = MarkdownIt({ stream: true })
+    md.core.ruler.after('block', 'observe_tokens', () => {})
+
+    let doc = 'First\rline\n\nSecond'
+    md.stream.parse(doc)
+
+    doc += ' appended\n\n'
+    const tokens = md.stream.parse(doc)
+
+    const baselineMd = MarkdownIt()
+    baselineMd.core.ruler.after('block', 'observe_tokens', () => {})
+    const baseline = baselineMd.parse(doc)
+    expect(tokens.map(token => token.map)).toEqual(baseline.map(token => token.map))
+  })
+
+  it('falls back when an untrusted single paragraph has no reusable anchor', () => {
+    const md = MarkdownIt({ stream: true })
+    md.core.ruler.after('block', 'observe_tokens', () => {})
+
+    let doc = 'First\n'
+    md.stream.parse(doc)
+
+    doc += 'second\n\n'
+    const tokens = md.stream.parse(doc)
+
+    const baselineMd = MarkdownIt()
+    baselineMd.core.ruler.after('block', 'observe_tokens', () => {})
+    const baseline = baselineMd.parse(doc)
+    expect(md.renderer.render(tokens, md.options, {}))
+      .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, {}))
+  })
+
+  it('does not anchor an untrusted paragraph inside a preceding fence', () => {
+    const md = MarkdownIt({ stream: true })
+    md.core.ruler.after('block', 'observe_tokens', () => {})
+
+    let doc = '```\nx\n\ny\n```\nFinal\n'
+    md.stream.parse(doc)
+
+    doc += 'continued\n\n'
+    const tokens = md.stream.parse(doc)
+
+    const baselineMd = MarkdownIt()
+    baselineMd.core.ruler.after('block', 'observe_tokens', () => {})
+    const baseline = baselineMd.parse(doc)
+    expect(md.renderer.render(tokens, md.options, {}))
+      .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, {}))
+  })
+
   it('new fenced block entirely within appended segment can use append', () => {
     const md = MarkdownIt({ stream: true })
     md.stream.resetStats()

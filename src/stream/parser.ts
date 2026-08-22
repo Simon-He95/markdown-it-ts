@@ -1020,16 +1020,45 @@ export class StreamParser {
     if (!lastSegment || cached.tokens[lastSegment.tokenStart]?.type !== 'paragraph_open')
       return null
 
-    const boundary = cached.src.lastIndexOf('\n\n')
-    if (boundary < 0)
+    const inlineToken = cached.tokens
+      .slice(lastSegment.tokenStart, lastSegment.tokenEnd)
+      .find(token => token.type === 'inline')
+    if (!inlineToken?.content)
       return null
 
-    const srcOffset = boundary + 2
+    let contentEnd = cached.src.length
+    while (contentEnd > 0) {
+      const ch = cached.src.charCodeAt(contentEnd - 1)
+      if (ch !== 0x0A /* \n */ && ch !== 0x0D /* \r */)
+        break
+      contentEnd--
+    }
+
+    const srcOffset = cached.src.lastIndexOf(inlineToken.content, contentEnd - inlineToken.content.length)
+    if (srcOffset < 0 || srcOffset + inlineToken.content.length !== contentEnd)
+      return null
+
     return this.tryTailSegmentReparse(src, cached, env, md, {
       ...lastSegment,
-      lineStart: countLines(cached.src.slice(0, srcOffset)),
+      lineStart: this.countSourceLineBreaks(cached.src, srcOffset),
       srcOffset,
     })
+  }
+
+  private countSourceLineBreaks(src: string, end: number): number {
+    let count = 0
+    for (let pos = 0; pos < end; pos++) {
+      const ch = src.charCodeAt(pos)
+      if (ch === 0x0A /* \n */) {
+        count++
+      }
+      else if (this.normalizeLineEndings && ch === 0x0D /* \r */) {
+        count++
+        if (src.charCodeAt(pos + 1) === 0x0A /* \n */)
+          pos++
+      }
+    }
+    return count
   }
 
   // Get the last N lines (by newline count) without splitting the full string.
@@ -1627,7 +1656,6 @@ export class StreamParser {
     if (!this.tokenMapsTrusted) {
       return lastToken?.type === 'paragraph_open'
         && !this.endsWithBlankLine(cache.src)
-        && cache.src.includes('\n\n')
     }
 
     switch (lastToken?.type) {
