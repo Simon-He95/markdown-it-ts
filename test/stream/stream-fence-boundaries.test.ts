@@ -174,6 +174,47 @@ describe('stream append with fenced code boundaries', () => {
     expect(stats.lastMode).not.toBe('append')
   })
 
+  it('detects an open fence inside a blockquote container', () => {
+    const md = MarkdownIt({ stream: true }).use(container, 'note')
+    md.stream.resetStats()
+
+    let doc = `::: note\n> \`\`\`text\n> ${'x'.repeat(4100)}\n`
+    md.stream.parse(doc)
+
+    doc += '> ```\n\n'
+    const tokens = md.stream.parse(doc)
+
+    const baselineMd = MarkdownIt().use(container, 'note')
+    const baseline = baselineMd.parse(doc)
+    expect(md.renderer.render(tokens, md.options, {}))
+      .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, {}))
+
+    const stats = md.stream.stats()
+    expect(stats.lastMode).not.toBe('append')
+  })
+
+  it('does not assume a replacement normalize rule converts carriage returns', () => {
+    const preserveCarriageReturns = () => {}
+    const md = MarkdownIt({ stream: true })
+    md.core.ruler.at('normalize', preserveCarriageReturns)
+    md.stream.resetStats()
+
+    let doc = 'x\r```\n```\nbody\n'
+    md.stream.parse(doc)
+
+    doc += '```\n\n'
+    const tokens = md.stream.parse(doc)
+
+    const baselineMd = MarkdownIt()
+    baselineMd.core.ruler.at('normalize', preserveCarriageReturns)
+    const baseline = baselineMd.parse(doc)
+    expect(md.renderer.render(tokens, md.options, {}))
+      .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, {}))
+
+    const stats = md.stream.stats()
+    expect(stats.lastMode).not.toBe('append')
+  })
+
   it('new fenced block entirely within appended segment can use append', () => {
     const md = MarkdownIt({ stream: true })
     md.stream.resetStats()
