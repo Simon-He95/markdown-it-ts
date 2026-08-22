@@ -193,6 +193,63 @@ describe('stream append with fenced code boundaries', () => {
     expect(stats.lastMode).not.toBe('append')
   })
 
+  it('detects an open fence after an HTML block inside a container', () => {
+    const md = MarkdownIt({ stream: true }).use(container, 'note')
+    md.stream.resetStats()
+
+    let doc = `::: note\n<div>\n\`\`\`\n</div>\n\n\`\`\`text\n${'x'.repeat(4100)}\n`
+    md.stream.parse(doc)
+
+    doc += '```\n\n'
+    const tokens = md.stream.parse(doc)
+
+    const baselineMd = MarkdownIt().use(container, 'note')
+    const baseline = baselineMd.parse(doc)
+    expect(md.renderer.render(tokens, md.options, {}))
+      .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, {}))
+
+    const stats = md.stream.stats()
+    expect(stats.lastMode).not.toBe('append')
+  })
+
+  it('detects an open fence inside a container list', () => {
+    const md = MarkdownIt({ stream: true }).use(container, 'note')
+    md.stream.resetStats()
+
+    let doc = `::: note\n- \`\`\`text\n  ${'x'.repeat(4100)}\n`
+    md.stream.parse(doc)
+
+    doc += '  ```\n\n'
+    const tokens = md.stream.parse(doc)
+
+    const baselineMd = MarkdownIt().use(container, 'note')
+    const baseline = baselineMd.parse(doc)
+    expect(md.renderer.render(tokens, md.options, {}))
+      .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, {}))
+
+    const stats = md.stream.stats()
+    expect(stats.lastMode).not.toBe('append')
+  })
+
+  it('detects a tab-prefixed blockquote fence inside a container', () => {
+    const md = MarkdownIt({ stream: true }).use(container, 'note')
+    md.stream.resetStats()
+
+    let doc = `::: note\n>\t\`\`\`text\n>\t${'x'.repeat(4100)}\n`
+    md.stream.parse(doc)
+
+    doc += '>\t```\n\n'
+    const tokens = md.stream.parse(doc)
+
+    const baselineMd = MarkdownIt().use(container, 'note')
+    const baseline = baselineMd.parse(doc)
+    expect(md.renderer.render(tokens, md.options, {}))
+      .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, {}))
+
+    const stats = md.stream.stats()
+    expect(stats.lastMode).not.toBe('append')
+  })
+
   it('does not assume a replacement normalize rule converts carriage returns', () => {
     const preserveCarriageReturns = () => {}
     const md = MarkdownIt({ stream: true })

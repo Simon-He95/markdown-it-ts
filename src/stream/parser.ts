@@ -990,7 +990,7 @@ export class StreamParser {
   private endsInsideOpenFence(text: string, start: number): boolean {
     const chunk = text.slice(start)
     const len = chunk.length
-    let inFence: { marker: number, length: number, blockquoteDepth: number } | null = null
+    let inFence: { marker: number, length: number } | null = null
     let lineStart = 0
     while (lineStart < len) {
       let lineEnd = chunk.indexOf('\n', lineStart)
@@ -1002,39 +1002,25 @@ export class StreamParser {
       if (lineEnd === -1)
         lineEnd = len
 
+      // Fences may be indented by at most three spaces.
       let p = lineStart
       let indent = 0
-      let blockquoteDepth = 0
-      while (true) {
-        indent = 0
-        while (p < lineEnd) {
-          const c = chunk.charCodeAt(p)
-          if (c === 0x20 /* space */) {
-            p++
-            indent++
-            if (indent >= 4)
-              break
-          }
-          else if (c === 0x09 /* tab */) {
-            indent = 4
-            break
-          }
-          else {
-            break
-          }
-        }
-
-        if (indent >= 4 || chunk.charCodeAt(p) !== 0x3E /* > */)
-          break
-
-        blockquoteDepth++
-        p++
-        if (chunk.charCodeAt(p) === 0x20 /* space */)
+      while (p < lineEnd) {
+        const c = chunk.charCodeAt(p)
+        if (c === 0x20 /* space */) {
           p++
+          indent++
+          if (indent >= 4)
+            break
+        }
+        else if (c === 0x09 /* tab */) {
+          indent = 4
+          break
+        }
+        else {
+          break
+        }
       }
-
-      if (inFence && blockquoteDepth < inFence.blockquoteDepth)
-        inFence = null
 
       if (indent < 4 && p < lineEnd) {
         const ch = chunk.charCodeAt(p)
@@ -1047,9 +1033,9 @@ export class StreamParser {
               const nextBacktick = ch === 0x60 ? chunk.indexOf('`', q) : -1
               const hasBacktickInInfo = nextBacktick >= 0 && nextBacktick < lineEnd
               if (!hasBacktickInInfo)
-                inFence = { marker: ch, length: runLen, blockquoteDepth }
+                inFence = { marker: ch, length: runLen }
             }
-            else if (inFence.blockquoteDepth === blockquoteDepth && inFence.marker === ch && runLen >= inFence.length) {
+            else if (inFence.marker === ch && runLen >= inFence.length) {
               let tail = q
               while (tail < lineEnd) {
                 const c = chunk.charCodeAt(tail)
@@ -1571,6 +1557,9 @@ export class StreamParser {
       return false
 
     const lastToken = cache.tokens[lastSegment.tokenStart]
+    if (lastToken?.type.startsWith('container_') && lastToken.type.endsWith('_open'))
+      return true
+
     switch (lastToken?.type) {
       case 'bullet_list_open':
       case 'ordered_list_open':
