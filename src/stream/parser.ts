@@ -23,6 +23,7 @@ interface StreamCache {
   // Cache line count to avoid recounting
   lineCount?: number
   lastSegment?: StreamSegment | null
+  hasFenceMarker?: boolean
   globalStateReason?: GlobalMarkdownStateReason | null
   globalStateCarry?: string
 }
@@ -663,6 +664,7 @@ export class StreamParser {
       }
 
       // Update cache with new src and line count
+      this.updateFenceMarkerCacheForAppend(cached, appended)
       cached.src = src
       cached.globalStateReason = null
       const appendedLines = appendedLineCount ?? countAppendedLines()
@@ -696,8 +698,9 @@ export class StreamParser {
 
     const fallbackEnv = envProvided ?? cached.env
 
-    const tailReparsed = this.tokenMapsTrusted
-      ? this.tryTailSegmentReparse(src, cached, fallbackEnv, md)
+    const lastSegment = this.ensureLastSegment(cached)
+    const tailReparsed = this.tokenMapsTrusted || (lastSegment && this.hasUsableSegmentMap(cached, lastSegment))
+      ? this.tryTailSegmentReparse(src, cached, fallbackEnv, md, lastSegment ?? undefined)
       : this.tryUntrustedParagraphTailReparse(src, cached, fallbackEnv, md)
     if (tailReparsed) {
       this.stats.total += 1
@@ -923,13 +926,11 @@ export class StreamParser {
     // Heuristic safety: if previous content ends inside an open fenced code block,
     // avoid append fast-path since closing fence in appended segment would
     // retroactively change prior tokens.
-    if (prev.includes('```') || prev.includes('~~~')) {
-      const scanStart = this.tokenMapsTrusted
-        ? (this.ensureLastSegment(cache)?.srcOffset ?? 0)
-        : 0
-      if (this.endsInsideOpenFence(prev, scanStart))
-        return null
-    }
+    const scanStart = this.tokenMapsTrusted
+      ? (this.ensureLastSegment(cache)?.srcOffset ?? 0)
+      : 0
+    if ((this.tokenMapsTrusted || this.cacheHasFenceMarker(cache)) && this.endsInsideOpenFence(prev, scanStart))
+      return null
 
     if (this.mayContainReferenceDefinition(segment))
       return null
@@ -981,6 +982,10 @@ export class StreamParser {
       if (lastSegment.lineStart > 0)
         this.shiftTokenLines(tailState.tokens, lastSegment.lineStart)
 
+      if (appended)
+        this.updateFenceMarkerCacheForAppend(cached, appended)
+      else
+        cached.hasFenceMarker = undefined
       cached.src = src
       cached.env = env
       cached.globalStateReason = null
@@ -1059,6 +1064,28 @@ export class StreamParser {
       }
     }
     return count
+  }
+
+  private hasUsableSegmentMap(cache: StreamCache, segment: StreamSegment): boolean {
+    const lineCount = cache.lineCount ?? countLines(cache.src)
+    const docLineCount = this.getDocLineCount(cache.src, lineCount)
+    return segment.lineStart >= 0
+      && segment.lineStart <= segment.lineEnd
+      && segment.lineEnd <= docLineCount
+      && segment.srcOffset < cache.src.length
+  }
+
+  private cacheHasFenceMarker(cache: StreamCache): boolean {
+    if (cache.hasFenceMarker === undefined)
+      cache.hasFenceMarker = cache.src.includes('```') || cache.src.includes('~~~')
+    return cache.hasFenceMarker
+  }
+
+  private updateFenceMarkerCacheForAppend(cache: StreamCache, appended: string): void {
+    if (this.cacheHasFenceMarker(cache))
+      return
+    const boundary = cache.src.slice(-2) + appended
+    cache.hasFenceMarker = boundary.includes('```') || boundary.includes('~~~')
   }
 
   // Get the last N lines (by newline count) without splitting the full string.
@@ -1416,6 +1443,7 @@ export class StreamParser {
     }
 
     cached.tokens.splice(cached.tokens.length - 1, 0, ...inserted)
+    this.updateFenceMarkerCacheForAppend(cached, appended)
     cached.src = src
     cached.env = env
     cached.globalStateReason = null
@@ -1490,6 +1518,7 @@ export class StreamParser {
       : cachedSection.tableCloseIndex
     const previousLineCount = cached.lineCount ?? countLines(cached.src)
     cached.tokens.splice(insertAt, 0, ...inserted)
+    this.updateFenceMarkerCacheForAppend(cached, appended)
     cached.src = src
     cached.env = env
     cached.globalStateReason = null
@@ -1653,7 +1682,7 @@ export class StreamParser {
       return false
 
     const lastToken = cache.tokens[lastSegment.tokenStart]
-    if (!this.tokenMapsTrusted) {
+    if (!this.tokenMapsTrusted && !this.hasUsableSegmentMap(cache, lastSegment)) {
       return lastToken?.type === 'paragraph_open'
         && !this.endsWithBlankLine(cache.src)
     }

@@ -530,6 +530,45 @@ describe('stream append with fenced code boundaries', () => {
     expect(stats.tailHits + stats.appendHits).toBeGreaterThan(0)
   })
 
+  it('keeps a post-block HTML tail reusable when appending a new block', () => {
+    const md = MarkdownIt({ stream: true })
+    md.core.ruler.after('block', 'observe_tokens', () => {})
+    md.stream.resetStats()
+
+    let doc = 'First\n\n<div>tail</div>\n'
+    const first = md.stream.parse(doc)
+
+    doc += '\nSecond\n\n'
+    const tokens = md.stream.parse(doc)
+
+    const baselineMd = MarkdownIt()
+    baselineMd.core.ruler.after('block', 'observe_tokens', () => {})
+    const baseline = baselineMd.parse(doc)
+    expect(md.renderer.render(tokens, md.options, {}))
+      .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, {}))
+    expect(tokens[0]).toBe(first[0])
+    expect(md.stream.stats().tailHits).toBeGreaterThan(0)
+  })
+
+  it('keeps a post-block list tail together across appends', () => {
+    const md = MarkdownIt({ stream: true })
+    md.core.ruler.after('block', 'observe_tokens', () => {})
+    md.stream.resetStats()
+
+    let doc = 'First\n\n- a\n- b\n'
+    md.stream.parse(doc)
+
+    doc += '- c\n\n'
+    const tokens = md.stream.parse(doc)
+
+    const baselineMd = MarkdownIt()
+    baselineMd.core.ruler.after('block', 'observe_tokens', () => {})
+    const baseline = baselineMd.parse(doc)
+    expect(md.renderer.render(tokens, md.options, {}))
+      .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, {}))
+    expect(md.stream.stats().tailHits).toBeGreaterThan(0)
+  })
+
   it('counts normalized carriage returns in source-derived paragraph anchors', () => {
     const md = MarkdownIt({ stream: true })
     md.core.ruler.after('block', 'observe_tokens', () => {})
