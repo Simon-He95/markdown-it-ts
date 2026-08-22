@@ -553,6 +553,26 @@ describe('stream append with fenced code boundaries', () => {
     expect(stats.tailHits + stats.appendHits).toBeGreaterThan(0)
   })
 
+  it('does not execute block plugins while verifying a source tail anchor', () => {
+    let verificationCalls = 0
+    const md = MarkdownIt({ stream: true })
+    md.block.ruler.before('paragraph', 'observe_candidate_tail', (state) => {
+      if (state.src === 'Second')
+        verificationCalls++
+      return false
+    })
+    md.core.ruler.after('block', 'observe_tokens', () => {})
+
+    let doc = 'First\n\nSecond'
+    md.stream.parse(doc)
+    verificationCalls = 0
+
+    doc += ' appended\n\n'
+    md.stream.parse(doc)
+
+    expect(verificationCalls).toBe(0)
+  })
+
   it('keeps a post-block HTML tail reusable when appending a new block', () => {
     const md = MarkdownIt({ stream: true })
     md.core.ruler.after('block', 'observe_tokens', () => {})

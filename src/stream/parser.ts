@@ -4,6 +4,7 @@ import type { GlobalMarkdownStateReason } from '../parse/global_state'
 import type { ParserCore } from '../parse/parser_core'
 import { countLines } from '../common/utils'
 import { detectGlobalMarkdownState, getKnownGlobalMarkdownState, resetKnownGlobalMarkdownState, runWithKnownGlobalMarkdownState } from '../parse/global_state'
+import { ParserBlock } from '../parse/parser_block'
 import { beginParseDiagnostics, getParseDiagnostics, setStrategyDiagnostics } from '../parse/strategy_diagnostics'
 import { block } from '../rules/core/block'
 import { inline } from '../rules/core/inline'
@@ -231,6 +232,7 @@ function makeEmptyStats(): StreamStats {
 
 export class StreamParser {
   private readonly core: ParserCore
+  private readonly anchorBlock = new ParserBlock()
   private cache: StreamCache | null = null
   private stats: StreamStats = makeEmptyStats()
   private normalizeLineEndings = true
@@ -1078,10 +1080,12 @@ export class StreamParser {
 
     const tail = cache.src.slice(segment.srcOffset)
     try {
-      const state = this.core.createState(tail, {}, md)
+      const anchorMd = Object.create(md)
+      Object.defineProperty(anchorMd, 'block', { value: this.anchorBlock })
+      const state = this.core.createState(tail, {}, anchorMd)
       if (this.normalizeLineEndings)
         normalize(state)
-      block(state)
+      this.anchorBlock.parse(state.src, anchorMd, state.env, state.tokens)
 
       const parsedSegment = this.getLastSegment(state.tokens, tail)
       if (!parsedSegment || parsedSegment.tokenStart !== 0)
