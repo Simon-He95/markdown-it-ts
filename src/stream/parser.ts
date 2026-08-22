@@ -265,18 +265,23 @@ export class StreamParser {
   }
 
   parse(src: string, env: Record<string, unknown> | undefined, md: MarkdownIt): Token[] {
-    const normalizeRule = md.core.ruler.getNamedRules('').find(rule => rule.name === 'normalize')
+    const coreRules = md.core.ruler.getNamedRules('')
+    const normalizeRuleIndex = coreRules.findIndex(rule => rule.name === 'normalize')
+    const blockRuleIndex = coreRules.findIndex(rule => rule.name === 'block')
+    const normalizeRule = coreRules[normalizeRuleIndex]
     this.normalizeLineEndings = normalizeRule?.fn === normalize
+      && (blockRuleIndex < 0 || normalizeRuleIndex < blockRuleIndex)
     const envProvided = env
-    const cached = normalizeRule && normalizeRule.fn !== normalize && src.includes('\r')
+    const previousCache = this.cache
+    const cached = normalizeRule && !this.normalizeLineEndings && src.includes('\r')
       ? null
-      : this.cache
-    beginParseDiagnostics(envProvided ?? cached?.env)
+      : previousCache
+    beginParseDiagnostics(envProvided ?? previousCache?.env)
 
     // Only update the cache on the very first parse or when the current
     // source ends at a safe block boundary (double newline). This prevents
     if (!cached || (envProvided && envProvided !== cached.env)) {
-      const workingEnv = envProvided ?? {}
+      const workingEnv = envProvided ?? previousCache?.env ?? {}
 
       // Allow chunked for first parse when enabled and large enough
       const explicitChunkFallbackSetting = !!(md as any).__explicitStreamChunkFallbackSetting

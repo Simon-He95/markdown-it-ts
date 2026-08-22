@@ -292,6 +292,50 @@ describe('stream append with fenced code boundaries', () => {
     expect(stats.lastMode).not.toBe('append')
   })
 
+  it('does not assume normalize runs before the block parser', () => {
+    const md = MarkdownIt({ stream: true })
+    const normalizeRule = md.core.ruler.getNamedRules('').find(rule => rule.name === 'normalize')!
+    md.core.ruler.push('normalize', normalizeRule.fn)
+    md.stream.resetStats()
+
+    let doc = 'x\r```\n```\nbody\n'
+    md.stream.parse(doc)
+
+    doc += '```\n\n'
+    const tokens = md.stream.parse(doc)
+
+    const baselineMd = MarkdownIt()
+    const baselineNormalize = baselineMd.core.ruler.getNamedRules('').find(rule => rule.name === 'normalize')!
+    baselineMd.core.ruler.push('normalize', baselineNormalize.fn)
+    const baseline = baselineMd.parse(doc)
+    expect(md.renderer.render(tokens, md.options, {}))
+      .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, {}))
+
+    const stats = md.stream.stats()
+    expect(stats.lastMode).not.toBe('append')
+  })
+
+  it('preserves the cached environment when custom normalization bypasses the cache', () => {
+    const applyEnvironment = (state: { src: string, env: Record<string, unknown> }) => {
+      state.src = state.src.replace('VALUE', String(state.env.value ?? 'missing'))
+    }
+    const md = MarkdownIt({ stream: true })
+    md.core.ruler.at('normalize', applyEnvironment)
+    const env = { value: 'expected' }
+
+    let doc = 'VALUE\r\n'
+    md.stream.parse(doc, env)
+
+    doc += 'tail\n\n'
+    const tokens = md.stream.parse(doc)
+
+    const baselineMd = MarkdownIt()
+    baselineMd.core.ruler.at('normalize', applyEnvironment)
+    const baseline = baselineMd.parse(doc, env)
+    expect(md.renderer.render(tokens, md.options, env))
+      .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, env))
+  })
+
   it('new fenced block entirely within appended segment can use append', () => {
     const md = MarkdownIt({ stream: true })
     md.stream.resetStats()
