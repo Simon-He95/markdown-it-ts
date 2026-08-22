@@ -1166,18 +1166,7 @@ export class StreamParser {
     if (knownSrcOffset !== undefined && knownLineStart !== undefined && line >= knownLineStart)
       return this.getLineStartOffsetFrom(src, knownSrcOffset, line - knownLineStart)
 
-    if (line <= 0)
-      return 0
-
-    let remaining = line
-    let pos = -1
-    while (remaining > 0) {
-      pos = src.indexOf('\n', pos + 1)
-      if (pos === -1)
-        return src.length
-      remaining--
-    }
-    return pos + 1
+    return this.getLineStartOffsetFrom(src, 0, line)
   }
 
   private getLineStartOffsetFrom(src: string, startOffset: number, lineDelta: number): number {
@@ -1185,14 +1174,28 @@ export class StreamParser {
       return startOffset
 
     let remaining = lineDelta
-    let pos = startOffset - 1
-    while (remaining > 0) {
-      pos = src.indexOf('\n', pos + 1)
-      if (pos === -1)
-        return src.length
-      remaining--
+    let pos = startOffset
+    while (pos < src.length) {
+      const ch = src.charCodeAt(pos)
+      if (ch === 0x0A /* \n */) {
+        pos++
+        remaining--
+      }
+      else if (ch === 0x0D /* \r */) {
+        pos++
+        if (pos < src.length && src.charCodeAt(pos) === 0x0A)
+          pos++
+        remaining--
+      }
+      else {
+        pos++
+        continue
+      }
+
+      if (remaining === 0)
+        return pos
     }
-    return pos + 1
+    return src.length
   }
 
   private mayContainReferenceDefinition(src: string): boolean {

@@ -78,6 +78,25 @@ describe('stream append with fenced code boundaries', () => {
     expect(stats.lastMode).not.toBe('append')
   })
 
+  it('detects an open fence after a bare carriage-return line ending', () => {
+    const md = MarkdownIt({ stream: true })
+    md.stream.resetStats()
+
+    let doc = 'first\rsecond\n```text\nbody\n'
+    md.stream.parse(doc)
+
+    doc += '```\n\n'
+    const tokens = md.stream.parse(doc)
+
+    const baselineMd = MarkdownIt()
+    const baseline = baselineMd.parse(doc)
+    expect(md.renderer.render(tokens, md.options, {}))
+      .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, {}))
+
+    const stats = md.stream.stats()
+    expect(stats.lastMode).not.toBe('append')
+  })
+
   it('new fenced block entirely within appended segment can use append', () => {
     const md = MarkdownIt({ stream: true })
     md.stream.resetStats()
