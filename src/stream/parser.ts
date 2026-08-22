@@ -430,7 +430,7 @@ export class StreamParser {
     }
 
     // inspect appended detection
-    const appended = this.getAppendedSegment(cached.src, src, appendDelta)
+    const appended = this.getAppendedSegment(cached, src, appendDelta)
     // debug info suppressed
     if (appended && !this.shouldPreferTailReparseForAppend(cached)) {
       // (no-op) appended preview suppressed
@@ -829,7 +829,8 @@ export class StreamParser {
     return countLines(appended) >= this.MIN_UNBOUNDED_APPEND_LINES
   }
 
-  private getAppendedSegment(prev: string, next: string, knownAppend?: string | null): string | null {
+  private getAppendedSegment(cache: StreamCache, next: string, knownAppend?: string | null): string | null {
+    const prev = cache.src
     if (knownAppend === null)
       return null
     if (knownAppend === undefined && !next.startsWith(prev))
@@ -879,7 +880,8 @@ export class StreamParser {
     // Heuristic safety: if previous content ends inside an open fenced code block,
     // avoid append fast-path since closing fence in appended segment would
     // retroactively change prior tokens.
-    if (this.endsInsideOpenFence(prev))
+    const lastSegment = this.ensureLastSegment(cache)
+    if (this.endsInsideOpenFence(prev, lastSegment?.srcOffset ?? 0))
       return null
 
     if (this.mayContainReferenceDefinition(segment))
@@ -976,10 +978,7 @@ export class StreamParser {
   }
 
   // Detect if the given text ends while still inside an open fenced code block.
-  // Scans backwards in a bounded window for performance.
-  private endsInsideOpenFence(text: string): boolean {
-    const WINDOW = 4000
-    const start = text.length > WINDOW ? text.length - WINDOW : 0
+  private endsInsideOpenFence(text: string, start: number): boolean {
     const chunk = text.slice(start)
     const len = chunk.length
     let inFence: { marker: number, length: number } | null = null
