@@ -385,6 +385,30 @@ describe('stream append with fenced code boundaries', () => {
     expect(stats.lastMode).not.toBe('append')
   })
 
+  it('bypasses the cache for an arbitrary source transform before block parsing', () => {
+    const prependLine = (state: { src: string }) => {
+      state.src = `\n${state.src}`
+    }
+    const md = MarkdownIt({ stream: true })
+    md.core.ruler.before('block', 'prepend_line', prependLine)
+    md.stream.resetStats()
+
+    let doc = '```text\nbody\n'
+    md.stream.parse(doc)
+
+    doc += '```\n\n'
+    const tokens = md.stream.parse(doc)
+
+    const baselineMd = MarkdownIt()
+    baselineMd.core.ruler.before('block', 'prepend_line', prependLine)
+    const baseline = baselineMd.parse(doc)
+    expect(md.renderer.render(tokens, md.options, {}))
+      .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, {}))
+
+    const stats = md.stream.stats()
+    expect(stats.lastMode).not.toBe('append')
+  })
+
   it('recognizes the built-in block rule registered under another name', () => {
     const md = MarkdownIt({ stream: true })
     const blockRule = md.core.ruler.getNamedRules('').find(rule => rule.name === 'block')!

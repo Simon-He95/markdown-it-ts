@@ -277,7 +277,9 @@ export class StreamParser {
     const previousCache = this.cache
     const customNormalize = namedNormalizeRule && namedNormalizeRule.fn !== normalize
     const nonstandardBuiltinNormalize = namedNormalizeRule && !this.normalizeLineEndings && src.includes('\r')
-    const cached = customNormalize || nonstandardBuiltinNormalize
+    const unknownPreBlockRule = blockRuleIndex < 0
+      || coreRules.slice(0, blockRuleIndex).some(rule => rule.fn !== normalize)
+    const cached = customNormalize || nonstandardBuiltinNormalize || unknownPreBlockRule
       ? null
       : previousCache
     beginParseDiagnostics(envProvided ?? previousCache?.env)
