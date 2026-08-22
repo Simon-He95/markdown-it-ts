@@ -98,6 +98,25 @@ describe('stream append with fenced code boundaries', () => {
     expect(stats.lastMode).not.toBe('append')
   })
 
+  it('detects a fence after a bare carriage return inside a container', () => {
+    const md = MarkdownIt({ stream: true }).use(container, 'note')
+    md.stream.resetStats()
+
+    let doc = `::: note\n${'x'.repeat(4100)}\r\`\`\`text\nbody\n`
+    md.stream.parse(doc)
+
+    doc += '```\n\n'
+    const tokens = md.stream.parse(doc)
+
+    const baselineMd = MarkdownIt().use(container, 'note')
+    const baseline = baselineMd.parse(doc)
+    expect(md.renderer.render(tokens, md.options, {}))
+      .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, {}))
+
+    const stats = md.stream.stats()
+    expect(stats.lastMode).not.toBe('append')
+  })
+
   it('uses raw carriage returns as content when normalization is disabled', () => {
     const md = MarkdownIt({ stream: true }).disable('normalize')
     md.stream.resetStats()

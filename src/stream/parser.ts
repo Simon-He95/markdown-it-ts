@@ -990,6 +990,11 @@ export class StreamParser {
     let lineStart = 0
     while (lineStart <= len) {
       let lineEnd = chunk.indexOf('\n', lineStart)
+      if (this.normalizeLineEndings) {
+        const carriageReturn = chunk.indexOf('\r', lineStart)
+        if (carriageReturn >= 0 && (lineEnd === -1 || carriageReturn < lineEnd))
+          lineEnd = carriageReturn
+      }
       if (lineEnd === -1)
         lineEnd = len
 
@@ -1030,7 +1035,7 @@ export class StreamParser {
               let tail = q
               while (tail < lineEnd) {
                 const c = chunk.charCodeAt(tail)
-                if (c === 0x20 /* space */ || c === 0x09 /* tab */ || (this.normalizeLineEndings && c === 0x0D /* \r */)) {
+                if (c === 0x20 /* space */ || c === 0x09 /* tab */) {
                   tail++
                 }
                 else {
@@ -1047,7 +1052,13 @@ export class StreamParser {
 
       if (lineEnd === len)
         break
-      lineStart = lineEnd + 1
+      lineStart = lineEnd + (
+        this.normalizeLineEndings
+        && chunk.charCodeAt(lineEnd) === 0x0D /* \r */
+        && chunk.charCodeAt(lineEnd + 1) === 0x0A /* \n */
+          ? 2
+          : 1
+      )
     }
     return inFence !== null
   }
