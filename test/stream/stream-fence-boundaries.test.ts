@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import container from 'markdown-it-container'
 import MarkdownIt from '../../src'
 
 describe('stream append with fenced code boundaries', () => {
@@ -89,6 +90,63 @@ describe('stream append with fenced code boundaries', () => {
     const tokens = md.stream.parse(doc)
 
     const baselineMd = MarkdownIt()
+    const baseline = baselineMd.parse(doc)
+    expect(md.renderer.render(tokens, md.options, {}))
+      .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, {}))
+
+    const stats = md.stream.stats()
+    expect(stats.lastMode).not.toBe('append')
+  })
+
+  it('uses raw carriage returns as content when normalization is disabled', () => {
+    const md = MarkdownIt({ stream: true }).disable('normalize')
+    md.stream.resetStats()
+
+    let doc = 'x\r```\n```\nbody\n'
+    md.stream.parse(doc)
+
+    doc += '```\n\n'
+    const tokens = md.stream.parse(doc)
+
+    const baselineMd = MarkdownIt().disable('normalize')
+    const baseline = baselineMd.parse(doc)
+    expect(md.renderer.render(tokens, md.options, {}))
+      .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, {}))
+
+    const stats = md.stream.stats()
+    expect(stats.lastMode).not.toBe('append')
+  })
+
+  it('does not accept a carriage return in a closing fence when normalization is disabled', () => {
+    const md = MarkdownIt({ stream: true }).disable('normalize')
+    md.stream.resetStats()
+
+    let doc = '```text\nbody\n```\r\n'
+    md.stream.parse(doc)
+
+    doc += '```\n\n'
+    const tokens = md.stream.parse(doc)
+
+    const baselineMd = MarkdownIt().disable('normalize')
+    const baseline = baselineMd.parse(doc)
+    expect(md.renderer.render(tokens, md.options, {}))
+      .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, {}))
+
+    const stats = md.stream.stats()
+    expect(stats.lastMode).not.toBe('append')
+  })
+
+  it('does not treat backticks in fence info as an opener', () => {
+    const md = MarkdownIt({ stream: true }).use(container, 'note')
+    md.stream.resetStats()
+
+    let doc = `::: note\n\`\`\`bad\`\`\`\n${'x'.repeat(4100)}\n\`\`\`\nbody\n`
+    md.stream.parse(doc)
+
+    doc += '```\n\n'
+    const tokens = md.stream.parse(doc)
+
+    const baselineMd = MarkdownIt().use(container, 'note')
     const baseline = baselineMd.parse(doc)
     expect(md.renderer.render(tokens, md.options, {}))
       .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, {}))

@@ -225,6 +225,7 @@ export class StreamParser {
   private readonly core: ParserCore
   private cache: StreamCache | null = null
   private stats: StreamStats = makeEmptyStats()
+  private normalizeLineEndings = true
 
   // Only use stream optimization for documents larger than this threshold
   private readonly MIN_SIZE_FOR_OPTIMIZATION = 1000 // characters
@@ -263,6 +264,7 @@ export class StreamParser {
   }
 
   parse(src: string, env: Record<string, unknown> | undefined, md: MarkdownIt): Token[] {
+    this.normalizeLineEndings = md.core.ruler.getNamedRules('').some(rule => rule.name === 'normalize')
     const envProvided = env
     const cached = this.cache
     beginParseDiagnostics(envProvided ?? cached?.env)
@@ -1019,13 +1021,16 @@ export class StreamParser {
           const runLen = q - p
           if (runLen >= 3) {
             if (!inFence) {
-              inFence = { marker: ch, length: runLen }
+              const nextBacktick = ch === 0x60 ? chunk.indexOf('`', q) : -1
+              const hasBacktickInInfo = nextBacktick >= 0 && nextBacktick < lineEnd
+              if (!hasBacktickInInfo)
+                inFence = { marker: ch, length: runLen }
             }
             else if (inFence.marker === ch && runLen >= inFence.length) {
               let tail = q
               while (tail < lineEnd) {
                 const c = chunk.charCodeAt(tail)
-                if (c === 0x20 /* space */ || c === 0x09 /* tab */ || c === 0x0D /* \r */) {
+                if (c === 0x20 /* space */ || c === 0x09 /* tab */ || (this.normalizeLineEndings && c === 0x0D /* \r */)) {
                   tail++
                 }
                 else {
@@ -1181,7 +1186,7 @@ export class StreamParser {
         pos++
         remaining--
       }
-      else if (ch === 0x0D /* \r */) {
+      else if (this.normalizeLineEndings && ch === 0x0D /* \r */) {
         pos++
         if (pos < src.length && src.charCodeAt(pos) === 0x0A)
           pos++
