@@ -430,9 +430,12 @@ export class StreamParser {
     }
 
     // inspect appended detection
-    const appended = this.getAppendedSegment(cached, src, appendDelta)
+    const preferTailReparse = this.shouldPreferTailReparseForAppend(cached)
+    const appended = preferTailReparse
+      ? null
+      : this.getAppendedSegment(cached, src, appendDelta)
     // debug info suppressed
-    if (appended && !this.shouldPreferTailReparseForAppend(cached)) {
+    if (appended) {
       // (no-op) appended preview suppressed
       // Fast-path: reuse existing tokens when new input is a clean append that starts on a fresh line.
       // This is conservative; edits requiring cross-block context still fall back to a full parse below.
@@ -1005,10 +1008,24 @@ export class StreamParser {
           while (q < lineEnd && chunk.charCodeAt(q) === ch) q++
           const runLen = q - p
           if (runLen >= 3) {
-            if (!inFence)
+            if (!inFence) {
               inFence = { marker: ch, length: runLen }
-            else if (inFence.marker === ch && runLen >= inFence.length)
-              inFence = null
+            }
+            else if (inFence.marker === ch && runLen >= inFence.length) {
+              let tail = q
+              while (tail < lineEnd) {
+                const c = chunk.charCodeAt(tail)
+                if (c === 0x20 /* space */ || c === 0x09 /* tab */ || c === 0x0D /* \r */) {
+                  tail++
+                }
+                else {
+                  break
+                }
+              }
+              if (tail === lineEnd) {
+                inFence = null
+              }
+            }
           }
         }
       }
