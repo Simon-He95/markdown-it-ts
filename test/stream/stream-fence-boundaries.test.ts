@@ -482,6 +482,27 @@ describe('stream append with fenced code boundaries', () => {
     expect(stats.lastMode).not.toBe('append')
   })
 
+  it('keeps tail reuse for source-neutral post-block rules without fences', () => {
+    const md = MarkdownIt({ stream: true })
+    md.core.ruler.after('block', 'observe_tokens', () => {})
+    md.stream.resetStats()
+
+    let doc = 'First paragraph\n\nSecond paragraph'
+    md.stream.parse(doc)
+
+    doc += ' appended\n\n'
+    const tokens = md.stream.parse(doc)
+
+    const baselineMd = MarkdownIt()
+    baselineMd.core.ruler.after('block', 'observe_tokens', () => {})
+    const baseline = baselineMd.parse(doc)
+    expect(md.renderer.render(tokens, md.options, {}))
+      .toEqual(baselineMd.renderer.render(baseline, baselineMd.options, {}))
+
+    const stats = md.stream.stats()
+    expect(stats.tailHits + stats.appendHits).toBeGreaterThan(0)
+  })
+
   it('new fenced block entirely within appended segment can use append', () => {
     const md = MarkdownIt({ stream: true })
     md.stream.resetStats()

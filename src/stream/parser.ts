@@ -234,6 +234,7 @@ export class StreamParser {
   private stats: StreamStats = makeEmptyStats()
   private normalizeLineEndings = true
   private coreRulerVersion = -1
+  private tokenMapsTrusted = true
 
   // Only use stream optimization for documents larger than this threshold
   private readonly MIN_SIZE_FOR_OPTIMIZATION = 1000 // characters
@@ -298,7 +299,8 @@ export class StreamParser {
         && rule.fn !== smartquotes
         && rule.fn !== text_join
       ))
-    const cached = customNormalize || nonstandardBuiltinNormalize || unknownPreBlockRule || unknownPostBlockRule
+    this.tokenMapsTrusted = !unknownPostBlockRule
+    const cached = customNormalize || nonstandardBuiltinNormalize || unknownPreBlockRule
       ? null
       : previousCache
     beginParseDiagnostics(envProvided ?? previousCache?.env ?? priorEnv)
@@ -694,7 +696,9 @@ export class StreamParser {
 
     const fallbackEnv = envProvided ?? cached.env
 
-    const tailReparsed = this.tryTailSegmentReparse(src, cached, fallbackEnv, md)
+    const tailReparsed = this.tokenMapsTrusted || (!cached.src.includes('```') && !cached.src.includes('~~~'))
+      ? this.tryTailSegmentReparse(src, cached, fallbackEnv, md)
+      : null
     if (tailReparsed) {
       this.stats.total += 1
       this.stats.tailHits += 1
@@ -919,9 +923,13 @@ export class StreamParser {
     // Heuristic safety: if previous content ends inside an open fenced code block,
     // avoid append fast-path since closing fence in appended segment would
     // retroactively change prior tokens.
-    const lastSegment = this.ensureLastSegment(cache)
-    if (this.endsInsideOpenFence(prev, lastSegment?.srcOffset ?? 0))
-      return null
+    if (prev.includes('```') || prev.includes('~~~')) {
+      const scanStart = this.tokenMapsTrusted
+        ? (this.ensureLastSegment(cache)?.srcOffset ?? 0)
+        : 0
+      if (this.endsInsideOpenFence(prev, scanStart))
+        return null
+    }
 
     if (this.mayContainReferenceDefinition(segment))
       return null
@@ -1256,6 +1264,9 @@ export class StreamParser {
   }
 
   private canDirectlyParseAppend(cache: StreamCache): boolean {
+    if (!this.tokenMapsTrusted)
+      return false
+
     if (!this.endsWithBlankLine(cache.src))
       return false
 
@@ -1582,6 +1593,9 @@ export class StreamParser {
   }
 
   private shouldPreferTailReparseForAppend(cache: StreamCache): boolean {
+    if (!this.tokenMapsTrusted && (cache.src.includes('```') || cache.src.includes('~~~')))
+      return false
+
     const lastSegment = this.ensureLastSegment(cache)
     if (!lastSegment)
       return false
