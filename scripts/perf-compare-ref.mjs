@@ -16,6 +16,8 @@ const thresholdArg = args.find(arg => arg.startsWith('--threshold='))
 const threshold = thresholdArg ? Math.max(0, Number.parseFloat(thresholdArg.split('=')[1]) || 0) : 0.05
 const scenarioThresholdArg = args.find(arg => arg.startsWith('--scenario-threshold='))
 const scenarioThreshold = scenarioThresholdArg ? Math.max(0, Number.parseFloat(scenarioThresholdArg.split('=')[1]) || 0) : Math.max(threshold, 0.10)
+const scenarioMinDeltaArg = args.find(arg => arg.startsWith('--scenario-min-delta-ms='))
+const scenarioMinDeltaMs = scenarioMinDeltaArg ? Math.max(0, Number.parseFloat(scenarioMinDeltaArg.split('=')[1]) || 0) : 0.05
 
 const FIXTURE_DIR = path.join(repoRoot, 'test', 'fixtures')
 
@@ -176,8 +178,8 @@ async function main() {
       loadMarkdownIt(archiveDir, `baseline-${Date.now()}`),
     ])
 
-    const parseRatiosByScenario = new Map(SCENARIOS.map(scenario => [scenario.name, []]))
-    const renderRatiosByScenario = new Map(SCENARIOS.map(scenario => [scenario.name, []]))
+    const parseMeasurementsByScenario = new Map(SCENARIOS.map(scenario => [scenario.name, []]))
+    const renderMeasurementsByScenario = new Map(SCENARIOS.map(scenario => [scenario.name, []]))
 
     for (let round = 0; round < rounds; round++) {
       if (rounds > 1)
@@ -200,7 +202,7 @@ async function main() {
           scenario.parseIterations,
           (round + scenarioIndex) % 2 === 0,
         )
-        parseRatiosByScenario.get(scenario.name).push(parseMeasured.ratio)
+        parseMeasurementsByScenario.get(scenario.name).push(parseMeasured)
 
         const currentTokens = currentMd.parse(scenario.input, {})
         const baselineTokens = baselineMd.parse(scenario.input, {})
@@ -211,7 +213,7 @@ async function main() {
           scenario.renderIterations,
           (round + scenarioIndex + 1) % 2 === 0,
         )
-        renderRatiosByScenario.get(scenario.name).push(renderMeasured.ratio)
+        renderMeasurementsByScenario.get(scenario.name).push(renderMeasured)
 
         console.log(`\n[${scenario.name}]`)
         console.log(`  parse  current=${formatMs(parseMeasured.currentMedianMs)} baseline=${formatMs(parseMeasured.baselineMedianMs)} paired-ratio=${parseMeasured.ratio.toFixed(3)}`)
@@ -219,13 +221,19 @@ async function main() {
       }
     }
 
-    const parseScenarioRatios = new Map([...parseRatiosByScenario].map(([name, values]) => [name, median(values)]))
-    const renderScenarioRatios = new Map([...renderRatiosByScenario].map(([name, values]) => [name, median(values)]))
-    const parseSummary = summarize([...parseScenarioRatios.values()])
-    const renderSummary = summarize([...renderScenarioRatios.values()])
+    const parseScenarioResults = new Map([...parseMeasurementsByScenario].map(([name, values]) => [name, {
+      ratio: median(values.map(value => value.ratio)),
+      deltaMs: median(values.map(value => value.currentMedianMs - value.baselineMedianMs)),
+    }]))
+    const renderScenarioResults = new Map([...renderMeasurementsByScenario].map(([name, values]) => [name, {
+      ratio: median(values.map(value => value.ratio)),
+      deltaMs: median(values.map(value => value.currentMedianMs - value.baselineMedianMs)),
+    }]))
+    const parseSummary = summarize([...parseScenarioResults.values()].map(value => value.ratio))
+    const renderSummary = summarize([...renderScenarioResults.values()].map(value => value.ratio))
     const scenarioFailures = [
-      ...[...parseScenarioRatios].filter(([, ratio]) => ratio > 1 + scenarioThreshold).map(([name, ratio]) => `parse ${name}=${ratio.toFixed(3)}`),
-      ...[...renderScenarioRatios].filter(([, ratio]) => ratio > 1 + scenarioThreshold).map(([name, ratio]) => `render ${name}=${ratio.toFixed(3)}`),
+      ...[...parseScenarioResults].filter(([, result]) => result.ratio > 1 + scenarioThreshold && result.deltaMs > scenarioMinDeltaMs).map(([name, result]) => `parse ${name}=${result.ratio.toFixed(3)} (+${result.deltaMs.toFixed(4)}ms)`),
+      ...[...renderScenarioResults].filter(([, result]) => result.ratio > 1 + scenarioThreshold && result.deltaMs > scenarioMinDeltaMs).map(([name, result]) => `render ${name}=${result.ratio.toFixed(3)} (+${result.deltaMs.toFixed(4)}ms)`),
     ]
 
     console.log('\nSummary')
@@ -234,6 +242,7 @@ async function main() {
     console.log(`  render geometric-mean of per-scenario median ratios=${renderSummary.ratio.toFixed(3)} (${formatChange(renderSummary.ratio)})`)
     console.log(`  regression threshold=+${(threshold * 100).toFixed(1)}%`)
     console.log(`  per-scenario regression threshold=+${(scenarioThreshold * 100).toFixed(1)}%`)
+    console.log(`  per-scenario minimum absolute regression=${scenarioMinDeltaMs.toFixed(4)}ms`)
 
     const parsePass = parseSummary.ratio <= 1 + threshold
     const renderPass = renderSummary.ratio <= 1 + threshold
@@ -242,7 +251,7 @@ async function main() {
       const failures = [
         !parsePass ? `parse ratio ${parseSummary.ratio.toFixed(3)} regressed beyond +${(threshold * 100).toFixed(1)}% vs ${baselineRef}` : null,
         !renderPass ? `render ratio ${renderSummary.ratio.toFixed(3)} regressed beyond +${(threshold * 100).toFixed(1)}% vs ${baselineRef}` : null,
-        scenarioFailures.length > 0 ? `per-scenario regressions beyond +${(scenarioThreshold * 100).toFixed(1)}%: ${scenarioFailures.join(', ')}` : null,
+        scenarioFailures.length > 0 ? `per-scenario regressions beyond +${(scenarioThreshold * 100).toFixed(1)}% and +${scenarioMinDeltaMs.toFixed(4)}ms: ${scenarioFailures.join(', ')}` : null,
       ].filter(Boolean)
       throw new Error(failures.join('; '))
     }

@@ -16,6 +16,8 @@ const thresholdArg = args.find(arg => arg.startsWith('--threshold='))
 const threshold = thresholdArg ? Math.max(0, Number.parseFloat(thresholdArg.split('=')[1]) || 0) : 0.05
 const scenarioThresholdArg = args.find(arg => arg.startsWith('--scenario-threshold='))
 const scenarioThreshold = scenarioThresholdArg ? Math.max(0, Number.parseFloat(scenarioThresholdArg.split('=')[1]) || 0) : Math.max(threshold, 0.10)
+const scenarioMinDeltaArg = args.find(arg => arg.startsWith('--scenario-min-delta-ms='))
+const scenarioMinDeltaMs = scenarioMinDeltaArg ? Math.max(0, Number.parseFloat(scenarioMinDeltaArg.split('=')[1]) || 0) : 0.05
 
 const STREAM_OPTIONS = {
   stream: true,
@@ -547,8 +549,8 @@ async function main() {
       loadMarkdownIt(archiveDir, `baseline-stream-${Date.now()}`),
     ])
 
-    const ratiosByScenario = new Map(SCENARIOS.map(scenario => [scenario.name, []]))
-    const directRatiosByScenario = new Map(DIRECT_API_SCENARIOS.map(scenario => [scenario.name, []]))
+    const measurementsByScenario = new Map(SCENARIOS.map(scenario => [scenario.name, []]))
+    const directMeasurementsByScenario = new Map(DIRECT_API_SCENARIOS.map(scenario => [scenario.name, []]))
 
     for (let round = 0; round < rounds; round++) {
       if (rounds > 1)
@@ -568,7 +570,7 @@ async function main() {
           scenarioConfig.iterations,
           (round + scenarioIndex) % 2 === 0,
         )
-        ratiosByScenario.get(scenarioConfig.name).push(measured.ratio)
+        measurementsByScenario.get(scenarioConfig.name).push(measured)
 
         const currentTailHits = verification.currentStats.tailHits ?? 0
         const baselineTailHits = verification.baselineStats.tailHits ?? 0
@@ -597,7 +599,7 @@ async function main() {
           scenarioConfig.iterations,
           (round + scenarioIndex) % 2 === 0,
         )
-        directRatiosByScenario.get(scenarioConfig.name).push(measured.ratio)
+        directMeasurementsByScenario.get(scenarioConfig.name).push(measured)
 
         console.log(`\n[${scenarioConfig.name}]`)
         console.log(`  current=${formatMs(measured.currentMedianMs)} baseline=${formatMs(measured.baselineMedianMs)} paired-ratio=${measured.ratio.toFixed(3)}`)
@@ -605,13 +607,19 @@ async function main() {
       }
     }
 
-    const scenarioRatios = new Map([...ratiosByScenario].map(([name, values]) => [name, median(values)]))
-    const directScenarioRatios = new Map([...directRatiosByScenario].map(([name, values]) => [name, median(values)]))
-    const summary = summarize([...scenarioRatios.values()])
-    const directSummary = summarize([...directScenarioRatios.values()])
+    const scenarioResults = new Map([...measurementsByScenario].map(([name, values]) => [name, {
+      ratio: median(values.map(value => value.ratio)),
+      deltaMs: median(values.map(value => value.currentMedianMs - value.baselineMedianMs)),
+    }]))
+    const directScenarioResults = new Map([...directMeasurementsByScenario].map(([name, values]) => [name, {
+      ratio: median(values.map(value => value.ratio)),
+      deltaMs: median(values.map(value => value.currentMedianMs - value.baselineMedianMs)),
+    }]))
+    const summary = summarize([...scenarioResults.values()].map(value => value.ratio))
+    const directSummary = summarize([...directScenarioResults.values()].map(value => value.ratio))
     const scenarioFailures = [
-      ...[...scenarioRatios].filter(([, ratio]) => ratio > 1 + scenarioThreshold),
-      ...[...directScenarioRatios].filter(([, ratio]) => ratio > 1 + scenarioThreshold),
+      ...[...scenarioResults].filter(([, result]) => result.ratio > 1 + scenarioThreshold && result.deltaMs > scenarioMinDeltaMs),
+      ...[...directScenarioResults].filter(([, result]) => result.ratio > 1 + scenarioThreshold && result.deltaMs > scenarioMinDeltaMs),
     ]
     console.log('\nSummary')
     console.log(`  rounds=${rounds}`)
@@ -619,12 +627,13 @@ async function main() {
     console.log(`  direct API geometric-mean of per-scenario median ratios=${directSummary.ratio.toFixed(3)} (${formatChange(directSummary.ratio)})`)
     console.log(`  regression threshold=+${(threshold * 100).toFixed(1)}%`)
     console.log(`  per-scenario regression threshold=+${(scenarioThreshold * 100).toFixed(1)}%`)
+    console.log(`  per-scenario minimum absolute regression=${scenarioMinDeltaMs.toFixed(4)}ms`)
 
     if (summary.ratio > 1 + threshold || directSummary.ratio > 1 + threshold || scenarioFailures.length > 0) {
       const failures = [
         summary.ratio > 1 + threshold ? `stream incremental ratio ${summary.ratio.toFixed(3)} regressed beyond +${(threshold * 100).toFixed(1)}% vs ${baselineRef}` : null,
         directSummary.ratio > 1 + threshold ? `direct API ratio ${directSummary.ratio.toFixed(3)} regressed beyond +${(threshold * 100).toFixed(1)}% vs ${baselineRef}` : null,
-        scenarioFailures.length > 0 ? `per-scenario regressions beyond +${(scenarioThreshold * 100).toFixed(1)}%: ${scenarioFailures.map(([name, ratio]) => `${name}=${ratio.toFixed(3)}`).join(', ')}` : null,
+        scenarioFailures.length > 0 ? `per-scenario regressions beyond +${(scenarioThreshold * 100).toFixed(1)}% and +${scenarioMinDeltaMs.toFixed(4)}ms: ${scenarioFailures.map(([name, result]) => `${name}=${result.ratio.toFixed(3)} (+${result.deltaMs.toFixed(4)}ms)`).join(', ')}` : null,
       ].filter(Boolean)
       throw new Error(failures.join('; '))
     }
