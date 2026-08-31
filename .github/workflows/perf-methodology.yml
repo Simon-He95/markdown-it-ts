@@ -62,11 +62,8 @@ jobs:
       - name: Validate checked-in README blocks against the checked-in JSON
         run: pnpm run perf:update-readme:check
 
-      - name: Generate stock-subset, feature-mixed, and real-world results
-        run: pnpm run perf:generate
-
-      - name: Update generated README benchmark blocks
-        run: pnpm run perf:update-readme
+      - name: Generate and check the latest performance snapshot
+        run: pnpm run perf:all:latest
 
       - name: Validate comparison semantics and observed paths
         run: pnpm run perf:methodology:check
