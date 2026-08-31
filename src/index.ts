@@ -3,7 +3,7 @@ import type { ParserBlock } from './parse/parser_block'
 import type { ParserInline } from './parse/parser_inline'
 import type { StockFastDiagnostics } from './parse/strategy_diagnostics'
 import type { RendererOptions } from './render/renderer'
-import type { StreamStats } from './stream/parser'
+import type { StreamSnapshot, StreamStats } from './stream/parser'
 import type { UnboundedBufferStats, UnboundedChunkInfo } from './stream/unbounded'
 import { LinkifyIt } from 'linkify-it'
 import * as utils from './common/utils'
@@ -178,7 +178,11 @@ export interface MarkdownIt {
   stream: {
     enabled: boolean
     parse: (src: string, env?: Record<string, unknown>) => TokenType[]
+    append: (segment: string, env?: Record<string, unknown>) => TokenType[]
+    snapshot: () => StreamSnapshot | null
+    restore: (snapshot: StreamSnapshot) => TokenType[]
     reset: () => void
+    hasCache: () => boolean
     peek: () => TokenType[]
     stats: () => StreamStats
     resetStats: () => void
@@ -872,8 +876,24 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
         return md.parse(src, env ?? {})
       return getStreamParser().parse(src, env, md)
     },
+    append(segment: string, env?: Record<string, unknown>) {
+      if (!md.stream.enabled)
+        throw new Error('Stream append requires stream mode')
+      return getStreamParser().append(segment, env, md)
+    },
+    snapshot() {
+      return streamParser ? streamParser.snapshot() : null
+    },
+    restore(snapshot: StreamSnapshot) {
+      if (!md.stream.enabled)
+        throw new Error('Stream restore requires stream mode')
+      return getStreamParser().restore(snapshot, md)
+    },
     reset() {
       getStreamParser().reset()
+    },
+    hasCache() {
+      return streamParser?.hasCache() ?? false
     },
     peek() {
       return streamParser ? streamParser.peek() : []

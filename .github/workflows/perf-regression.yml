@@ -1,6 +1,15 @@
 name: Perf Regression
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/perf-regression.yml
+      - src/**
+      - scripts/perf-*.mjs
+      - test/parse/parse-performance.test.ts
+      - package.json
+      - pnpm-lock.yaml
   workflow_dispatch:
     inputs:
       base_ref:
@@ -17,17 +26,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - name: Checkout base
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.base_ref || 'main' }}
-          path: base
-          fetch-depth: 0
-
       - name: Checkout head
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.head_ref || github.sha }}
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || inputs.head_ref || github.sha }}
           path: head
           fetch-depth: 0
 
@@ -50,26 +52,19 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pnpm-
 
-      - name: Install deps (base)
-        run: pnpm -C base install --frozen-lockfile
-
-      - name: Build (base)
-        run: pnpm -C base run build
-
-      - name: Generate perf snapshot (base)
-        run: pnpm -C base run perf:generate
-
       - name: Install deps (head)
         run: pnpm -C head install --frozen-lockfile
 
-      - name: Build (head)
-        run: pnpm -C head run build
-
-      - name: Generate perf snapshot (head)
-        run: pnpm -C head run perf:generate
+      - name: Fetch baseline ref
+        env:
+          BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || inputs.base_ref || 'main' }}
+        run: git -C head fetch --no-tags origin "$BASE_REF:refs/perf/base"
 
       - name: Run parser perf threshold tests (head)
         run: pnpm -C head run test:perf-threshold
 
-      - name: Compare perf snapshots
-        run: node head/scripts/perf-compare.mjs head/docs/perf-latest.json base/docs/perf-latest.json --threshold=0.10 --min-signal-ms=0.05 --append-min-signal-ms=3
+      - name: Compare parser and renderer against base
+        run: pnpm -C head run perf:compare:ref -- refs/perf/base --rounds=3 --threshold=0.05 --scenario-threshold=0.10 --scenario-min-delta-ms=0.05
+
+      - name: Compare streaming against base
+        run: pnpm -C head run perf:compare:stream-ref -- refs/perf/base --rounds=3 --threshold=0.05 --scenario-threshold=0.10 --scenario-min-delta-ms=0.05

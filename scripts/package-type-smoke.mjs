@@ -36,6 +36,7 @@ import {
   parseIterableToSink,
   parseStockFastAstJson,
   renderStockFast,
+  type StreamSnapshot,
   type StreamStats,
 } from 'markdown-it-ts/experimental'
 import Renderer, { type RendererRule } from 'markdown-it-ts/render/renderer'
@@ -133,6 +134,12 @@ const core = new ParserCore()
 const coreToken = new CoreToken('text', '', 0)
 const streamBuffer = new StreamBuffer(typedMd)
 const streamStats: StreamStats = typedMd.stream.stats()
+const streamMd = MarkdownIt({ stream: true })
+streamMd.stream.parse('# history\\n\\n')
+const streamSnapshot: StreamSnapshot | null = streamMd.stream.snapshot()
+const appendedTokens: Token[] = streamMd.stream.append('next\\n\\n')
+if (streamSnapshot)
+  streamMd.stream.restore(streamSnapshot)
 const chunkedTokens: Token[] = chunkedParse(typedMd, '# Title\\n\\nBody', env)
 const diagnostics = getParseDiagnostics(env)
 const iterableTokens: Token[] = parseIterable(typedMd, ['# A\\n', '\\nB'], env)
@@ -157,6 +164,8 @@ void core
 void coreToken
 void streamBuffer
 void streamStats
+void streamSnapshot
+void appendedTokens
 void chunkedTokens
 void diagnostics
 void namespacedOptionsMd

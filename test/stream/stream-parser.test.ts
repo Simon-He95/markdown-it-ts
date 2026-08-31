@@ -137,6 +137,190 @@ describe('stream parser', () => {
     expect(streamHtml).toEqual(baselineHtml)
   })
 
+  it('accepts append deltas without receiving the full source again', () => {
+    const md = MarkdownIt({ stream: true })
+    const baseline = MarkdownIt()
+    const env = {}
+    const base = '# History\n\nStable paragraph.\n\n'
+    const firstAppend = 'First streamed paragraph.\n\n'
+    const secondAppend = '- item one\n- item two\n\n'
+
+    md.stream.parse(base, env)
+    md.stream.append(firstAppend, env)
+    const tokens = md.stream.append(secondAppend, env)
+    const source = base + firstAppend + secondAppend
+
+    expect(md.renderer.render(tokens, md.options, env)).toBe(baseline.render(source))
+    expect(md.stream.stats().appendHits).toBe(2)
+    expect(md.stream.stats().lastMode).toBe('append')
+  })
+
+  it('keeps append global-state detection incremental after tail reparses', () => {
+    const md = MarkdownIt({ stream: true, streamOptimizationMinSize: 0 })
+    const base = `${'# Stable\n\nHistory paragraph.\n\n'.repeat(100)}Live paragraph`
+
+    md.stream.parse(base)
+    md.stream.append(' keeps')
+    md.stream.append(' streaming')
+    const tokens = md.stream.append('.\n')
+
+    expect(md.renderer.render(tokens, md.options, {})).toBe(MarkdownIt().render(`${base} keeps streaming.\n`))
+    expect(md.stream.stats().fullParses).toBe(1)
+    expect(md.stream.stats().tailHits).toBe(3)
+  })
+
+  it('reparses cached history after parser options change before append', () => {
+    const md = MarkdownIt({ stream: true })
+    const source = '"old quote"\n\nLive'
+
+    md.stream.parse(source)
+    md.set({ typographer: true })
+    const tokens = md.stream.append(' tail.\n')
+
+    expect(md.renderer.render(tokens, md.options, {})).toBe(md.render(`${source} tail.\n`))
+    expect(md.stream.stats().lastMode).toBe('full')
+  })
+
+  it('reparses cached history after parser rules change before append', () => {
+    const md = MarkdownIt({ stream: true })
+    const source = '# Old heading\n\nLive'
+
+    md.stream.parse(source)
+    md.block.ruler.disable('heading')
+    const tokens = md.stream.append(' tail.\n')
+
+    expect(md.renderer.render(tokens, md.options, {})).toBe(md.render(`${source} tail.\n`))
+    expect(md.stream.stats().lastMode).toBe('full')
+  })
+
+  it('preserves full-parse semantics when an append delta adds global state', () => {
+    const md = MarkdownIt({ stream: true })
+    const env = {}
+    const base = '[link][ref]\n\n'
+    const append = '[ref]: https://example.com\n\n'
+
+    md.stream.parse(base, env)
+    const tokens = md.stream.append(append, env)
+
+    expect(md.renderer.render(tokens, md.options, env)).toBe(MarkdownIt().render(base + append))
+    expect(md.stream.stats().lastMode).toBe('full')
+  })
+
+  it('restores an in-memory thread snapshot without reparsing history', () => {
+    const md = MarkdownIt({ stream: true })
+    const parseSpy = vi.spyOn(md.core, 'parse')
+    const history = '# Thread A\n\nStable history.\n\n'
+    const historyTokens = md.stream.parse(history)
+    const snapshot = md.stream.snapshot()
+
+    expect(snapshot).not.toBeNull()
+    expect(snapshot?.sourceLength).toBe(history.length)
+    expect(snapshot?.tokenCount).toBe(historyTokens.length)
+
+    md.stream.reset()
+    md.stream.parse('# Thread B\n\nOther history.\n\n')
+    parseSpy.mockClear()
+
+    const restored = md.stream.restore(snapshot!)
+
+    expect(restored).toBe(historyTokens)
+    expect(parseSpy).not.toHaveBeenCalled()
+    expect(md.renderer.render(restored, md.options, {})).toBe(MarkdownIt().render(history))
+
+    const append = 'Continued response.\n\n'
+    md.stream.append(append)
+    expect(snapshot?.sourceLength).toBe(history.length + append.length)
+
+    md.stream.reset()
+    const restoredAgain = md.stream.restore(snapshot!)
+    expect(md.renderer.render(restoredAgain, md.options, {})).toBe(MarkdownIt().render(history + append))
+
+    parseSpy.mockRestore()
+  })
+
+  it('keeps a live thread snapshot current after a full fallback', () => {
+    const md = MarkdownIt({ stream: true })
+    const history = '# Thread\n'
+    const append = 'Continued.\n\n'
+
+    md.stream.parse(history)
+    const snapshot = md.stream.snapshot()!
+    const tokens = md.stream.append(append)
+
+    expect(md.stream.stats().lastMode).toBe('full')
+    expect(snapshot.sourceLength).toBe(history.length + append.length)
+    expect(snapshot.tokenCount).toBe(tokens.length)
+
+    md.stream.reset()
+    const restored = md.stream.restore(snapshot)
+    expect(md.renderer.render(restored, md.options, {})).toBe(md.render(history + append))
+  })
+
+  it('keeps a live thread snapshot current after a global-state fallback', () => {
+    const md = MarkdownIt({ stream: true })
+    const history = '[link][ref]\n\n'
+    const append = '[ref]: https://example.com\n\n'
+
+    md.stream.parse(history)
+    const snapshot = md.stream.snapshot()!
+    md.stream.append(append)
+
+    expect(md.stream.stats().lastMode).toBe('full')
+    expect(snapshot.sourceLength).toBe(history.length + append.length)
+
+    md.stream.reset()
+    const restored = md.stream.restore(snapshot)
+    expect(md.renderer.render(restored, md.options, {})).toBe(md.render(history + append))
+  })
+
+  it('reparses a snapshot after parser options change', () => {
+    const md = MarkdownIt({ stream: true })
+    const source = '"quoted text"\n'
+    md.stream.parse(source)
+    const snapshot = md.stream.snapshot()!
+    const parseSpy = vi.spyOn(md.core, 'parse')
+
+    md.set({ typographer: true })
+    const tokens = md.stream.restore(snapshot)
+
+    expect(parseSpy).toHaveBeenCalled()
+    expect(md.renderer.render(tokens, md.options, {})).toContain('“quoted text”')
+    parseSpy.mockRestore()
+  })
+
+  it('reparses a snapshot after parser options are mutated in place', () => {
+    const md = MarkdownIt({ stream: true })
+    const source = '"quoted text"\n'
+    md.stream.parse(source)
+    const snapshot = md.stream.snapshot()!
+    const parseSpy = vi.spyOn(md.core, 'parse')
+
+    md.options.typographer = true
+    const tokens = md.stream.restore(snapshot)
+
+    expect(parseSpy).toHaveBeenCalled()
+    expect(md.renderer.render(tokens, md.options, {})).toContain('“quoted text”')
+    parseSpy.mockRestore()
+  })
+
+  it('reparses a snapshot after a nested parser option is mutated in place', () => {
+    const md = MarkdownIt({
+      stream: true,
+      typographer: true,
+      quotes: ['“', '”', '‘', '’'],
+    })
+    const source = '"quoted text"\n'
+    md.stream.parse(source)
+    const snapshot = md.stream.snapshot()!
+
+    const quotes = md.options.quotes as [string, string, string, string]
+    quotes[0] = '「'
+    quotes[1] = '」'
+    const tokens = md.stream.restore(snapshot)
+
+    expect(md.renderer.render(tokens, md.options, {})).toContain('「quoted text」')
+  })
+
   it('falls back to full parse when an append introduces a reference definition', () => {
     const md = MarkdownIt({ stream: true })
     const before = '[x][ref]\n\n'
@@ -727,6 +911,21 @@ describe('stream parser', () => {
     expect(streamHtml).toEqual(baselineHtml)
 
     parseSpy.mockRestore()
+  })
+
+  it('rejects append deltas when the stream cache was skipped', () => {
+    const md = MarkdownIt({
+      stream: true,
+      streamLargeCachePolicy: 'skip',
+      streamOptimizationMinSize: 0,
+      streamSkipCacheAboveChars: 32,
+      streamSkipCacheAboveLines: 2,
+    })
+    const history = `# History\n\n${'Stable paragraph.\n\n'.repeat(4)}`
+
+    md.stream.parse(history)
+
+    expect(() => md.stream.append('Continued.\n\n')).toThrow('Stream append requires cached history')
   })
 
   it('falls back when an append completes a reference definition across the cache boundary', () => {

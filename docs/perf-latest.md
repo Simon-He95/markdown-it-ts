@@ -2,12 +2,12 @@
 
 ## Environment
 
-- Generated at: 2026-08-22T22:03:42.293Z
-- Node.js: v20.20.2
-- Platform: linux x64
-- CPU: INTEL(R) XEON(R) PLATINUM 8573C
-- CPU count: 4
-- Commit: fac94fb7ed63f5644d4057d1560d741f52bcbf13
+- Generated at: 2026-08-31T04:31:21.680Z
+- Node.js: v24.16.0
+- Platform: darwin arm64
+- CPU: Apple M1 Pro
+- CPU count: 10
+- Commit: 1402ce84aac4ce5ade1eec4c5e73dacdb7a6cf97
 
 ## Corpus and comparison policy
 
@@ -30,13 +30,13 @@ This is a specialized fast-path benchmark, not a proxy for general Markdown perf
 
 | Actual chars | TS parse | markdown-it parse | OX parse | TS parse path | TS render | markdown-it render | OX render | TS render path | HTML equal? |
 |---:|---:|---:|---:|:--|---:|---:|---:|:--|:--|
-| 5,011 | 0.0576ms | 0.2322ms | 0.0415ms | stock-fast | 0.0225ms | 0.2834ms | 0.0406ms | stock-fast | no |
-| 20,085 | 0.2297ms | 0.9191ms | 0.1569ms | stock-fast | 0.0772ms | 1.1510ms | 0.1526ms | stock-fast | no |
-| 50,084 | 0.5878ms | 2.5560ms | 0.4922ms | stock-fast | 0.1911ms | 2.7775ms | 0.3782ms | stock-fast | no |
-| 100,126 | 1.6765ms | 5.8392ms | 0.9950ms | stock-fast | 0.3816ms | 8.5383ms | 0.8434ms | stock-fast | no |
-| 200,073 | 2.5935ms | 10.63ms | 1.9859ms | stock-fast | 1.1089ms | 17.89ms | 1.7922ms | stock-fast | no |
-| 500,121 | 24.20ms | 44.13ms | 4.9249ms | stock-fast | 3.0672ms | 53.63ms | 4.6127ms | stock-fast | no |
-| 1,000,068 | 45.11ms | 108.29ms | 14.70ms | stock-fast | 8.0949ms | 130.08ms | 9.2071ms | stock-fast | no |
+| 5,011 | 0.0568ms | 0.1866ms | 0.0423ms | stock-fast | 0.0203ms | 0.2329ms | 0.0387ms | stock-fast | no |
+| 20,085 | 0.1201ms | 0.7374ms | 0.1642ms | stock-fast | 0.0727ms | 0.9124ms | 0.1515ms | stock-fast | no |
+| 50,084 | 0.2928ms | 1.8966ms | 0.4688ms | stock-fast | 0.1770ms | 2.3784ms | 0.3699ms | stock-fast | no |
+| 100,126 | 0.6750ms | 4.1105ms | 0.8743ms | stock-fast | 0.3554ms | 4.8710ms | 0.7727ms | stock-fast | no |
+| 200,073 | 1.1269ms | 8.3174ms | 1.7322ms | stock-fast | 0.7105ms | 11.07ms | 1.5355ms | stock-fast | no |
+| 500,121 | 4.8750ms | 24.63ms | 4.2117ms | stock-fast | 2.3781ms | 31.12ms | 3.7333ms | stock-fast | no |
+| 1,000,068 | 15.48ms | 55.34ms | 11.26ms | stock-fast | 5.0370ms | 73.40ms | 7.4867ms | stock-fast | no |
 
 First recorded HTML difference at index 3:
 
@@ -50,11 +50,11 @@ Section text and URLs vary by index to avoid repeated-output cache bias; feature
 
 | Actual chars | TS parse | markdown-it parse | OX parse | TS parse path | TS render | markdown-it render | OX render | TS render path | HTML equal? |
 |---:|---:|---:|---:|:--|---:|---:|---:|:--|:--|
-| 5,193 | 0.3111ms | 0.3311ms | 0.0686ms | general | 0.3649ms | 0.4118ms | 0.0582ms | token-renderer | no |
-| 20,125 | 1.0536ms | 1.2868ms | 0.2166ms | general | 1.2597ms | 1.5730ms | 0.2085ms | token-renderer | no |
-| 50,025 | 2.7764ms | 3.2381ms | 0.6857ms | general | 3.3707ms | 4.2071ms | 0.5124ms | token-renderer | no |
-| 100,450 | 8.3921ms | 9.5397ms | 1.3675ms | general | 10.37ms | 10.32ms | 1.1643ms | token-renderer | no |
-| 200,109 | 16.54ms | 19.13ms | 2.7806ms | full-chunk | 23.63ms | 23.61ms | 2.4479ms | token-renderer | no |
+| 5,193 | 0.2380ms | 0.2774ms | 0.0580ms | general | 0.3420ms | 0.3920ms | 0.0719ms | token-renderer | no |
+| 20,125 | 0.8635ms | 1.3640ms | 0.2502ms | general | 0.9901ms | 1.3582ms | 0.2045ms | token-renderer | no |
+| 50,025 | 2.0768ms | 2.5250ms | 0.5825ms | general | 2.4182ms | 3.2907ms | 0.5072ms | token-renderer | no |
+| 100,450 | 4.2204ms | 5.5621ms | 1.1340ms | general | 5.2094ms | 6.9108ms | 1.0337ms | token-renderer | no |
+| 200,109 | 10.12ms | 11.39ms | 2.2037ms | full-chunk | 11.26ms | 14.13ms | 1.9977ms | token-renderer | no |
 
 First recorded HTML difference at index 3:
 
@@ -67,9 +67,9 @@ Each MIT-licensed document is measured independently; files are not concatenated
 
 | File | Chars | TS parse | markdown-it parse | OX parse | TS parse path | TS render | markdown-it render | OX render | TS render path | HTML equal? |
 |:--|---:|---:|---:|---:|:--|---:|---:|---:|:--|:--|
-| docs/architecture.md | 6,564 | 0.1258ms | 0.1762ms | 0.0246ms | general | 0.1260ms | 0.1906ms | 0.0225ms | token-renderer | no |
-| docs/development.md | 4,756 | 0.1189ms | 0.1654ms | 0.0257ms | general | 0.1367ms | 0.1942ms | 0.0248ms | token-renderer | no |
-| docs/security.md | 1,375 | 0.0328ms | 0.0441ms | 0.0089ms | general | 0.0395ms | 0.0525ms | 0.0091ms | token-renderer | no |
+| docs/architecture.md | 6,564 | 0.0853ms | 0.1326ms | 0.0333ms | general | 0.1017ms | 0.1497ms | 0.0257ms | token-renderer | no |
+| docs/development.md | 4,756 | 0.1010ms | 0.1344ms | 0.0307ms | general | 0.1194ms | 0.1560ms | 0.0268ms | token-renderer | no |
+| docs/security.md | 1,375 | 0.0283ms | 0.0346ms | 0.0092ms | general | 0.0325ms | 0.0420ms | 0.0084ms | token-renderer | no |
 
 Render rows compare each library's native renderer behavior. A `no` in “HTML equal?” means the row must not be described as equivalent-output work; common differences include heading IDs and renderer-specific attributes/tags.
 
@@ -82,53 +82,53 @@ External parser rows use each library's native output shape; this matrix compare
 
 | Size (chars) | S1 one | S2 one | S3 one | S4 one | S5 one | M1 one | E1 one | OX1 one | OXJ one | MM1 one | S1 append(par) | S2 append(par) | S3 append(par) | S4 append(par) | S5 append(par) | M1 append(par) | E1 append(par) | OX1 append(par) | OXJ append(par) | MM1 append(par) | S1 append(line) | S2 append(line) | S3 append(line) | S4 append(line) | S5 append(line) | M1 append(line) | E1 append(line) | OX1 append(line) | OXJ append(line) | MM1 append(line) | S1 replace | S2 replace | S3 replace | S4 replace | S5 replace | M1 replace | E1 replace | OX1 replace | OXJ replace | MM1 replace |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 5000 | 0.2542ms | 0.2158ms | 0.2366ms | 0.2241ms | 0.0715ms | 0.2423ms | 0.3664ms | **0.0419ms** | 0.2142ms | 7.2915ms | 0.7763ms | 0.4252ms | 0.3107ms | 0.6785ms | 0.2018ms | 0.8049ms | 1.2200ms | **0.0881ms** | 0.2426ms | 25.05ms | 2.4464ms | 0.8707ms | 0.5687ms | 2.1433ms | 0.9925ms | 2.4619ms | 3.3881ms | **0.1265ms** | 0.3104ms | 70.83ms | 0.3781ms | 0.3372ms | 0.4142ms | 0.3805ms | 0.3135ms | 0.5990ms | 0.7791ms | **0.0440ms** | 0.2183ms | 6.7642ms |
-| 20000 | 0.9157ms | 0.7600ms | 0.9565ms | 0.9342ms | 0.2856ms | 0.9960ms | 1.4368ms | **0.1640ms** | 0.8173ms | 33.55ms | 3.0580ms | 1.0765ms | 1.0876ms | 3.0149ms | 0.9333ms | 3.3762ms | 4.7089ms | **0.2087ms** | 0.8618ms | 98.36ms | 8.2501ms | 1.5985ms | 2.2706ms | 8.4341ms | 3.7804ms | 9.1488ms | 13.10ms | **0.2771ms** | 0.9533ms | 299.47ms | 0.8948ms | 0.7697ms | 0.9334ms | 0.9516ms | 1.0268ms | 1.0418ms | 1.3799ms | **0.1580ms** | 0.8119ms | 40.38ms |
-| 50000 | 2.1417ms | 1.8804ms | 2.2307ms | 2.1466ms | 0.6262ms | 2.4261ms | 3.4820ms | **0.5091ms** | 2.1755ms | 89.91ms | 7.5539ms | 2.9401ms | 3.3364ms | 7.6616ms | 2.0113ms | 7.5485ms | 12.02ms | **0.4708ms** | 2.0647ms | 296.00ms | 20.42ms | 5.3153ms | 5.3564ms | 20.38ms | 5.6814ms | 21.44ms | 32.65ms | **0.5447ms** | 2.1659ms | 771.40ms | 2.1051ms | 1.9163ms | 2.0944ms | 2.1140ms | 2.4994ms | 2.3713ms | 3.6568ms | **0.5517ms** | 2.1358ms | 90.11ms |
-| 100000 | 4.6582ms | 6.4763ms | 4.6128ms | 4.6047ms | **1.4155ms** | 5.5873ms | 8.1144ms | 1.5506ms | 4.8778ms | 169.11ms | 16.58ms | 6.6907ms | 6.8152ms | 16.55ms | 3.7946ms | 16.07ms | 24.68ms | **0.9086ms** | 4.1040ms | 575.29ms | 43.12ms | 12.02ms | 12.06ms | 42.68ms | 11.13ms | 47.93ms | 67.28ms | **0.9760ms** | 4.1620ms | 1593.55ms | 4.5259ms | 5.7475ms | 4.3689ms | 4.4774ms | 7.6522ms | 5.7154ms | 7.9755ms | **1.5625ms** | 4.7842ms | 181.57ms |
-| 200000 | 10.65ms | 15.80ms | 10.46ms | 10.75ms | 5.9900ms | 10.53ms | 16.99ms | **3.2685ms** | 9.9966ms | 335.27ms | 36.75ms | 21.11ms | 15.28ms | 38.71ms | 9.3101ms | 53.31ms | 60.20ms | **2.2171ms** | 8.6894ms | 1244.36ms | 108.20ms | 27.83ms | 22.91ms | 107.60ms | 30.67ms | 108.59ms | 145.43ms | **1.9689ms** | 8.2139ms | 3166.89ms | 13.96ms | 13.51ms | 9.4993ms | 9.5703ms | 19.73ms | 10.26ms | 17.50ms | **3.2188ms** | 9.8848ms | 338.97ms |
-| 500000 | 43.11ms | 45.48ms | 42.37ms | 42.55ms | 24.23ms | 53.32ms | 64.32ms | **7.6040ms** | 25.31ms | - | 126.45ms | 56.75ms | 54.17ms | 127.10ms | 58.76ms | 188.61ms | 190.17ms | **5.4189ms** | 22.35ms | - | 374.46ms | 87.87ms | 72.42ms | 366.00ms | 238.35ms | 448.11ms | 554.47ms | **5.7915ms** | 22.02ms | - | 40.43ms | 39.99ms | 41.42ms | 43.32ms | 70.94ms | 57.29ms | 58.05ms | **7.2857ms** | 23.69ms | - |
-| 1000000 | 87.10ms | 78.05ms | 81.28ms | 83.32ms | 54.04ms | 100.79ms | 127.48ms | **14.72ms** | 50.41ms | - | 325.88ms | 103.30ms | 107.14ms | 306.78ms | 184.22ms | 372.29ms | 476.79ms | **11.41ms** | 43.91ms | - | 858.76ms | 139.43ms | 147.10ms | 831.74ms | 472.09ms | 1011.41ms | 1200.44ms | **12.63ms** | 44.32ms | - | 82.83ms | 86.94ms | 79.01ms | 105.09ms | 127.60ms | 135.33ms | 124.56ms | **13.84ms** | 49.88ms | - |
+| 5000 | 0.2284ms | 0.1638ms | 0.2022ms | 0.1965ms | 0.0660ms | 0.1908ms | 0.2896ms | **0.0431ms** | 0.1827ms | 3.4391ms | 0.6402ms | 0.3211ms | 0.3124ms | 0.5976ms | 0.1528ms | 0.6458ms | 0.8664ms | **0.0645ms** | 0.1992ms | 10.69ms | 1.8201ms | 0.4818ms | 0.4864ms | 1.6651ms | 0.8312ms | 1.8756ms | 2.5184ms | **0.0990ms** | 0.2403ms | 31.24ms | 0.1979ms | 0.1790ms | 0.1914ms | 0.1999ms | 0.2177ms | 0.2648ms | 0.4397ms | **0.0434ms** | 0.1758ms | 3.2272ms |
+| 20000 | 0.7784ms | 0.6135ms | 0.7746ms | 0.7589ms | 0.2130ms | 0.7542ms | 1.0695ms | **0.1637ms** | 0.7255ms | 16.89ms | 2.6861ms | 0.9646ms | 1.0791ms | 2.5295ms | 0.5430ms | 2.5974ms | 3.8743ms | **0.2008ms** | 0.7518ms | 54.91ms | 7.1553ms | 1.5114ms | 1.4142ms | 7.2253ms | 3.0837ms | 7.0964ms | 10.32ms | **0.2422ms** | 0.8117ms | 146.00ms | 0.8204ms | 0.5974ms | 0.7346ms | 0.8612ms | 0.7530ms | 0.7297ms | 1.0188ms | **0.1724ms** | 0.7193ms | 16.28ms |
+| 50000 | 1.9290ms | 1.5316ms | 1.9070ms | 1.9032ms | **0.4065ms** | 1.8855ms | 2.9695ms | 0.4297ms | 1.8025ms | 46.02ms | 6.7119ms | 2.6604ms | 2.7805ms | 6.4921ms | 1.1559ms | 6.4415ms | 8.7916ms | **0.4874ms** | 1.8541ms | 146.98ms | 18.12ms | 3.3163ms | 3.2746ms | 17.76ms | 2.9378ms | 18.90ms | 23.87ms | **0.5291ms** | 1.9288ms | 391.20ms | 2.0632ms | 1.4874ms | 1.9318ms | 1.8721ms | 1.7476ms | 2.3366ms | 2.6571ms | **0.4340ms** | 1.7987ms | 42.92ms |
+| 100000 | 4.0344ms | 3.1303ms | 4.4068ms | 3.9911ms | **0.7334ms** | 3.8097ms | 5.2725ms | 0.8513ms | 3.5717ms | 91.76ms | 13.50ms | 5.2359ms | 5.1880ms | 13.29ms | 2.0661ms | 12.94ms | 17.22ms | **0.9191ms** | 3.6221ms | 313.72ms | 36.52ms | 6.6221ms | 8.8055ms | 35.99ms | 6.2149ms | 36.09ms | 48.66ms | **0.9970ms** | 3.7761ms | 1109.80ms | 4.1019ms | 2.9946ms | 5.9920ms | 3.8081ms | 3.8056ms | 4.0829ms | 5.3973ms | **0.8275ms** | 3.6020ms | 92.19ms |
+| 200000 | 8.6335ms | 9.5947ms | 12.48ms | 8.9418ms | 1.7653ms | 9.3896ms | 11.58ms | **1.6908ms** | 7.0895ms | 178.93ms | 27.91ms | 14.92ms | 9.9071ms | 30.38ms | 5.1937ms | 28.03ms | 36.85ms | **1.9291ms** | 7.3644ms | 1165.65ms | 79.08ms | 13.03ms | 46.73ms | 90.22ms | 13.29ms | 72.52ms | 98.23ms | **1.9356ms** | 7.3384ms | 2879.57ms | 8.0783ms | 6.6939ms | 8.8385ms | 8.0015ms | 9.3796ms | 7.6536ms | 10.64ms | **1.6741ms** | 7.0408ms | 190.70ms |
+| 500000 | 28.42ms | 43.17ms | 23.19ms | 23.30ms | 5.9825ms | 35.65ms | 33.75ms | **4.5609ms** | 19.92ms | - | 68.86ms | 34.11ms | 39.61ms | 67.68ms | 13.99ms | 85.93ms | 106.35ms | **5.2818ms** | 18.61ms | - | 219.14ms | 155.85ms | 33.11ms | 192.51ms | 58.98ms | 234.81ms | 572.85ms | **5.0970ms** | 25.23ms | - | 32.51ms | 25.90ms | 19.76ms | 23.49ms | 24.41ms | 32.47ms | 29.13ms | **8.9168ms** | 72.80ms | - |
+| 1000000 | 52.66ms | 49.73ms | 57.22ms | 48.21ms | 19.03ms | 49.82ms | 66.43ms | **12.32ms** | 40.38ms | - | 226.60ms | 58.34ms | 73.48ms | 160.59ms | 41.45ms | 171.30ms | 205.10ms | **9.8582ms** | 61.86ms | - | 494.22ms | 83.46ms | 119.11ms | 422.18ms | 145.83ms | 480.95ms | 711.49ms | **15.01ms** | 39.43ms | - | 47.76ms | 75.69ms | 44.02ms | 70.93ms | 54.94ms | 51.59ms | 74.61ms | **17.69ms** | 43.54ms | - |
 
 Best markdown-it-ts configuration (one-shot) per size:
-- 5000: S5 0.0715ms (stream OFF, chunk OFF)
-- 20000: S5 0.2856ms (stream OFF, chunk OFF)
-- 50000: S5 0.6262ms (stream OFF, chunk OFF)
-- 100000: S5 1.4155ms (stream OFF, chunk OFF)
-- 200000: S5 5.9900ms (stream OFF, chunk OFF)
-- 500000: S5 24.23ms (stream OFF, chunk OFF)
-- 1000000: S5 54.04ms (stream OFF, chunk OFF)
+- 5000: S5 0.0660ms (stream OFF, chunk OFF)
+- 20000: S5 0.2130ms (stream OFF, chunk OFF)
+- 50000: S5 0.4065ms (stream OFF, chunk OFF)
+- 100000: S5 0.7334ms (stream OFF, chunk OFF)
+- 200000: S5 1.7653ms (stream OFF, chunk OFF)
+- 500000: S5 5.9825ms (stream OFF, chunk OFF)
+- 1000000: S5 19.03ms (stream OFF, chunk OFF)
 
 Best markdown-it-ts configuration (append workload) per size:
-- 5000: S5 0.2018ms (stream OFF, chunk OFF)
-- 20000: S5 0.9333ms (stream OFF, chunk OFF)
-- 50000: S5 2.0113ms (stream OFF, chunk OFF)
-- 100000: S5 3.7946ms (stream OFF, chunk OFF)
-- 200000: S5 9.3101ms (stream OFF, chunk OFF)
-- 500000: S3 54.17ms (stream ON, cache ON, chunk ON)
-- 1000000: S2 103.30ms (stream ON, cache ON, chunk OFF)
+- 5000: S5 0.1528ms (stream OFF, chunk OFF)
+- 20000: S5 0.5430ms (stream OFF, chunk OFF)
+- 50000: S5 1.1559ms (stream OFF, chunk OFF)
+- 100000: S5 2.0661ms (stream OFF, chunk OFF)
+- 200000: S5 5.1937ms (stream OFF, chunk OFF)
+- 500000: S5 13.99ms (stream OFF, chunk OFF)
+- 1000000: S5 41.45ms (stream OFF, chunk OFF)
 
 Best markdown-it-ts configuration (line-append workload) per size:
-- 5000: S3 0.5687ms (stream ON, cache ON, chunk ON)
-- 20000: S2 1.5985ms (stream ON, cache ON, chunk OFF)
-- 50000: S2 5.3153ms (stream ON, cache ON, chunk OFF)
-- 100000: S5 11.13ms (stream OFF, chunk OFF)
-- 200000: S3 22.91ms (stream ON, cache ON, chunk ON)
-- 500000: S3 72.42ms (stream ON, cache ON, chunk ON)
-- 1000000: S2 139.43ms (stream ON, cache ON, chunk OFF)
+- 5000: S2 0.4818ms (stream ON, cache ON, chunk OFF)
+- 20000: S3 1.4142ms (stream ON, cache ON, chunk ON)
+- 50000: S5 2.9378ms (stream OFF, chunk OFF)
+- 100000: S5 6.2149ms (stream OFF, chunk OFF)
+- 200000: S2 13.03ms (stream ON, cache ON, chunk OFF)
+- 500000: S3 33.11ms (stream ON, cache ON, chunk ON)
+- 1000000: S2 83.46ms (stream ON, cache ON, chunk OFF)
 
 Best markdown-it-ts configuration (replace-paragraph workload) per size:
-- 5000: S5 0.3135ms (stream OFF, chunk OFF)
-- 20000: S2 0.7697ms (stream ON, cache ON, chunk OFF)
-- 50000: S2 1.9163ms (stream ON, cache ON, chunk OFF)
-- 100000: S3 4.3689ms (stream ON, cache ON, chunk ON)
-- 200000: S3 9.4993ms (stream ON, cache ON, chunk ON)
-- 500000: S2 39.99ms (stream ON, cache ON, chunk OFF)
-- 1000000: S3 79.01ms (stream ON, cache ON, chunk ON)
+- 5000: S2 0.1790ms (stream ON, cache ON, chunk OFF)
+- 20000: S2 0.5974ms (stream ON, cache ON, chunk OFF)
+- 50000: S2 1.4874ms (stream ON, cache ON, chunk OFF)
+- 100000: S2 2.9946ms (stream ON, cache ON, chunk OFF)
+- 200000: S2 6.6939ms (stream ON, cache ON, chunk OFF)
+- 500000: S3 19.76ms (stream ON, cache ON, chunk ON)
+- 1000000: S3 44.02ms (stream ON, cache ON, chunk ON)
 
 markdown-it-ts tuning recommendations (by majority across sizes):
 - One-shot: S5(7)
-- Append-heavy: S5(5), S3(1), S2(1)
+- Append-heavy: S5(7)
 
 Notes: S2/S3 appendHits should equal 5 when append fast-path triggers (shared env).
 Large-size rows may show `-` for especially heavy parse-only or render-only baselines (currently remark/micromark above 200k) so `perf:all` stays practical.
@@ -140,75 +140,75 @@ It is intentionally a full render-API benchmark (`parse + render`), not a render
 
 | Size (chars) | markdown-it-ts.render | markdown-it-ts.renderAsync | markdown-it.render | @ox-content/napi | micromark | remark+rehype | markdown-exit |
 |---:|---:|---:|---:|---:|---:|---:|---:|
-| 5000 | 0.0245ms | 0.0211ms | 0.2894ms | 0.0403ms | 8.6954ms | 10.31ms | 0.4051ms |
-| 20000 | 0.0780ms | 0.0780ms | 1.2084ms | 0.1522ms | 41.30ms | 41.47ms | 1.6526ms |
-| 50000 | 0.1913ms | 0.1899ms | 3.1148ms | 0.3693ms | 102.36ms | 129.48ms | 4.3408ms |
-| 100000 | 0.3905ms | 0.4303ms | 8.8950ms | 0.8253ms | 213.84ms | 267.69ms | 11.69ms |
-| 200000 | 0.8627ms | 0.8851ms | 17.56ms | 1.7537ms | 411.78ms | 663.94ms | 25.87ms |
-| 500000 | 3.4997ms | 2.9928ms | 58.38ms | 4.4213ms | - | - | 70.90ms |
-| 1000000 | 7.6083ms | 7.0791ms | 135.35ms | 9.6527ms | - | - | 139.22ms |
+| 5000 | 0.0217ms | 0.0187ms | 0.2357ms | 0.0382ms | 4.1373ms | 5.1046ms | 0.3052ms |
+| 20000 | 0.0725ms | 0.0711ms | 0.9361ms | 0.1521ms | 19.53ms | 23.44ms | 1.2117ms |
+| 50000 | 0.1773ms | 0.1756ms | 2.3663ms | 0.3792ms | 55.59ms | 77.08ms | 3.0686ms |
+| 100000 | 0.3516ms | 0.3531ms | 5.3570ms | 0.7985ms | 120.96ms | 171.05ms | 6.6713ms |
+| 200000 | 0.6937ms | 0.6976ms | 10.42ms | 1.5131ms | 220.28ms | 403.77ms | 13.29ms |
+| 500000 | 2.3987ms | 2.3754ms | 31.83ms | 3.7692ms | - | - | 38.85ms |
+| 1000000 | 4.9890ms | 5.0112ms | 70.33ms | 7.5376ms | - | - | 83.01ms |
 
 Render vs markdown-it:
-- 5,000 chars: 0.0245ms vs 0.2894ms → 11.80× faster
-- 20,000 chars: 0.0780ms vs 1.2084ms → 15.49× faster
-- 50,000 chars: 0.1913ms vs 3.1148ms → 16.28× faster
-- 100,000 chars: 0.3905ms vs 8.8950ms → 22.78× faster
-- 200,000 chars: 0.8627ms vs 17.56ms → 20.36× faster
-- 500,000 chars: 3.4997ms vs 58.38ms → 16.68× faster
-- 1,000,000 chars: 7.6083ms vs 135.35ms → 17.79× faster
+- 5,000 chars: 0.0217ms vs 0.2357ms → 10.85× faster
+- 20,000 chars: 0.0725ms vs 0.9361ms → 12.92× faster
+- 50,000 chars: 0.1773ms vs 2.3663ms → 13.35× faster
+- 100,000 chars: 0.3516ms vs 5.3570ms → 15.24× faster
+- 200,000 chars: 0.6937ms vs 10.42ms → 15.03× faster
+- 500,000 chars: 2.3987ms vs 31.83ms → 13.27× faster
+- 1,000,000 chars: 4.9890ms vs 70.33ms → 14.10× faster
 
 Render vs @ox-content/napi:
-- 5,000 chars: 0.0245ms vs 0.0403ms → 1.64× faster, 39.2% less time
-- 20,000 chars: 0.0780ms vs 0.1522ms → 1.95× faster, 48.7% less time
-- 50,000 chars: 0.1913ms vs 0.3693ms → 1.93× faster, 48.2% less time
-- 100,000 chars: 0.3905ms vs 0.8253ms → 2.11× faster, 52.7% less time
-- 200,000 chars: 0.8627ms vs 1.7537ms → 2.03× faster, 50.8% less time
-- 500,000 chars: 3.4997ms vs 4.4213ms → 1.26× faster, 20.8% less time
-- 1,000,000 chars: 7.6083ms vs 9.6527ms → 1.27× faster, 21.2% less time
+- 5,000 chars: 0.0217ms vs 0.0382ms → 1.76× faster, 43.1% less time
+- 20,000 chars: 0.0725ms vs 0.1521ms → 2.1× faster, 52.4% less time
+- 50,000 chars: 0.1773ms vs 0.3792ms → 2.14× faster, 53.2% less time
+- 100,000 chars: 0.3516ms vs 0.7985ms → 2.27× faster, 56% less time
+- 200,000 chars: 0.6937ms vs 1.5131ms → 2.18× faster, 54.2% less time
+- 500,000 chars: 2.3987ms vs 3.7692ms → 1.57× faster, 36.4% less time
+- 1,000,000 chars: 4.9890ms vs 7.5376ms → 1.51× faster, 33.8% less time
 
 RenderAsync vs @ox-content/napi:
-- 5,000 chars: 0.0211ms vs 0.0403ms → 1.91× faster, 47.7% less time
-- 20,000 chars: 0.0780ms vs 0.1522ms → 1.95× faster, 48.8% less time
-- 50,000 chars: 0.1899ms vs 0.3693ms → 1.94× faster, 48.6% less time
-- 100,000 chars: 0.4303ms vs 0.8253ms → 1.92× faster, 47.9% less time
-- 200,000 chars: 0.8851ms vs 1.7537ms → 1.98× faster, 49.5% less time
-- 500,000 chars: 2.9928ms vs 4.4213ms → 1.48× faster, 32.3% less time
-- 1,000,000 chars: 7.0791ms vs 9.6527ms → 1.36× faster, 26.7% less time
+- 5,000 chars: 0.0187ms vs 0.0382ms → 2.04× faster, 50.9% less time
+- 20,000 chars: 0.0711ms vs 0.1521ms → 2.14× faster, 53.2% less time
+- 50,000 chars: 0.1756ms vs 0.3792ms → 2.16× faster, 53.7% less time
+- 100,000 chars: 0.3531ms vs 0.7985ms → 2.26× faster, 55.8% less time
+- 200,000 chars: 0.6976ms vs 1.5131ms → 2.17× faster, 53.9% less time
+- 500,000 chars: 2.3754ms vs 3.7692ms → 1.59× faster, 37% less time
+- 1,000,000 chars: 5.0112ms vs 7.5376ms → 1.5× faster, 33.5% less time
 
 Render vs micromark:
-- 5,000 chars: 0.0245ms vs 8.6954ms → 354.66× faster
-- 20,000 chars: 0.0780ms vs 41.30ms → 529.28× faster
-- 50,000 chars: 0.1913ms vs 102.36ms → 535.07× faster
-- 100,000 chars: 0.3905ms vs 213.84ms → 547.60× faster
-- 200,000 chars: 0.8627ms vs 411.78ms → 477.31× faster
+- 5,000 chars: 0.0217ms vs 4.1373ms → 190.45× faster
+- 20,000 chars: 0.0725ms vs 19.53ms → 269.52× faster
+- 50,000 chars: 0.1773ms vs 55.59ms → 313.60× faster
+- 100,000 chars: 0.3516ms vs 120.96ms → 344.06× faster
+- 200,000 chars: 0.6937ms vs 220.28ms → 317.56× faster
 
 Render vs remark+rehype:
-- 5,000 chars: 0.0245ms vs 10.31ms → 420.69× faster
-- 20,000 chars: 0.0780ms vs 41.47ms → 531.45× faster
-- 50,000 chars: 0.1913ms vs 129.48ms → 676.81× faster
-- 100,000 chars: 0.3905ms vs 267.69ms → 685.50× faster
-- 200,000 chars: 0.8627ms vs 663.94ms → 769.61× faster
+- 5,000 chars: 0.0217ms vs 5.1046ms → 234.98× faster
+- 20,000 chars: 0.0725ms vs 23.44ms → 323.53× faster
+- 50,000 chars: 0.1773ms vs 77.08ms → 434.82× faster
+- 100,000 chars: 0.3516ms vs 171.05ms → 486.55× faster
+- 200,000 chars: 0.6937ms vs 403.77ms → 582.08× faster
 
 Render vs markdown-exit:
-- 5,000 chars: 0.0245ms vs 0.4051ms → 16.52× faster
-- 20,000 chars: 0.0780ms vs 1.6526ms → 21.18× faster
-- 50,000 chars: 0.1913ms vs 4.3408ms → 22.69× faster
-- 100,000 chars: 0.3905ms vs 11.69ms → 29.94× faster
-- 200,000 chars: 0.8627ms vs 25.87ms → 29.99× faster
-- 500,000 chars: 3.4997ms vs 70.90ms → 20.26× faster
-- 1,000,000 chars: 7.6083ms vs 139.22ms → 18.30× faster
+- 5,000 chars: 0.0217ms vs 0.3052ms → 14.05× faster
+- 20,000 chars: 0.0725ms vs 1.2117ms → 16.72× faster
+- 50,000 chars: 0.1773ms vs 3.0686ms → 17.31× faster
+- 100,000 chars: 0.3516ms vs 6.6713ms → 18.98× faster
+- 200,000 chars: 0.6937ms vs 13.29ms → 19.15× faster
+- 500,000 chars: 2.3987ms vs 38.85ms → 16.20× faster
+- 1,000,000 chars: 4.9890ms vs 83.01ms → 16.64× faster
 
 ## Tuned / best-of markdown-it-ts vs markdown-it (stock subset)
 
 | Size (chars) | TS best one | Baseline one | One comparison | TS best append | Baseline append | Append comparison | TS scenario (one/append) |
 |---:|---:|---:|:--|---:|---:|:--|:--|
-| 5000 | 0.0715ms | 0.2423ms | 3.39× faster, 70.5% less time | 0.2018ms | 0.8049ms | 3.99× faster, 74.9% less time | S5/S5 |
-| 20000 | 0.2856ms | 0.9960ms | 3.49× faster, 71.3% less time | 0.9333ms | 3.3762ms | 3.62× faster, 72.4% less time | S5/S5 |
-| 50000 | 0.6262ms | 2.4261ms | 3.87× faster, 74.2% less time | 2.0113ms | 7.5485ms | 3.75× faster, 73.4% less time | S5/S5 |
-| 100000 | 1.4155ms | 5.5873ms | 3.95× faster, 74.7% less time | 3.7946ms | 16.07ms | 4.23× faster, 76.4% less time | S5/S5 |
-| 200000 | 5.9900ms | 10.53ms | 1.76× faster, 43.1% less time | 9.3101ms | 53.31ms | 5.73× faster, 82.5% less time | S5/S5 |
-| 500000 | 24.23ms | 53.32ms | 2.2× faster, 54.6% less time | 54.17ms | 188.61ms | 3.48× faster, 71.3% less time | S5/S3 |
-| 1000000 | 54.04ms | 100.79ms | 1.86× faster, 46.4% less time | 103.30ms | 372.29ms | 3.6× faster, 72.3% less time | S5/S2 |
+| 5000 | 0.0660ms | 0.1908ms | 2.89× faster, 65.4% less time | 0.1528ms | 0.6458ms | 4.23× faster, 76.3% less time | S5/S5 |
+| 20000 | 0.2130ms | 0.7542ms | 3.54× faster, 71.8% less time | 0.5430ms | 2.5974ms | 4.78× faster, 79.1% less time | S5/S5 |
+| 50000 | 0.4065ms | 1.8855ms | 4.64× faster, 78.4% less time | 1.1559ms | 6.4415ms | 5.57× faster, 82.1% less time | S5/S5 |
+| 100000 | 0.7334ms | 3.8097ms | 5.19× faster, 80.7% less time | 2.0661ms | 12.94ms | 6.26× faster, 84% less time | S5/S5 |
+| 200000 | 1.7653ms | 9.3896ms | 5.32× faster, 81.2% less time | 5.1937ms | 28.03ms | 5.4× faster, 81.5% less time | S5/S5 |
+| 500000 | 5.9825ms | 35.65ms | 5.96× faster, 83.2% less time | 13.99ms | 85.93ms | 6.14× faster, 83.7% less time | S5/S5 |
+| 1000000 | 19.03ms | 49.82ms | 2.62× faster, 61.8% less time | 41.45ms | 171.30ms | 4.13× faster, 75.8% less time | S5/S5 |
 
 - Comparison columns are written from markdown-it-ts against the markdown-it baseline.
 - `faster / less time` is better; if a future run regresses, the wording will flip to `slower / more time`.
@@ -219,13 +219,13 @@ Note: the @ox-content/napi parse-only API returns an AST JSON string; these pars
 
 | Size (chars) | TS best one | @ox-content/napi one | One comparison | TS best append | @ox-content/napi append | Append comparison | TS scenario (one/append) |
 |---:|---:|---:|:--|---:|---:|:--|:--|
-| 5000 | 0.0715ms | 0.0419ms | 1.7× slower, 70.4% more time | 0.2018ms | 0.0881ms | 2.29× slower, 129.1% more time | S5/S5 |
-| 20000 | 0.2856ms | 0.1640ms | 1.74× slower, 74.2% more time | 0.9333ms | 0.2087ms | 4.47× slower, 347.2% more time | S5/S5 |
-| 50000 | 0.6262ms | 0.5091ms | 1.23× slower, 23% more time | 2.0113ms | 0.4708ms | 4.27× slower, 327.2% more time | S5/S5 |
-| 100000 | 1.4155ms | 1.5506ms | 1.1× faster, 8.7% less time | 3.7946ms | 0.9086ms | 4.18× slower, 317.6% more time | S5/S5 |
-| 200000 | 5.9900ms | 3.2685ms | 1.83× slower, 83.3% more time | 9.3101ms | 2.2171ms | 4.2× slower, 319.9% more time | S5/S5 |
-| 500000 | 24.23ms | 7.6040ms | 3.19× slower, 218.6% more time | 54.17ms | 5.4189ms | 10× slower, 899.7% more time | S5/S3 |
-| 1000000 | 54.04ms | 14.72ms | 3.67× slower, 267.1% more time | 103.30ms | 11.41ms | 9.06× slower, 805.7% more time | S5/S2 |
+| 5000 | 0.0660ms | 0.0431ms | 1.53× slower, 53.2% more time | 0.1528ms | 0.0645ms | 2.37× slower, 136.8% more time | S5/S5 |
+| 20000 | 0.2130ms | 0.1637ms | 1.3× slower, 30.1% more time | 0.5430ms | 0.2008ms | 2.7× slower, 170.4% more time | S5/S5 |
+| 50000 | 0.4065ms | 0.4297ms | 1.06× faster, 5.4% less time | 1.1559ms | 0.4874ms | 2.37× slower, 137.2% more time | S5/S5 |
+| 100000 | 0.7334ms | 0.8513ms | 1.16× faster, 13.8% less time | 2.0661ms | 0.9191ms | 2.25× slower, 124.8% more time | S5/S5 |
+| 200000 | 1.7653ms | 1.6908ms | 1.04× slower, 4.4% more time | 5.1937ms | 1.9291ms | 2.69× slower, 169.2% more time | S5/S5 |
+| 500000 | 5.9825ms | 4.5609ms | 1.31× slower, 31.2% more time | 13.99ms | 5.2818ms | 2.65× slower, 164.8% more time | S5/S5 |
+| 1000000 | 19.03ms | 12.32ms | 1.54× slower, 54.5% more time | 41.45ms | 9.8582ms | 4.21× slower, 320.5% more time | S5/S5 |
 
 - Append comparison uses markdown-it-ts stream append fast paths against @ox-content/napi incremental parser appends.
 
@@ -233,13 +233,13 @@ If the @ox-content/napi AST JSON string is parsed into JavaScript objects immedi
 
 | Size (chars) | TS best one | @ox-content/napi parse + JSON.parse | One comparison |
 |---:|---:|---:|:--|
-| 5000 | 0.0715ms | 0.2142ms | 3× faster, 66.6% less time |
-| 20000 | 0.2856ms | 0.8173ms | 2.86× faster, 65.1% less time |
-| 50000 | 0.6262ms | 2.1755ms | 3.47× faster, 71.2% less time |
-| 100000 | 1.4155ms | 4.8778ms | 3.45× faster, 71% less time |
-| 200000 | 5.9900ms | 9.9966ms | 1.67× faster, 40.1% less time |
-| 500000 | 24.23ms | 25.31ms | 1.04× faster, 4.3% less time |
-| 1000000 | 54.04ms | 50.41ms | 1.07× slower, 7.2% more time |
+| 5000 | 0.0660ms | 0.1827ms | 2.77× faster, 63.9% less time |
+| 20000 | 0.2130ms | 0.7255ms | 3.41× faster, 70.6% less time |
+| 50000 | 0.4065ms | 1.8025ms | 4.43× faster, 77.4% less time |
+| 100000 | 0.7334ms | 3.5717ms | 4.87× faster, 79.5% less time |
+| 200000 | 1.7653ms | 7.0895ms | 4.02× faster, 75.1% less time |
+| 500000 | 5.9825ms | 19.92ms | 3.33× faster, 70% less time |
+| 1000000 | 19.03ms | 40.38ms | 2.12× faster, 52.9% less time |
 
 ## Equivalent-output stock-subset AST JSON
 
@@ -247,13 +247,13 @@ This is not the default markdown-it-compatible `Token[]` API. Before timing, the
 
 | Size (chars) | markdown-it-ts stock AST JSON | @ox-content/napi parse | TS vs ox | @ox-content/napi parse + JSON.parse |
 |---:|---:|---:|:--|---:|
-| 5000 | 0.0314ms | 0.0412ms | 1.31× faster, 23.8% less time | 0.2096ms |
-| 20000 | 0.1101ms | 0.1576ms | 1.43× faster, 30.2% less time | 0.8098ms |
-| 50000 | 0.2387ms | 0.4933ms | 2.07× faster, 51.6% less time | 2.1666ms |
-| 100000 | 0.5411ms | 0.9846ms | 1.82× faster, 45% less time | 4.2864ms |
-| 200000 | 1.0811ms | 2.1047ms | 1.95× faster, 48.6% less time | 8.6400ms |
-| 500000 | 3.0160ms | 5.3626ms | 1.78× faster, 43.8% less time | 22.84ms |
-| 1000000 | 7.2475ms | 13.74ms | 1.9× faster, 47.3% less time | 49.95ms |
+| 5000 | 0.0253ms | 0.0421ms | 1.67× faster, 40% less time | 0.1864ms |
+| 20000 | 0.0856ms | 0.1676ms | 1.96× faster, 48.9% less time | 0.7382ms |
+| 50000 | 0.2213ms | 0.4462ms | 2.02× faster, 50.4% less time | 1.9473ms |
+| 100000 | 0.9534ms | 2.5608ms | 2.69× faster, 62.8% less time | 3.7705ms |
+| 200000 | 0.8367ms | 1.6981ms | 2.03× faster, 50.7% less time | 7.2637ms |
+| 500000 | 2.0791ms | 4.2692ms | 2.05× faster, 51.3% less time | 18.49ms |
+| 1000000 | 4.4975ms | 11.07ms | 2.46× faster, 59.4% less time | 40.90ms |
 
 
 ### Diagnostic: Chunk Info (if chunked)
@@ -276,46 +276,46 @@ Cold-start parses instantiate a new parser and run once with no warmup. Hot pars
 
 | Impl | Cold | Hot |
 |:--|---:|---:|
-| @ox-content/napi (parse + JSON.parse) | 0.2049ms | 0.2045ms |
-| @ox-content/napi (parse only) | 0.0412ms | 0.0406ms |
-| markdown-exit | 0.6701ms | 0.7338ms |
-| markdown-it (baseline) | 0.2558ms | 0.2170ms |
-| markdown-it-ts (stream+chunk) | 0.2436ms | 0.4170ms |
-| micromark (parse only) | 8.4662ms | 8.4645ms |
-| remark (parse only) | 8.6140ms | 9.0889ms |
+| @ox-content/napi (parse + JSON.parse) | 0.1799ms | 0.1799ms |
+| @ox-content/napi (parse only) | 0.0465ms | 0.0418ms |
+| markdown-exit | 0.2810ms | 0.2456ms |
+| markdown-it (baseline) | 0.2035ms | 0.1870ms |
+| markdown-it-ts (stream+chunk) | 0.2654ms | 0.2574ms |
+| micromark (parse only) | 4.2228ms | 4.0675ms |
+| remark (parse only) | 5.9033ms | 4.4642ms |
 
 #### 20,000 chars
 
 | Impl | Cold | Hot |
 |:--|---:|---:|
-| @ox-content/napi (parse + JSON.parse) | 0.8221ms | 0.8013ms |
-| @ox-content/napi (parse only) | 0.1809ms | 0.1600ms |
-| markdown-exit | 1.3765ms | 1.4149ms |
-| markdown-it (baseline) | 0.9390ms | 0.9856ms |
-| markdown-it-ts (stream+chunk) | 0.9356ms | 0.9722ms |
-| micromark (parse only) | 29.37ms | 28.79ms |
-| remark (parse only) | 38.46ms | 40.72ms |
+| @ox-content/napi (parse + JSON.parse) | 0.7161ms | 0.7095ms |
+| @ox-content/napi (parse only) | 0.1690ms | 0.1644ms |
+| markdown-exit | 1.0779ms | 0.9821ms |
+| markdown-it (baseline) | 0.7636ms | 0.7604ms |
+| markdown-it-ts (stream+chunk) | 0.8210ms | 0.7414ms |
+| micromark (parse only) | 15.78ms | 18.01ms |
+| remark (parse only) | 20.47ms | 22.58ms |
 
 #### 50,000 chars
 
 | Impl | Cold | Hot |
 |:--|---:|---:|
-| @ox-content/napi (parse + JSON.parse) | 2.1198ms | 2.1412ms |
-| @ox-content/napi (parse only) | 0.4966ms | 0.4943ms |
-| markdown-exit | 3.3057ms | 3.9086ms |
-| markdown-it (baseline) | 3.0794ms | 2.7366ms |
-| markdown-it-ts (stream+chunk) | 2.2224ms | 2.5434ms |
-| micromark (parse only) | 76.03ms | 84.85ms |
-| remark (parse only) | 112.11ms | 115.28ms |
+| @ox-content/napi (parse + JSON.parse) | 1.8277ms | 2.1464ms |
+| @ox-content/napi (parse only) | 0.4365ms | 0.4378ms |
+| markdown-exit | 2.4909ms | 2.9154ms |
+| markdown-it (baseline) | 1.7881ms | 2.0018ms |
+| markdown-it-ts (stream+chunk) | 1.8517ms | 2.0299ms |
+| micromark (parse only) | 44.32ms | 47.60ms |
+| remark (parse only) | 62.51ms | 64.78ms |
 
 #### 100,000 chars
 
 | Impl | Cold | Hot |
 |:--|---:|---:|
-| @ox-content/napi (parse + JSON.parse) | 4.1971ms | 4.1985ms |
-| @ox-content/napi (parse only) | 0.9722ms | 1.0236ms |
-| markdown-exit | 10.12ms | 11.12ms |
-| markdown-it (baseline) | 7.1311ms | 8.4571ms |
-| markdown-it-ts (stream+chunk) | 4.8467ms | 6.5681ms |
-| micromark (parse only) | 166.66ms | 174.98ms |
-| remark (parse only) | 228.84ms | 248.15ms |
+| @ox-content/napi (parse + JSON.parse) | 3.6139ms | 3.6053ms |
+| @ox-content/napi (parse only) | 0.8606ms | 0.8698ms |
+| markdown-exit | 5.0458ms | 5.3329ms |
+| markdown-it (baseline) | 3.6969ms | 4.4164ms |
+| markdown-it-ts (stream+chunk) | 3.9625ms | 4.2314ms |
+| micromark (parse only) | 99.42ms | 99.65ms |
+| remark (parse only) | 152.68ms | 150.77ms |
