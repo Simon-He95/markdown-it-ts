@@ -69,14 +69,16 @@ export class StreamBuffer {
     if (newlineCount < 2)
       return null
 
-    const tokens = this.md.stream.append(segment)
+    const tokens = this.md.stream.hasCache()
+      ? this.md.stream.append(segment)
+      : this.md.stream.parse(this.text)
     this.lastFlushedLength = this.text.length
     return tokens
   }
 
   // Force flush regardless of boundary; ensures final state is parsed
   flushForce(): Token[] {
-    const tokens = this.lastFlushedLength === 0
+    const tokens = this.lastFlushedLength === 0 || !this.md.stream.hasCache()
       ? this.md.stream.parse(this.text)
       : this.md.stream.append(this.text.slice(this.lastFlushedLength))
     this.lastFlushedLength = this.text.length

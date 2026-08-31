@@ -182,6 +182,7 @@ export interface MarkdownIt {
     snapshot: () => StreamSnapshot | null
     restore: (snapshot: StreamSnapshot) => TokenType[]
     reset: () => void
+    hasCache: () => boolean
     peek: () => TokenType[]
     stats: () => StreamStats
     resetStats: () => void
@@ -890,6 +891,9 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
     },
     reset() {
       getStreamParser().reset()
+    },
+    hasCache() {
+      return streamParser?.hasCache() ?? false
     },
     peek() {
       return streamParser ? streamParser.peek() : []

@@ -6,6 +6,39 @@ import { StreamBuffer } from '../../src/experimental'
 // We reuse the same longDoc from the parser test.
 
 describe('stream buffer', () => {
+  it('reparses buffered history after the stream cache is reset', () => {
+    const md = MarkdownIt({ stream: true })
+    const buffer = new StreamBuffer(md)
+
+    buffer.feed('# History\n\n')
+    expect(buffer.flushIfBoundary()).not.toBeNull()
+    md.stream.reset()
+
+    buffer.feed('Continued response.\n\n')
+    const tokens = buffer.flushIfBoundary()!
+
+    expect(md.renderer.render(tokens, md.options, {})).toBe(MarkdownIt().render(buffer.getText()))
+  })
+
+  it('reparses buffered history when the large stream cache is skipped', () => {
+    const md = MarkdownIt({
+      stream: true,
+      streamLargeCachePolicy: 'skip',
+      streamOptimizationMinSize: 0,
+      streamSkipCacheAboveChars: 32,
+      streamSkipCacheAboveLines: 2,
+    })
+    const buffer = new StreamBuffer(md)
+
+    buffer.feed(`# History\n\n${'Stable paragraph.\n\n'.repeat(4)}`)
+    expect(buffer.flushIfBoundary()).not.toBeNull()
+
+    buffer.feed('Continued response.\n\n')
+    const tokens = buffer.flushIfBoundary()!
+
+    expect(md.renderer.render(tokens, md.options, {})).toBe(MarkdownIt().render(buffer.getText()))
+  })
+
   it('accumulates input and flushes at boundaries to get append hits', () => {
     const md = MarkdownIt({ stream: true })
     const baseline = MarkdownIt()

@@ -65,6 +65,39 @@ interface InternalStreamSnapshot extends StreamSnapshot {
 const EMPTY_TOKENS: Token[] = []
 const GLOBAL_STATE_APPEND_SCAN_WINDOW = 4096
 
+function copyOptions(options: MarkdownIt['options']): MarkdownIt['options'] {
+  const copy = { ...options }
+  if (Array.isArray(options.quotes))
+    copy.quotes = [...options.quotes]
+  if (options.experimental)
+    copy.experimental = { ...options.experimental }
+  return copy
+}
+
+function optionsEqual(left: MarkdownIt['options'], right: MarkdownIt['options']): boolean {
+  const keys = Object.keys(right) as (keyof MarkdownIt['options'])[]
+  if (Object.keys(left).length !== keys.length)
+    return false
+
+  return keys.every((key) => {
+    if (!Object.hasOwn(left, key))
+      return false
+
+    const leftValue = left[key]
+    const rightValue = right[key]
+    if (Array.isArray(leftValue) && Array.isArray(rightValue))
+      return leftValue.length === rightValue.length && leftValue.every((value, index) => Object.is(value, rightValue[index]))
+    if (key === 'experimental' && leftValue && rightValue) {
+      const leftExperimental = leftValue as NonNullable<MarkdownIt['options']['experimental']>
+      const rightExperimental = rightValue as NonNullable<MarkdownIt['options']['experimental']>
+      const experimentalKeys = Object.keys(rightExperimental) as (keyof typeof rightExperimental)[]
+      return Object.keys(leftExperimental).length === experimentalKeys.length
+        && experimentalKeys.every(option => Object.hasOwn(leftExperimental, option) && Object.is(leftExperimental[option], rightExperimental[option]))
+    }
+    return Object.is(leftValue, rightValue)
+  })
+}
+
 function appendedHasBlockConstructs(s: string): boolean {
   const len = s.length
   let lineStart = 0
@@ -309,7 +342,7 @@ export class StreamParser {
 
     const snapshot: InternalStreamSnapshot = {
       cache,
-      options: md.options,
+      options: copyOptions(md.options),
       coreVersion: md.core.ruler.version,
       blockVersion: md.block.ruler.version,
       inlineVersion: md.inline.ruler.version,
@@ -326,7 +359,7 @@ export class StreamParser {
       throw new TypeError('Invalid stream snapshot')
 
     const internal = snapshot as InternalStreamSnapshot
-    const rulesUnchanged = internal.options === md.options
+    const rulesUnchanged = optionsEqual(internal.options, md.options)
       && internal.coreVersion === md.core.ruler.version
       && internal.blockVersion === md.block.ruler.version
       && internal.inlineVersion === md.inline.ruler.version
@@ -343,7 +376,7 @@ export class StreamParser {
     const tokens = this.parse(src, env, md)
     if (this.cache) {
       internal.cache = this.cache
-      internal.options = md.options
+      internal.options = copyOptions(md.options)
       internal.coreVersion = md.core.ruler.version
       internal.blockVersion = md.block.ruler.version
       internal.inlineVersion = md.inline.ruler.version
@@ -1431,6 +1464,10 @@ export class StreamParser {
 
   public peek(): Token[] {
     return this.cache?.tokens ?? EMPTY_TOKENS
+  }
+
+  public hasCache(): boolean {
+    return this.cache !== null
   }
 
   public getStats(): StreamStats {

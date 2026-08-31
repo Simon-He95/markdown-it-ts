@@ -229,6 +229,39 @@ describe('stream parser', () => {
     parseSpy.mockRestore()
   })
 
+  it('reparses a snapshot after parser options are mutated in place', () => {
+    const md = MarkdownIt({ stream: true })
+    const source = '"quoted text"\n'
+    md.stream.parse(source)
+    const snapshot = md.stream.snapshot()!
+    const parseSpy = vi.spyOn(md.core, 'parse')
+
+    md.options.typographer = true
+    const tokens = md.stream.restore(snapshot)
+
+    expect(parseSpy).toHaveBeenCalled()
+    expect(md.renderer.render(tokens, md.options, {})).toContain('“quoted text”')
+    parseSpy.mockRestore()
+  })
+
+  it('reparses a snapshot after a nested parser option is mutated in place', () => {
+    const md = MarkdownIt({
+      stream: true,
+      typographer: true,
+      quotes: ['“', '”', '‘', '’'],
+    })
+    const source = '"quoted text"\n'
+    md.stream.parse(source)
+    const snapshot = md.stream.snapshot()!
+
+    const quotes = md.options.quotes as [string, string, string, string]
+    quotes[0] = '「'
+    quotes[1] = '」'
+    const tokens = md.stream.restore(snapshot)
+
+    expect(md.renderer.render(tokens, md.options, {})).toContain('「quoted text」')
+  })
+
   it('falls back to full parse when an append introduces a reference definition', () => {
     const md = MarkdownIt({ stream: true })
     const before = '[x][ref]\n\n'
