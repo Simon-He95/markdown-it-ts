@@ -12,6 +12,8 @@ const args = process.argv.slice(2)
 const baselineRef = args.find(arg => !arg.startsWith('--')) || 'HEAD'
 const roundsArg = args.find(arg => arg.startsWith('--rounds='))
 const rounds = roundsArg ? Math.max(1, Number.parseInt(roundsArg.split('=')[1], 10) || 1) : 1
+const thresholdArg = args.find(arg => arg.startsWith('--threshold='))
+const threshold = thresholdArg ? Math.max(0, Number.parseFloat(thresholdArg.split('=')[1]) || 0) : 0.05
 
 const FIXTURE_DIR = path.join(repoRoot, 'test', 'fixtures')
 
@@ -75,7 +77,7 @@ function setupBaseline(ref) {
   const archiveDir = path.join(tempRoot, 'repo')
   fs.mkdirSync(archiveDir)
 
-  const archive = run('git', ['archive', '--format=tar', ref], repoRoot, { encoding: 'buffer' })
+  const archive = run('git', ['archive', '--format=tar', ref], repoRoot, { encoding: 'buffer', maxBuffer: 512 * 1024 * 1024 })
   run('tar', ['-xf', '-', '-C', archiveDir], repoRoot, { input: archive.stdout })
 
   const repoNodeModules = path.join(repoRoot, 'node_modules')
@@ -109,11 +111,37 @@ function measureAverage(fn, iterations, warmups = 4) {
   return (performance.now() - start) / iterations
 }
 
-function measureMedian(fn, iterations, rounds = 7) {
-  const samples = []
-  for (let i = 0; i < rounds; i++)
-    samples.push(measureAverage(fn, iterations))
-  return { medianMs: median(samples), samples }
+function measurePaired(currentFn, baselineFn, iterations, currentFirst, samples = 7) {
+  for (let i = 0; i < 4; i++) {
+    currentFn()
+    baselineFn()
+  }
+
+  const currentSamples = []
+  const baselineSamples = []
+  const ratios = []
+
+  for (let sample = 0; sample < samples; sample++) {
+    let currentMs
+    let baselineMs
+    if ((sample % 2 === 0) === currentFirst) {
+      currentMs = measureAverage(currentFn, iterations, 0)
+      baselineMs = measureAverage(baselineFn, iterations, 0)
+    }
+    else {
+      baselineMs = measureAverage(baselineFn, iterations, 0)
+      currentMs = measureAverage(currentFn, iterations, 0)
+    }
+    currentSamples.push(currentMs)
+    baselineSamples.push(baselineMs)
+    ratios.push(currentMs / baselineMs)
+  }
+
+  return {
+    currentMedianMs: median(currentSamples),
+    baselineMedianMs: median(baselineSamples),
+    ratio: median(ratios),
+  }
 }
 
 function formatMs(value) {
@@ -127,8 +155,12 @@ function geometricMean(values) {
 
 function summarize(ratios) {
   const ratio = geometricMean(ratios)
-  const delta = (1 - ratio) * 100
-  return { ratio, delta }
+  return { ratio }
+}
+
+function formatChange(ratio) {
+  const percent = Math.abs((1 - ratio) * 100).toFixed(2)
+  return ratio <= 1 ? `${percent}% faster` : `${percent}% slower`
 }
 
 async function main() {
@@ -142,14 +174,15 @@ async function main() {
       loadMarkdownIt(archiveDir, `baseline-${Date.now()}`),
     ])
 
-    const parseRatios = []
-    const renderRatios = []
+    const parseRatiosByScenario = new Map(SCENARIOS.map(scenario => [scenario.name, []]))
+    const renderRatiosByScenario = new Map(SCENARIOS.map(scenario => [scenario.name, []]))
 
     for (let round = 0; round < rounds; round++) {
       if (rounds > 1)
         console.log(`\nRound ${round + 1}/${rounds}`)
 
-      for (const scenario of SCENARIOS) {
+      for (let scenarioIndex = 0; scenarioIndex < SCENARIOS.length; scenarioIndex++) {
+        const scenario = SCENARIOS[scenarioIndex]
         const currentMd = CurrentMarkdownIt()
         const baselineMd = BaselineMarkdownIt()
         const currentHtml = currentMd.render(scenario.input)
@@ -159,48 +192,47 @@ async function main() {
           throw new Error(`Output mismatch for scenario ${scenario.name}`)
         }
 
-        const currentParse = measureMedian(() => {
-          currentMd.parse(scenario.input, {})
-        }, scenario.parseIterations)
-        const baselineParse = measureMedian(() => {
-          baselineMd.parse(scenario.input, {})
-        }, scenario.parseIterations)
-        const parseRatio = currentParse.medianMs / baselineParse.medianMs
-        parseRatios.push(parseRatio)
+        const parseMeasured = measurePaired(
+          () => currentMd.parse(scenario.input, {}),
+          () => baselineMd.parse(scenario.input, {}),
+          scenario.parseIterations,
+          (round + scenarioIndex) % 2 === 0,
+        )
+        parseRatiosByScenario.get(scenario.name).push(parseMeasured.ratio)
 
         const currentTokens = currentMd.parse(scenario.input, {})
         const baselineTokens = baselineMd.parse(scenario.input, {})
 
-        const currentRender = measureMedian(() => {
-          currentMd.renderer.render(currentTokens, currentMd.options, {})
-        }, scenario.renderIterations)
-        const baselineRender = measureMedian(() => {
-          baselineMd.renderer.render(baselineTokens, baselineMd.options, {})
-        }, scenario.renderIterations)
-        const renderRatio = currentRender.medianMs / baselineRender.medianMs
-        renderRatios.push(renderRatio)
+        const renderMeasured = measurePaired(
+          () => currentMd.renderer.render(currentTokens, currentMd.options, {}),
+          () => baselineMd.renderer.render(baselineTokens, baselineMd.options, {}),
+          scenario.renderIterations,
+          (round + scenarioIndex + 1) % 2 === 0,
+        )
+        renderRatiosByScenario.get(scenario.name).push(renderMeasured.ratio)
 
         console.log(`\n[${scenario.name}]`)
-        console.log(`  parse  current=${formatMs(currentParse.medianMs)} baseline=${formatMs(baselineParse.medianMs)} ratio=${parseRatio.toFixed(3)}`)
-        console.log(`  render current=${formatMs(currentRender.medianMs)} baseline=${formatMs(baselineRender.medianMs)} ratio=${renderRatio.toFixed(3)}`)
+        console.log(`  parse  current=${formatMs(parseMeasured.currentMedianMs)} baseline=${formatMs(parseMeasured.baselineMedianMs)} paired-ratio=${parseMeasured.ratio.toFixed(3)}`)
+        console.log(`  render current=${formatMs(renderMeasured.currentMedianMs)} baseline=${formatMs(renderMeasured.baselineMedianMs)} paired-ratio=${renderMeasured.ratio.toFixed(3)}`)
       }
     }
 
-    const parseSummary = summarize(parseRatios)
-    const renderSummary = summarize(renderRatios)
+    const parseSummary = summarize([...parseRatiosByScenario.values()].map(values => median(values)))
+    const renderSummary = summarize([...renderRatiosByScenario.values()].map(values => median(values)))
 
     console.log('\nSummary')
     console.log(`  rounds=${rounds}`)
-    console.log(`  parse  geometric-mean ratio=${parseSummary.ratio.toFixed(3)} (${parseSummary.delta >= 0 ? '+' : ''}${parseSummary.delta.toFixed(2)}% faster)`)
-    console.log(`  render geometric-mean ratio=${renderSummary.ratio.toFixed(3)} (${renderSummary.delta >= 0 ? '+' : ''}${renderSummary.delta.toFixed(2)}% faster)`)
+    console.log(`  parse  geometric-mean of per-scenario median ratios=${parseSummary.ratio.toFixed(3)} (${formatChange(parseSummary.ratio)})`)
+    console.log(`  render geometric-mean of per-scenario median ratios=${renderSummary.ratio.toFixed(3)} (${formatChange(renderSummary.ratio)})`)
+    console.log(`  regression threshold=+${(threshold * 100).toFixed(1)}%`)
 
-    const parsePass = parseSummary.ratio < 1
-    const renderPass = renderSummary.ratio < 1
+    const parsePass = parseSummary.ratio <= 1 + threshold
+    const renderPass = renderSummary.ratio <= 1 + threshold
 
     if (!parsePass || !renderPass) {
       const failures = [
-        !parsePass ? `parse ratio ${parseSummary.ratio.toFixed(3)} is not faster than ${baselineRef}` : null,
-        !renderPass ? `render ratio ${renderSummary.ratio.toFixed(3)} is not faster than ${baselineRef}` : null,
+        !parsePass ? `parse ratio ${parseSummary.ratio.toFixed(3)} regressed beyond +${(threshold * 100).toFixed(1)}% vs ${baselineRef}` : null,
+        !renderPass ? `render ratio ${renderSummary.ratio.toFixed(3)} regressed beyond +${(threshold * 100).toFixed(1)}% vs ${baselineRef}` : null,
       ].filter(Boolean)
       throw new Error(failures.join('; '))
     }

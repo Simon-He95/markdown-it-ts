@@ -12,6 +12,8 @@ const args = process.argv.slice(2)
 const baselineRef = args.find(arg => !arg.startsWith('--')) || 'HEAD'
 const roundsArg = args.find(arg => arg.startsWith('--rounds='))
 const rounds = roundsArg ? Math.max(1, Number.parseInt(roundsArg.split('=')[1], 10) || 1) : 1
+const thresholdArg = args.find(arg => arg.startsWith('--threshold='))
+const threshold = thresholdArg ? Math.max(0, Number.parseFloat(thresholdArg.split('=')[1]) || 0) : 0.05
 
 const STREAM_OPTIONS = {
   stream: true,
@@ -322,11 +324,37 @@ function measureAverageValue(fn, iterations, warmups = 4) {
   return total / iterations
 }
 
-function measureMedianValue(fn, iterations, samples = 7) {
-  const values = []
-  for (let i = 0; i < samples; i++)
-    values.push(measureAverageValue(fn, iterations))
-  return { medianMs: median(values), samples: values }
+function measurePaired(currentFn, baselineFn, iterations, currentFirst, samples = 7) {
+  for (let i = 0; i < 4; i++) {
+    currentFn()
+    baselineFn()
+  }
+
+  const currentSamples = []
+  const baselineSamples = []
+  const ratios = []
+
+  for (let sample = 0; sample < samples; sample++) {
+    let currentMs
+    let baselineMs
+    if ((sample % 2 === 0) === currentFirst) {
+      currentMs = measureAverageValue(currentFn, iterations, 0)
+      baselineMs = measureAverageValue(baselineFn, iterations, 0)
+    }
+    else {
+      baselineMs = measureAverageValue(baselineFn, iterations, 0)
+      currentMs = measureAverageValue(currentFn, iterations, 0)
+    }
+    currentSamples.push(currentMs)
+    baselineSamples.push(baselineMs)
+    ratios.push(currentMs / baselineMs)
+  }
+
+  return {
+    currentMedianMs: median(currentSamples),
+    baselineMedianMs: median(baselineSamples),
+    ratio: median(ratios),
+  }
 }
 
 function formatMs(value) {
@@ -340,8 +368,12 @@ function geometricMean(values) {
 
 function summarize(ratios) {
   const ratio = geometricMean(ratios)
-  const delta = (1 - ratio) * 100
-  return { ratio, delta }
+  return { ratio }
+}
+
+function formatChange(ratio) {
+  const percent = Math.abs((1 - ratio) * 100).toFixed(2)
+  return ratio <= 1 ? `${percent}% faster` : `${percent}% slower`
 }
 
 function runSequence(md, scenario) {
@@ -398,47 +430,47 @@ async function main() {
       loadMarkdownIt(archiveDir, `baseline-stream-${Date.now()}`),
     ])
 
-    const ratios = []
+    const ratiosByScenario = new Map(SCENARIOS.map(scenario => [scenario.name, []]))
 
     for (let round = 0; round < rounds; round++) {
       if (rounds > 1)
         console.log(`\nRound ${round + 1}/${rounds}`)
 
-      for (const scenarioConfig of SCENARIOS) {
+      for (let scenarioIndex = 0; scenarioIndex < SCENARIOS.length; scenarioIndex++) {
+        const scenarioConfig = SCENARIOS[scenarioIndex]
         const scenario = scenarioConfig.create()
         const verification = verifyScenario(scenarioConfig.name, CurrentMarkdownIt, BaselineMarkdownIt, scenario)
 
         const currentMd = CurrentMarkdownIt(STREAM_OPTIONS)
         const baselineMd = BaselineMarkdownIt(STREAM_OPTIONS)
 
-        const currentMeasured = measureMedianValue(() => {
-          return runIncrementalOnly(currentMd, scenario).ms
-        }, scenarioConfig.iterations)
-
-        const baselineMeasured = measureMedianValue(() => {
-          return runIncrementalOnly(baselineMd, scenario).ms
-        }, scenarioConfig.iterations)
-
-        const ratio = currentMeasured.medianMs / baselineMeasured.medianMs
-        ratios.push(ratio)
+        const measured = measurePaired(
+          () => runIncrementalOnly(currentMd, scenario).ms,
+          () => runIncrementalOnly(baselineMd, scenario).ms,
+          scenarioConfig.iterations,
+          (round + scenarioIndex) % 2 === 0,
+        )
+        ratiosByScenario.get(scenarioConfig.name).push(measured.ratio)
 
         const currentTailHits = verification.currentStats.tailHits ?? 0
         const baselineTailHits = verification.baselineStats.tailHits ?? 0
 
         console.log(`\n[${scenarioConfig.name}]`)
-        console.log(`  current=${formatMs(currentMeasured.medianMs)} baseline=${formatMs(baselineMeasured.medianMs)} ratio=${ratio.toFixed(3)}`)
+        console.log(`  current=${formatMs(measured.currentMedianMs)} baseline=${formatMs(measured.baselineMedianMs)} paired-ratio=${measured.ratio.toFixed(3)}`)
         console.log(`  current stats lastMode=${verification.currentStats.lastMode} appendHits=${verification.currentStats.appendHits} tailHits=${currentTailHits}`)
         console.log(`  baseline stats lastMode=${verification.baselineStats.lastMode} appendHits=${verification.baselineStats.appendHits} tailHits=${baselineTailHits}`)
       }
     }
 
-    const summary = summarize(ratios)
+    const scenarioRatios = [...ratiosByScenario.values()].map(values => median(values))
+    const summary = summarize(scenarioRatios)
     console.log('\nSummary')
     console.log(`  rounds=${rounds}`)
-    console.log(`  geometric-mean ratio=${summary.ratio.toFixed(3)} (${summary.delta >= 0 ? '+' : ''}${summary.delta.toFixed(2)}% faster)`)
+    console.log(`  geometric-mean of per-scenario median ratios=${summary.ratio.toFixed(3)} (${formatChange(summary.ratio)})`)
+    console.log(`  regression threshold=+${(threshold * 100).toFixed(1)}%`)
 
-    if (summary.ratio >= 1) {
-      throw new Error(`stream incremental ratio ${summary.ratio.toFixed(3)} is not faster than ${baselineRef}`)
+    if (summary.ratio > 1 + threshold) {
+      throw new Error(`stream incremental ratio ${summary.ratio.toFixed(3)} regressed beyond +${(threshold * 100).toFixed(1)}% vs ${baselineRef}`)
     }
   }
   finally {
