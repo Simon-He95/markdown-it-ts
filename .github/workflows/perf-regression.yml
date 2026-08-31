@@ -64,7 +64,7 @@ jobs:
         run: pnpm -C head run test:perf-threshold
 
       - name: Compare parser and renderer against base
-        run: pnpm -C head run perf:compare:ref -- refs/perf/base --rounds=3 --threshold=0.05
+        run: pnpm -C head run perf:compare:ref -- refs/perf/base --rounds=3 --threshold=0.05 --scenario-threshold=0.10
 
       - name: Compare streaming against base
-        run: pnpm -C head run perf:compare:stream-ref -- refs/perf/base --rounds=3 --threshold=0.05
+        run: pnpm -C head run perf:compare:stream-ref -- refs/perf/base --rounds=3 --threshold=0.05 --scenario-threshold=0.10

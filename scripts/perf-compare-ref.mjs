@@ -14,6 +14,8 @@ const roundsArg = args.find(arg => arg.startsWith('--rounds='))
 const rounds = roundsArg ? Math.max(1, Number.parseInt(roundsArg.split('=')[1], 10) || 1) : 1
 const thresholdArg = args.find(arg => arg.startsWith('--threshold='))
 const threshold = thresholdArg ? Math.max(0, Number.parseFloat(thresholdArg.split('=')[1]) || 0) : 0.05
+const scenarioThresholdArg = args.find(arg => arg.startsWith('--scenario-threshold='))
+const scenarioThreshold = scenarioThresholdArg ? Math.max(0, Number.parseFloat(scenarioThresholdArg.split('=')[1]) || 0) : Math.max(threshold, 0.10)
 
 const FIXTURE_DIR = path.join(repoRoot, 'test', 'fixtures')
 
@@ -217,22 +219,30 @@ async function main() {
       }
     }
 
-    const parseSummary = summarize([...parseRatiosByScenario.values()].map(values => median(values)))
-    const renderSummary = summarize([...renderRatiosByScenario.values()].map(values => median(values)))
+    const parseScenarioRatios = new Map([...parseRatiosByScenario].map(([name, values]) => [name, median(values)]))
+    const renderScenarioRatios = new Map([...renderRatiosByScenario].map(([name, values]) => [name, median(values)]))
+    const parseSummary = summarize([...parseScenarioRatios.values()])
+    const renderSummary = summarize([...renderScenarioRatios.values()])
+    const scenarioFailures = [
+      ...[...parseScenarioRatios].filter(([, ratio]) => ratio > 1 + scenarioThreshold).map(([name, ratio]) => `parse ${name}=${ratio.toFixed(3)}`),
+      ...[...renderScenarioRatios].filter(([, ratio]) => ratio > 1 + scenarioThreshold).map(([name, ratio]) => `render ${name}=${ratio.toFixed(3)}`),
+    ]
 
     console.log('\nSummary')
     console.log(`  rounds=${rounds}`)
     console.log(`  parse  geometric-mean of per-scenario median ratios=${parseSummary.ratio.toFixed(3)} (${formatChange(parseSummary.ratio)})`)
     console.log(`  render geometric-mean of per-scenario median ratios=${renderSummary.ratio.toFixed(3)} (${formatChange(renderSummary.ratio)})`)
     console.log(`  regression threshold=+${(threshold * 100).toFixed(1)}%`)
+    console.log(`  per-scenario regression threshold=+${(scenarioThreshold * 100).toFixed(1)}%`)
 
     const parsePass = parseSummary.ratio <= 1 + threshold
     const renderPass = renderSummary.ratio <= 1 + threshold
 
-    if (!parsePass || !renderPass) {
+    if (!parsePass || !renderPass || scenarioFailures.length > 0) {
       const failures = [
         !parsePass ? `parse ratio ${parseSummary.ratio.toFixed(3)} regressed beyond +${(threshold * 100).toFixed(1)}% vs ${baselineRef}` : null,
         !renderPass ? `render ratio ${renderSummary.ratio.toFixed(3)} regressed beyond +${(threshold * 100).toFixed(1)}% vs ${baselineRef}` : null,
+        scenarioFailures.length > 0 ? `per-scenario regressions beyond +${(scenarioThreshold * 100).toFixed(1)}%: ${scenarioFailures.join(', ')}` : null,
       ].filter(Boolean)
       throw new Error(failures.join('; '))
     }

@@ -882,7 +882,7 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       return getStreamParser().append(segment, env, md)
     },
     snapshot() {
-      return streamParser ? streamParser.snapshot(md) : null
+      return streamParser ? streamParser.snapshot() : null
     },
     restore(snapshot: StreamSnapshot) {
       if (!md.stream.enabled)

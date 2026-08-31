@@ -21,6 +21,8 @@ interface StreamCache {
   src: string
   tokens: Token[]
   env: Record<string, unknown>
+  config: StreamParserConfig
+  snapshotState?: StreamSnapshotState
   // Cache line count to avoid recounting
   lineCount?: number
   lastSegment?: StreamSegment | null
@@ -31,6 +33,18 @@ interface StreamCache {
   globalStateCarry?: string
   boundary?: StreamBoundaryState
   lastSegmentSource?: string
+}
+
+interface StreamParserConfig {
+  options: MarkdownIt['options']
+  coreVersion: number
+  blockVersion: number
+  inlineVersion: number
+  inline2Version: number
+}
+
+interface StreamSnapshotState {
+  cache: StreamCache
 }
 
 interface StreamBoundaryState {
@@ -54,12 +68,7 @@ export interface StreamSnapshot {
 }
 
 interface InternalStreamSnapshot extends StreamSnapshot {
-  cache: StreamCache
-  options: MarkdownIt['options']
-  coreVersion: number
-  blockVersion: number
-  inlineVersion: number
-  inline2Version: number
+  state: StreamSnapshotState
 }
 
 const EMPTY_TOKENS: Token[] = []
@@ -96,6 +105,24 @@ function optionsEqual(left: MarkdownIt['options'], right: MarkdownIt['options'])
     }
     return Object.is(leftValue, rightValue)
   })
+}
+
+function copyParserConfig(md: MarkdownIt): StreamParserConfig {
+  return {
+    options: copyOptions(md.options),
+    coreVersion: md.core.ruler.version,
+    blockVersion: md.block.ruler.version,
+    inlineVersion: md.inline.ruler.version,
+    inline2Version: md.inline.ruler2.version,
+  }
+}
+
+function parserConfigEqual(config: StreamParserConfig, md: MarkdownIt): boolean {
+  return optionsEqual(config.options, md.options)
+    && config.coreVersion === md.core.ruler.version
+    && config.blockVersion === md.block.ruler.version
+    && config.inlineVersion === md.inline.ruler.version
+    && config.inline2Version === md.inline.ruler2.version
 }
 
 function appendedHasBlockConstructs(s: string): boolean {
@@ -295,7 +322,6 @@ export class StreamParser {
   private readonly snapshots = new WeakSet<StreamSnapshot>()
   private stats: StreamStats = makeEmptyStats()
   private normalizeLineEndings = true
-  private coreRulerVersion = -1
   private tokenMapsTrusted = true
   private allowUntrustedTailReuse = false
 
@@ -335,20 +361,17 @@ export class StreamParser {
     this.stats.resets = resets
   }
 
-  snapshot(md: MarkdownIt): StreamSnapshot | null {
+  snapshot(): StreamSnapshot | null {
     const cache = this.cache
     if (!cache)
       return null
 
+    const state = cache.snapshotState ?? { cache }
+    cache.snapshotState = state
     const snapshot: InternalStreamSnapshot = {
-      cache,
-      options: copyOptions(md.options),
-      coreVersion: md.core.ruler.version,
-      blockVersion: md.block.ruler.version,
-      inlineVersion: md.inline.ruler.version,
-      inline2Version: md.inline.ruler2.version,
-      get sourceLength() { return this.cache.src.length },
-      get tokenCount() { return this.cache.tokens.length },
+      state,
+      get sourceLength() { return this.state.cache.src.length },
+      get tokenCount() { return this.state.cache.tokens.length },
     }
     this.snapshots.add(snapshot)
     return snapshot
@@ -359,44 +382,26 @@ export class StreamParser {
       throw new TypeError('Invalid stream snapshot')
 
     const internal = snapshot as InternalStreamSnapshot
-    const rulesUnchanged = optionsEqual(internal.options, md.options)
-      && internal.coreVersion === md.core.ruler.version
-      && internal.blockVersion === md.block.ruler.version
-      && internal.inlineVersion === md.inline.ruler.version
-      && internal.inline2Version === md.inline.ruler2.version
+    const cache = internal.state.cache
+    this.cache = cache
 
-    if (rulesUnchanged) {
-      this.cache = internal.cache
-      this.coreRulerVersion = md.core.ruler.version
-      return internal.cache.tokens
-    }
+    if (parserConfigEqual(cache.config, md))
+      return cache.tokens
 
-    const { src, env } = internal.cache
-    this.cache = null
-    const tokens = this.parse(src, env, md)
-    if (this.cache) {
-      internal.cache = this.cache
-      internal.options = copyOptions(md.options)
-      internal.coreVersion = md.core.ruler.version
-      internal.blockVersion = md.block.ruler.version
-      internal.inlineVersion = md.inline.ruler.version
-      internal.inline2Version = md.inline.ruler2.version
-    }
-    return tokens
+    return this.parse(cache.src, cache.env, md)
   }
 
   append(segment: string, env: Record<string, unknown> | undefined, md: MarkdownIt): Token[] {
     const cached = this.cache
-    if (cached)
-      this.ensureBoundaryState(cached)
-    return this.parse(cached ? cached.src + segment : segment, env, md, cached ? segment : undefined)
+    if (!cached)
+      throw new Error('Stream append requires cached history; call stream.parse(fullSource) first')
+    this.ensureBoundaryState(cached)
+    return this.parse(cached.src + segment, env, md, segment)
   }
 
   parse(src: string, env: Record<string, unknown> | undefined, md: MarkdownIt, knownAppend?: string): Token[] {
-    const priorEnv = this.cache?.env
-    if (this.coreRulerVersion >= 0 && this.coreRulerVersion !== md.core.ruler.version)
-      this.cache = null
-    this.coreRulerVersion = md.core.ruler.version
+    const previousCache = this.cache
+    const priorEnv = previousCache?.env
 
     const coreRules = md.core.ruler.getNamedRules('')
     const lineNormalizerIndex = coreRules.findIndex(rule => rule.fn === normalize)
@@ -406,7 +411,7 @@ export class StreamParser {
       && blockRuleIndex >= 0
       && lineNormalizerIndex < blockRuleIndex
     const envProvided = env
-    const previousCache = this.cache
+    const configChanged = !!previousCache && !parserConfigEqual(previousCache.config, md)
     const customNormalize = namedNormalizeRule && namedNormalizeRule.fn !== normalize
     const nonstandardBuiltinNormalize = namedNormalizeRule && !this.normalizeLineEndings && src.includes('\r')
     const unknownPreBlockRule = blockRuleIndex < 0
@@ -421,7 +426,7 @@ export class StreamParser {
       ))
     this.tokenMapsTrusted = !unknownPostBlockRule
     this.allowUntrustedTailReuse = this.tokenMapsTrusted || md.options?.streamTailLocalPostBlockRules === true
-    const cached = customNormalize || nonstandardBuiltinNormalize || unknownPreBlockRule
+    const cached = configChanged || customNormalize || nonstandardBuiltinNormalize || unknownPreBlockRule
       ? null
       : previousCache
     beginParseDiagnostics(envProvided ?? previousCache?.env ?? priorEnv)
@@ -461,8 +466,9 @@ export class StreamParser {
         }
       }
 
-      if (shouldSkipLargeCache) {
+      if (shouldSkipLargeCache && knownAppend === undefined && !previousCache?.snapshotState) {
         const parsed = this.parseFullDocument(src, workingEnv, md, srcLineCount, false)
+        this.cache = null
         this.stats.total += 1
         this.stats.fullParses += 1
         this.stats.lastMode = 'full'
@@ -497,8 +503,8 @@ export class StreamParser {
             maxChunks: useMaxChunks,
           })
           const globalStateReason = (getParseDiagnostics(workingEnv)?.chunk?.globalStateDetected as GlobalMarkdownStateReason | undefined) ?? null
-          this.cache = { src, tokens, env: workingEnv, lineCount: srcLineCount, lastSegment: undefined, globalStateReason }
-          this.updateCacheLineCount(this.cache, srcLineCount)
+          const cache = this.setCache({ src, tokens, env: workingEnv, lineCount: srcLineCount, lastSegment: undefined, globalStateReason }, md)
+          this.updateCacheLineCount(cache, srcLineCount)
           this.recordChunkedParseResult(
             workingEnv,
             wantsChunking ? 'explicit-initial-large-doc' : 'default-initial-large-doc',
@@ -511,8 +517,8 @@ export class StreamParser {
       const parsed = this.parseFullDocument(src, workingEnv, md, srcLineCount)
       srcLineCount = parsed.lineCount
 
-      this.cache = { src, tokens: parsed.tokens, env: workingEnv, lineCount: srcLineCount, lastSegment: undefined, globalStateReason: parsed.globalStateReason }
-      this.updateCacheLineCount(this.cache, srcLineCount)
+      const cache = this.setCache({ src, tokens: parsed.tokens, env: workingEnv, lineCount: srcLineCount, lastSegment: undefined, globalStateReason: parsed.globalStateReason }, md)
+      this.updateCacheLineCount(cache, srcLineCount)
       this.stats.total += 1
       this.stats.fullParses += 1
       this.stats.lastMode = 'full'
@@ -547,15 +553,15 @@ export class StreamParser {
       const nextTokens = parsed.tokens
       const lineCount = parsed.lineCount
 
-      this.cache = {
+      const cache = this.setCache({
         src,
         tokens: nextTokens,
         env: fallbackEnv,
         lineCount,
         lastSegment: undefined,
         globalStateReason: parsed.globalStateReason,
-      }
-      this.updateCacheLineCount(this.cache, lineCount)
+      }, md)
+      this.updateCacheLineCount(cache, lineCount)
       this.stats.total += 1
       this.stats.fullParses += 1
       this.stats.lastMode = 'full'
@@ -579,8 +585,8 @@ export class StreamParser {
       const parsed = this.parseFullDocument(src, fallbackEnv, md)
       const nextTokens = parsed.tokens
       const lineCount = parsed.lineCount
-      this.cache = { src, tokens: nextTokens, env: fallbackEnv, lineCount, lastSegment: undefined, globalStateReason: parsed.globalStateReason }
-      this.updateCacheLineCount(this.cache, lineCount)
+      const cache = this.setCache({ src, tokens: nextTokens, env: fallbackEnv, lineCount, lastSegment: undefined, globalStateReason: parsed.globalStateReason }, md)
+      this.updateCacheLineCount(cache, lineCount)
       this.stats.total += 1
       this.stats.fullParses += 1
       this.stats.lastMode = 'full'
@@ -890,8 +896,8 @@ export class StreamParser {
           maxChunks: useMaxChunks,
         })
         const globalStateReason = (getParseDiagnostics(fallbackEnv)?.chunk?.globalStateDetected as GlobalMarkdownStateReason | undefined) ?? null
-        this.cache = { src, tokens, env: fallbackEnv, lineCount: srcLineCount2, lastSegment: undefined, globalStateReason }
-        this.updateCacheLineCount(this.cache, srcLineCount2)
+        const cache = this.setCache({ src, tokens, env: fallbackEnv, lineCount: srcLineCount2, lastSegment: undefined, globalStateReason }, md)
+        this.updateCacheLineCount(cache, srcLineCount2)
         this.recordChunkedParseResult(
           fallbackEnv,
           wantsChunking ? 'explicit-fallback-large-doc' : 'default-fallback-large-doc',
@@ -904,8 +910,8 @@ export class StreamParser {
     const parsed = this.parseFullDocument(src, fallbackEnv, md, srcLineCount2)
     const nextTokens = parsed.tokens
     srcLineCount2 = parsed.lineCount
-    this.cache = { src, tokens: nextTokens, env: fallbackEnv, lineCount: srcLineCount2, lastSegment: undefined, globalStateReason: parsed.globalStateReason }
-    this.updateCacheLineCount(this.cache, srcLineCount2)
+    const cache = this.setCache({ src, tokens: nextTokens, env: fallbackEnv, lineCount: srcLineCount2, lastSegment: undefined, globalStateReason: parsed.globalStateReason }, md)
+    this.updateCacheLineCount(cache, srcLineCount2)
     this.stats.total += 1
     this.stats.fullParses += 1
     this.stats.lastMode = 'full'
@@ -1472,6 +1478,19 @@ export class StreamParser {
 
   public getStats(): StreamStats {
     return { ...this.stats }
+  }
+
+  private setCache(cache: Omit<StreamCache, 'config' | 'snapshotState'>, md: MarkdownIt): StreamCache {
+    const snapshotState = this.cache?.snapshotState
+    const nextCache: StreamCache = {
+      ...cache,
+      config: copyParserConfig(md),
+      snapshotState,
+    }
+    if (snapshotState)
+      snapshotState.cache = nextCache
+    this.cache = nextCache
+    return nextCache
   }
 
   // countLines moved to common utils for reuse

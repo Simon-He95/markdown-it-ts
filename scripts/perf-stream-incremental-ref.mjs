@@ -14,6 +14,8 @@ const roundsArg = args.find(arg => arg.startsWith('--rounds='))
 const rounds = roundsArg ? Math.max(1, Number.parseInt(roundsArg.split('=')[1], 10) || 1) : 1
 const thresholdArg = args.find(arg => arg.startsWith('--threshold='))
 const threshold = thresholdArg ? Math.max(0, Number.parseFloat(thresholdArg.split('=')[1]) || 0) : 0.05
+const scenarioThresholdArg = args.find(arg => arg.startsWith('--scenario-threshold='))
+const scenarioThreshold = scenarioThresholdArg ? Math.max(0, Number.parseFloat(scenarioThresholdArg.split('=')[1]) || 0) : Math.max(threshold, 0.10)
 
 const STREAM_OPTIONS = {
   stream: true,
@@ -262,6 +264,38 @@ const SCENARIOS = [
   },
 ]
 
+const DIRECT_API_SCENARIOS = [
+  {
+    name: 'delta-block-append',
+    kind: 'delta-block',
+    iterations: 4,
+    create() {
+      const base = makePrefix(250_000)
+      const deltas = Array.from({ length: 12 }, (_, index) => `Streaming response ${index}.\n\n`)
+      return { base, deltas, finalDoc: base + deltas.join('') }
+    },
+  },
+  {
+    name: 'delta-active-tail',
+    kind: 'delta-tail',
+    iterations: 8,
+    create() {
+      const base = `${makePrefix(250_000)}Live paragraph`
+      const deltas = [' keeps', ' streaming', ' with detail', '.\n']
+      return { base, deltas, finalDoc: base + deltas.join('') }
+    },
+  },
+  {
+    name: 'snapshot-restore',
+    kind: 'snapshot',
+    iterations: 24,
+    create() {
+      const base = makePrefix(250_000)
+      return { base, deltas: [], finalDoc: base }
+    },
+  },
+]
+
 function run(cmd, commandArgs, cwd, extra = {}) {
   const result = spawnSync(cmd, commandArgs, {
     cwd,
@@ -397,6 +431,89 @@ function runIncrementalOnly(md, scenario) {
   return { ms, tokens, env, stats: md.stream.stats() }
 }
 
+function runDirectSequence(md, scenarioConfig, scenario) {
+  md.stream.reset()
+  const env = {}
+  let source = scenario.base
+  let tokens = md.stream.parse(source, env)
+  md.stream.resetStats()
+
+  if (scenarioConfig.kind === 'snapshot') {
+    const snapshot = typeof md.stream.snapshot === 'function' ? md.stream.snapshot() : null
+    md.stream.reset()
+    tokens = snapshot && typeof md.stream.restore === 'function'
+      ? md.stream.restore(snapshot)
+      : md.stream.parse(source, env)
+  }
+  else {
+    for (const delta of scenario.deltas) {
+      source += delta
+      tokens = typeof md.stream.append === 'function'
+        ? md.stream.append(delta, env)
+        : md.stream.parse(source, env)
+    }
+  }
+
+  return { tokens, env, stats: md.stream.stats() }
+}
+
+function runDirectOnly(md, scenario) {
+  md.stream.reset()
+  const env = {}
+  md.stream.parse(scenario.base, env)
+  md.stream.resetStats()
+  let source = scenario.base
+  let tokens = md.stream.peek()
+  const start = performance.now()
+  for (const delta of scenario.deltas) {
+    source += delta
+    tokens = typeof md.stream.append === 'function'
+      ? md.stream.append(delta, env)
+      : md.stream.parse(source, env)
+  }
+  return { ms: performance.now() - start, tokens, env, stats: md.stream.stats() }
+}
+
+function prepareSnapshotMeasure(md, scenario) {
+  md.stream.reset()
+  const env = {}
+  md.stream.parse(scenario.base, env)
+  const snapshot = typeof md.stream.snapshot === 'function' ? md.stream.snapshot() : null
+  return () => {
+    md.stream.reset()
+    const start = performance.now()
+    if (snapshot && typeof md.stream.restore === 'function')
+      md.stream.restore(snapshot)
+    else
+      md.stream.parse(scenario.base, env)
+    return performance.now() - start
+  }
+}
+
+function verifyDirectScenario(scenarioConfig, CurrentMarkdownIt, BaselineMarkdownIt, scenario) {
+  const currentMd = CurrentMarkdownIt(STREAM_OPTIONS)
+  const baselineMd = BaselineMarkdownIt(STREAM_OPTIONS)
+  const current = runDirectSequence(currentMd, scenarioConfig, scenario)
+  const baseline = runDirectSequence(baselineMd, scenarioConfig, scenario)
+  const currentHtml = currentMd.renderer.render(current.tokens, currentMd.options, current.env)
+  const baselineHtml = baselineMd.renderer.render(baseline.tokens, baselineMd.options, baseline.env)
+
+  if (currentHtml !== currentMd.render(scenario.finalDoc, {}))
+    throw new Error(`Current direct API output mismatch for scenario ${scenarioConfig.name}`)
+  if (baselineHtml !== baselineMd.render(scenario.finalDoc, {}))
+    throw new Error(`Baseline direct API output mismatch for scenario ${scenarioConfig.name}`)
+  if (currentHtml !== baselineHtml)
+    throw new Error(`Current/baseline direct API output mismatch for scenario ${scenarioConfig.name}`)
+  if (scenarioConfig.kind === 'delta-block' && current.stats.appendHits <= 0)
+    throw new Error(`Current direct API scenario ${scenarioConfig.name} did not hit append mode`)
+  if (scenarioConfig.kind === 'delta-tail' && current.stats.tailHits <= 0)
+    throw new Error(`Current direct API scenario ${scenarioConfig.name} did not hit tail mode`)
+  if (scenarioConfig.kind === 'snapshot' && typeof currentMd.stream.restore !== 'function')
+    throw new Error('Current build does not expose snapshot restore')
+
+  return { currentStats: current.stats, baselineStats: baseline.stats }
+}
+
 function verifyScenario(name, CurrentMarkdownIt, BaselineMarkdownIt, scenario) {
   const currentMd = CurrentMarkdownIt(STREAM_OPTIONS)
   const baselineMd = BaselineMarkdownIt(STREAM_OPTIONS)
@@ -431,6 +548,7 @@ async function main() {
     ])
 
     const ratiosByScenario = new Map(SCENARIOS.map(scenario => [scenario.name, []]))
+    const directRatiosByScenario = new Map(DIRECT_API_SCENARIOS.map(scenario => [scenario.name, []]))
 
     for (let round = 0; round < rounds; round++) {
       if (rounds > 1)
@@ -460,17 +578,55 @@ async function main() {
         console.log(`  current stats lastMode=${verification.currentStats.lastMode} appendHits=${verification.currentStats.appendHits} tailHits=${currentTailHits}`)
         console.log(`  baseline stats lastMode=${verification.baselineStats.lastMode} appendHits=${verification.baselineStats.appendHits} tailHits=${baselineTailHits}`)
       }
+
+      for (let scenarioIndex = 0; scenarioIndex < DIRECT_API_SCENARIOS.length; scenarioIndex++) {
+        const scenarioConfig = DIRECT_API_SCENARIOS[scenarioIndex]
+        const scenario = scenarioConfig.create()
+        const verification = verifyDirectScenario(scenarioConfig, CurrentMarkdownIt, BaselineMarkdownIt, scenario)
+        const currentMd = CurrentMarkdownIt(STREAM_OPTIONS)
+        const baselineMd = BaselineMarkdownIt(STREAM_OPTIONS)
+        const currentFn = scenarioConfig.kind === 'snapshot'
+          ? prepareSnapshotMeasure(currentMd, scenario)
+          : () => runDirectOnly(currentMd, scenario).ms
+        const baselineFn = scenarioConfig.kind === 'snapshot'
+          ? prepareSnapshotMeasure(baselineMd, scenario)
+          : () => runDirectOnly(baselineMd, scenario).ms
+        const measured = measurePaired(
+          currentFn,
+          baselineFn,
+          scenarioConfig.iterations,
+          (round + scenarioIndex) % 2 === 0,
+        )
+        directRatiosByScenario.get(scenarioConfig.name).push(measured.ratio)
+
+        console.log(`\n[${scenarioConfig.name}]`)
+        console.log(`  current=${formatMs(measured.currentMedianMs)} baseline=${formatMs(measured.baselineMedianMs)} paired-ratio=${measured.ratio.toFixed(3)}`)
+        console.log(`  current stats lastMode=${verification.currentStats.lastMode} appendHits=${verification.currentStats.appendHits} tailHits=${verification.currentStats.tailHits ?? 0}`)
+      }
     }
 
-    const scenarioRatios = [...ratiosByScenario.values()].map(values => median(values))
-    const summary = summarize(scenarioRatios)
+    const scenarioRatios = new Map([...ratiosByScenario].map(([name, values]) => [name, median(values)]))
+    const directScenarioRatios = new Map([...directRatiosByScenario].map(([name, values]) => [name, median(values)]))
+    const summary = summarize([...scenarioRatios.values()])
+    const directSummary = summarize([...directScenarioRatios.values()])
+    const scenarioFailures = [
+      ...[...scenarioRatios].filter(([, ratio]) => ratio > 1 + scenarioThreshold),
+      ...[...directScenarioRatios].filter(([, ratio]) => ratio > 1 + scenarioThreshold),
+    ]
     console.log('\nSummary')
     console.log(`  rounds=${rounds}`)
     console.log(`  geometric-mean of per-scenario median ratios=${summary.ratio.toFixed(3)} (${formatChange(summary.ratio)})`)
+    console.log(`  direct API geometric-mean of per-scenario median ratios=${directSummary.ratio.toFixed(3)} (${formatChange(directSummary.ratio)})`)
     console.log(`  regression threshold=+${(threshold * 100).toFixed(1)}%`)
+    console.log(`  per-scenario regression threshold=+${(scenarioThreshold * 100).toFixed(1)}%`)
 
-    if (summary.ratio > 1 + threshold) {
-      throw new Error(`stream incremental ratio ${summary.ratio.toFixed(3)} regressed beyond +${(threshold * 100).toFixed(1)}% vs ${baselineRef}`)
+    if (summary.ratio > 1 + threshold || directSummary.ratio > 1 + threshold || scenarioFailures.length > 0) {
+      const failures = [
+        summary.ratio > 1 + threshold ? `stream incremental ratio ${summary.ratio.toFixed(3)} regressed beyond +${(threshold * 100).toFixed(1)}% vs ${baselineRef}` : null,
+        directSummary.ratio > 1 + threshold ? `direct API ratio ${directSummary.ratio.toFixed(3)} regressed beyond +${(threshold * 100).toFixed(1)}% vs ${baselineRef}` : null,
+        scenarioFailures.length > 0 ? `per-scenario regressions beyond +${(scenarioThreshold * 100).toFixed(1)}%: ${scenarioFailures.map(([name, ratio]) => `${name}=${ratio.toFixed(3)}`).join(', ')}` : null,
+      ].filter(Boolean)
+      throw new Error(failures.join('; '))
     }
   }
   finally {

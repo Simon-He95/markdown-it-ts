@@ -14,6 +14,13 @@ describe('stream parser global-state cache', () => {
       tokens: [],
       env,
       globalStateReason: null,
+      config: {
+        options: { ...md.options },
+        coreVersion: md.core.ruler.version,
+        blockVersion: md.block.ruler.version,
+        inlineVersion: md.inline.ruler.version,
+        inline2Version: md.inline.ruler2.version,
+      },
     }
 
     parser.parse('Paragraph without definitions.\n\n', env, md)
