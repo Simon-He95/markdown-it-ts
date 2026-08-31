@@ -1,6 +1,5 @@
 import type { StockFastDiagnostics } from './strategy_diagnostics'
 import { Token } from '../common/token'
-import { detectGlobalMarkdownState } from './global_state'
 
 const INLINE_TERMINATOR_RE = /[\n!#$%&*+\-:<=>@[\]\\^_`{}~]/
 const JSON_CONTROL_CHAR_RANGE = '\\u0000-\\u001F'
@@ -129,25 +128,18 @@ function blockToken(type: string, tag: string, nesting: number, level: number): 
   return token
 }
 
-type ParseRichInline = (content: string) => Token[]
-
-function inlineToken(content: string, line: number, level: number, parseRichInline?: ParseRichInline): Token {
+function inlineToken(content: string, line: number, level: number): Token {
   const token = blockToken('inline', '', 0, level)
   token.map = [line, line + 1]
   token.content = content
-  if (parseRichInline && !isPlainInlineText(content)) {
-    token.children = parseRichInline(content)
-  }
-  else {
-    const child = new Token('text', '', 0)
-    child.content = content
-    token.children = [child]
-  }
+  const child = new Token('text', '', 0)
+  child.content = content
+  token.children = [child]
 
   return token
 }
 
-function pushAtxHeading(tokens: Token[], src: string, pos: number, end: number, line: number, parseRichInline?: ParseRichInline): boolean {
+function pushAtxHeading(tokens: Token[], src: string, pos: number, end: number, line: number): boolean {
   let level = 0
   let markerEnd = pos
   while (markerEnd < end && src.charCodeAt(markerEnd) === 0x23 && level < 6) {
@@ -177,7 +169,7 @@ function pushAtxHeading(tokens: Token[], src: string, pos: number, end: number, 
   }
 
   const content = src.slice(contentStart, contentEnd)
-  if (!parseRichInline && !isPlainInlineText(content))
+  if (!isPlainInlineText(content))
     return false
 
   const tag = HEADING_TAGS[level]
@@ -187,7 +179,7 @@ function pushAtxHeading(tokens: Token[], src: string, pos: number, end: number, 
   open.markup = markup
   tokens.push(open)
 
-  tokens.push(inlineToken(content, line, 1, parseRichInline))
+  tokens.push(inlineToken(content, line, 1))
 
   const close = blockToken('heading_close', tag, -1, 0)
   close.markup = markup
@@ -195,11 +187,11 @@ function pushAtxHeading(tokens: Token[], src: string, pos: number, end: number, 
   return true
 }
 
-function pushParagraph(tokens: Token[], content: string, line: number, parseRichInline?: ParseRichInline): void {
+function pushParagraph(tokens: Token[], content: string, line: number): void {
   const open = blockToken('paragraph_open', 'p', 1, 0)
   open.map = [line, line + 1]
   tokens.push(open)
-  tokens.push(inlineToken(content, line, 1, parseRichInline))
+  tokens.push(inlineToken(content, line, 1))
   tokens.push(blockToken('paragraph_close', 'p', -1, 0))
 }
 
@@ -223,7 +215,7 @@ function pushTightBulletListOpen(tokens: Token[], startLine: number): Token {
   return listOpen
 }
 
-function pushTightBulletListItem(tokens: Token[], content: string, line: number, parseRichInline?: ParseRichInline): Token {
+function pushTightBulletListItem(tokens: Token[], content: string, line: number): Token {
   const itemOpen = blockToken('list_item_open', 'li', 1, 1)
   itemOpen.map = [line, line + 1]
   itemOpen.markup = '-'
@@ -234,7 +226,7 @@ function pushTightBulletListItem(tokens: Token[], content: string, line: number,
   paraOpen.hidden = true
   tokens.push(paraOpen)
 
-  tokens.push(inlineToken(content, line, 3, parseRichInline))
+  tokens.push(inlineToken(content, line, 3))
 
   const paraClose = blockToken('paragraph_close', 'p', -1, 2)
   paraClose.hidden = true
@@ -578,7 +570,7 @@ export function parseStockFastAstJson(src: string): string | null {
   return useChunks ? `${json}${chunks.join('')}]}` : `${json}]}`
 }
 
-export function parseStockFast(src: string, diagnostics?: StockFastDiagnostics, parseRichInline?: ParseRichInline): Token[] | null {
+export function parseStockFast(src: string, diagnostics?: StockFastDiagnostics): Token[] | null {
   if (src.length === 0) {
     if (diagnostics)
       diagnostics.matched = true
@@ -616,7 +608,7 @@ export function parseStockFast(src: string, diagnostics?: StockFastDiagnostics, 
     }
 
     if (ch === 0x23) {
-      if (!pushAtxHeading(tokens, src, pos, end, line, parseRichInline))
+      if (!pushAtxHeading(tokens, src, pos, end, line))
         return null
       if (diagnostics) {
         diagnostics.blocks++
@@ -645,12 +637,12 @@ export function parseStockFast(src: string, diagnostics?: StockFastDiagnostics, 
 
         const contentStart = nextPos + 2
         const content = itemEnd === contentStart + 1 ? src[contentStart] : src.slice(contentStart, itemEnd)
-        if (!parseRichInline && !isShortPlainInlineText(content))
+        if (!isShortPlainInlineText(content))
           return null
 
         if (listOpen === null)
           listOpen = pushTightBulletListOpen(tokens, startLine)
-        lastItemOpen = pushTightBulletListItem(tokens, content, nextLine, parseRichInline)
+        lastItemOpen = pushTightBulletListItem(tokens, content, nextLine)
         nextPos = itemEnd < src.length ? itemEnd + 1 : itemEnd
         nextLine++
       }
@@ -703,12 +695,6 @@ export function parseStockFast(src: string, diagnostics?: StockFastDiagnostics, 
       continue
     }
 
-    if (parseRichInline
-      && (ch === 0x5B /* [ */ || ch === 0x2A /* * */)
-      && detectGlobalMarkdownState(src.slice(pos, end))) {
-      return null
-    }
-
     const paragraph = paragraphContent(src, pos, end)
     let paragraphIsPlain: boolean
     if (plainInlineCacheMode === PLAIN_CACHE_DISABLED) {
@@ -738,7 +724,7 @@ export function parseStockFast(src: string, diagnostics?: StockFastDiagnostics, 
       }
     }
 
-    if (!paragraphIsPlain && !parseRichInline)
+    if (!paragraphIsPlain)
       return null
 
     const nextPos = end < src.length ? end + 1 : end
@@ -748,7 +734,7 @@ export function parseStockFast(src: string, diagnostics?: StockFastDiagnostics, 
         return null
     }
 
-    pushParagraph(tokens, paragraph, line, parseRichInline)
+    pushParagraph(tokens, paragraph, line)
     if (diagnostics) {
       diagnostics.blocks++
       diagnostics.paragraphs++

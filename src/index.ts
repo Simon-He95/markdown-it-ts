@@ -18,7 +18,6 @@ import defaultPreset from './presets/default'
 import zeroPreset from './presets/zero'
 import Renderer from './render/renderer'
 import { renderStockFast, renderStockFastWithDiagnostics } from './render/stock_fast'
-import { text_join } from './rules/core/text_join'
 import { chunkedParse } from './stream/chunked'
 import { StreamParser } from './stream/parser'
 import {
@@ -723,24 +722,10 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       if (env !== undefined)
         beginParseDiagnostics(env)
 
-      const ruleProfilingRequested = !!env && (
-        Object.prototype.hasOwnProperty.call(env, '__mdtsRuleProfile')
-        || Object.prototype.hasOwnProperty.call(env, '__mdtsProfileRules')
-      )
-      const hasOwnedGlobalState = !!env && !!getKnownGlobalMarkdownState(env)
-      if (canUseStockParseFastPath(this, src.length) && !ruleProfilingRequested && !hasOwnedGlobalState) {
+      if (canUseStockParseFastPath(this, src.length)) {
         const stockFastDiagnostics = env === undefined ? undefined : createStockFastDiagnostics('parse')
         const startedAt = stockFastDiagnostics ? getDiagnosticNow() : 0
-        const envRef = env ?? {}
-        let usedRichInline = false
-        const tokens = parseStockFast(src, stockFastDiagnostics, (content) => {
-          usedRichInline = true
-          const children: TokenType[] = []
-          this.inline.parse(content, this, envRef, children)
-          return children
-        })
-        if (tokens && usedRichInline)
-          text_join({ tokens } as any)
+        const tokens = parseStockFast(src, stockFastDiagnostics)
         if (stockFastDiagnostics) {
           stockFastDiagnostics.attemptMs = getDiagnosticNow() - startedAt
           if (tokens === null)

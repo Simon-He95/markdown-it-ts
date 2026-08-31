@@ -43,7 +43,7 @@ describe('performance corpora', () => {
     expect(getParseDiagnostics(renderEnv)?.strategy).toMatchObject({ area: 'parse', path: 'plain' })
   })
 
-  it('keeps every feature-stress corpus on its expected parser and token renderer', () => {
+  it('keeps every feature-stress corpus on the general parser and token renderer', () => {
     expect(FEATURE_STRESS_CORPORA.map(corpus => corpus.id)).toEqual([
       'plain-text',
       'inline-formatting',
@@ -64,7 +64,7 @@ describe('performance corpora', () => {
       md.render(source, renderEnv)
 
       expect(getParseDiagnostics(parseEnv)?.strategy?.path, corpus.id).toBe(corpus.expectedParsePath)
-      expect(getParseDiagnostics(renderEnv)?.strategy?.path, corpus.id).toBe(corpus.expectedParsePath)
+      expect(getParseDiagnostics(renderEnv)?.strategy?.path, corpus.id).toBe('plain')
       expect(corpus.expectedRenderPath, corpus.id).toBe('token-renderer')
     }
   })
