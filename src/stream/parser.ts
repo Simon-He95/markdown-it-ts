@@ -26,6 +26,7 @@ interface StreamCache {
   lastSegment?: StreamSegment | null
   lastSegmentVerified?: boolean
   normalizedSrc?: string
+  hasFenceMarker?: boolean
   globalStateReason?: GlobalMarkdownStateReason | null
   globalStateCarry?: string
   boundary?: StreamBoundaryState
@@ -758,6 +759,8 @@ export class StreamParser {
       // Update cache with new src and line count
       if (cached.boundary)
         this.updateBoundaryStateForAppend(cached, appended)
+      else
+        this.updateFenceMarkerCacheForAppend(cached, appended)
       cached.src = src
       cached.globalStateReason = null
       const appendedLines = appendedLineCount ?? countAppendedLines()
@@ -1036,12 +1039,21 @@ export class StreamParser {
     // Heuristic safety: if previous content ends inside an open fenced code block,
     // avoid append fast-path since closing fence in appended segment would
     // retroactively change prior tokens.
-    const lastSegment = this.ensureLastSegment(cache)
-    if (lastSegment && this.segmentHasFence(cache, lastSegment)) {
+    if (knownAppend !== undefined) {
+      const lastSegment = this.ensureLastSegment(cache)
+      if (lastSegment && this.segmentHasFence(cache, lastSegment)) {
+        const scanStart = this.tokenMapsTrusted
+          ? this.ensureSegmentSourceOffset(cache, lastSegment)
+          : 0
+        if (this.endsInsideOpenFence(prev, scanStart))
+          return null
+      }
+    }
+    else {
       const scanStart = this.tokenMapsTrusted
-        ? this.ensureSegmentSourceOffset(cache, lastSegment)
+        ? (this.ensureLastSegment(cache)?.srcOffset ?? 0)
         : 0
-      if (this.endsInsideOpenFence(prev, scanStart))
+      if ((this.tokenMapsTrusted || this.cacheHasFenceMarker(cache)) && this.endsInsideOpenFence(prev, scanStart))
         return null
     }
 
@@ -1062,13 +1074,15 @@ export class StreamParser {
     const lastSegment = segmentOverride ?? this.ensureLastSegment(cached)
     if (!lastSegment)
       return null
-    this.ensureSegmentSourceOffset(cached, lastSegment)
+
+    const directAppend = knownAppend !== undefined
+    if (directAppend)
+      this.ensureSegmentSourceOffset(cached, lastSegment)
 
     // No reusable prefix means we'd just be reparsing the entire document again.
     if (lastSegment.srcOffset <= 0 && lastSegment.tokenStart <= 0)
       return null
 
-    const directAppend = knownAppend !== undefined
     if (!directAppend) {
       const stablePrefix = cached.src.slice(0, lastSegment.srcOffset)
       if (!src.startsWith(stablePrefix))
@@ -1091,7 +1105,7 @@ export class StreamParser {
     if (appended) {
       const merged = this.tryContainerTailAppendMerge(src, cached, env, md, lastSegment, appended, postBlockSrc)
       if (merged) {
-        cached.lastSegmentSource = nextTail
+        cached.lastSegmentSource = directAppend ? nextTail : undefined
         return merged
       }
     }
@@ -1115,15 +1129,21 @@ export class StreamParser {
       if (lastSegment.lineStart > 0 && !parsedTail.mapsShifted)
         this.shiftTokenLines(tailState.tokens, lastSegment.lineStart)
 
-      if (appended && cached.boundary)
-        this.updateBoundaryStateForAppend(cached, appended)
-      else
+      if (appended) {
+        if (directAppend)
+          this.updateBoundaryStateForAppend(cached, appended)
+        else
+          this.updateFenceMarkerCacheForAppend(cached, appended)
+      }
+      else {
         cached.boundary = undefined
+        cached.hasFenceMarker = undefined
+      }
       cached.src = src
       cached.normalizedSrc = postBlockSrc
       cached.env = env
       cached.globalStateReason = null
-      if (!appended)
+      if (!directAppend || !appended)
         cached.globalStateCarry = undefined
       cached.tokens.length = lastSegment.tokenStart
       this.appendTokens(cached.tokens, tailState.tokens)
@@ -1136,7 +1156,7 @@ export class StreamParser {
           lineEnd: parsedTail.mapsShifted ? localLastSegment.lineEnd : lastSegment.lineStart + localLastSegment.lineEnd,
           srcOffset: lastSegment.srcOffset + localLastSegment.srcOffset,
         }
-        cached.lastSegmentSource = nextTail.slice(localLastSegment.srcOffset)
+        cached.lastSegmentSource = directAppend ? nextTail.slice(localLastSegment.srcOffset) : undefined
       }
       else {
         cached.lastSegment = null
@@ -1205,7 +1225,8 @@ export class StreamParser {
   }
 
   private hasVerifiedSegmentAnchor(cache: StreamCache, segment: StreamSegment, md: MarkdownIt): boolean {
-    this.ensureSegmentSourceOffset(cache, segment)
+    if (segment.srcOffset < 0)
+      this.ensureSegmentSourceOffset(cache, segment)
     const lineCount = cache.lineCount ?? countLines(cache.src)
     const docLineCount = this.getDocLineCount(cache.src, lineCount)
     const inRange = segment.lineStart >= 0
@@ -1257,6 +1278,19 @@ export class StreamParser {
 
   private normalizeSource(src: string): string {
     return src.replace(/\r\n?/g, '\n').replace(/\0/g, '\uFFFD')
+  }
+
+  private cacheHasFenceMarker(cache: StreamCache): boolean {
+    if (cache.hasFenceMarker === undefined)
+      cache.hasFenceMarker = cache.src.includes('```') || cache.src.includes('~~~')
+    return cache.hasFenceMarker
+  }
+
+  private updateFenceMarkerCacheForAppend(cache: StreamCache, appended: string): void {
+    if (this.cacheHasFenceMarker(cache))
+      return
+    const boundary = cache.src.slice(-2) + appended
+    cache.hasFenceMarker = boundary.includes('```') || boundary.includes('~~~')
   }
 
   private getNormalizedUpdatedSource(cache: StreamCache, next: string): string {
@@ -1700,6 +1734,8 @@ export class StreamParser {
     cached.tokens.splice(cached.tokens.length - 1, 0, ...inserted)
     if (cached.boundary)
       this.updateBoundaryStateForAppend(cached, appended)
+    else
+      this.updateFenceMarkerCacheForAppend(cached, appended)
     cached.src = src
     cached.normalizedSrc = postBlockSrc
     cached.env = env
@@ -1783,6 +1819,8 @@ export class StreamParser {
     cached.tokens.splice(insertAt, 0, ...inserted)
     if (cached.boundary)
       this.updateBoundaryStateForAppend(cached, appended)
+    else
+      this.updateFenceMarkerCacheForAppend(cached, appended)
     cached.src = src
     cached.normalizedSrc = postBlockSrc
     cached.env = env
