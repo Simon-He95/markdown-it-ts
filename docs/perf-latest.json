@@ -1,27 +1,27 @@
 {
   "benchmarkVersion": 7,
-  "benchmarkFingerprint": "6585a07553dbbd293854b32726d9330124bfd0f8d25f278afa2b1032672f994c",
-  "reportSha256": "a5d1cd30091ce8e72844ba29307a2903ce51408e35bc9bb3ea31f451235fbb75",
-  "generatedAt": "2026-08-22T22:03:42.293Z",
-  "node": "v20.20.2",
-  "gitSha": "fac94fb",
+  "benchmarkFingerprint": "d6ceba86dc19261263da9d00ce6ea9021357d472d1b35c9c1008435f290aee97",
+  "reportSha256": "39b439bd42818fb45cfc18b40587f6b5642bff41017d334d0743ff809e2c9584",
+  "generatedAt": "2026-08-31T01:14:41.136Z",
+  "node": "v24.16.0",
+  "gitSha": "975b389",
   "environment": {
-    "generatedAt": "2026-08-22T22:03:42.293Z",
-    "node": "v20.20.2",
-    "platform": "linux x64",
-    "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
-    "cpuCount": 4,
-    "commit": "fac94fb7ed63f5644d4057d1560d741f52bcbf13"
+    "generatedAt": "2026-08-31T01:14:41.136Z",
+    "node": "v24.16.0",
+    "platform": "darwin arm64",
+    "cpu": "Apple M1 Pro",
+    "cpuCount": 10,
+    "commit": "975b38934801b8a6a32a37cde502cf7e62e9587b"
   },
   "results": [
     {
       "size": 5000,
       "scenario": "S1",
       "label": "stream ON, cache OFF, chunk ON",
-      "oneShotMs": 0.25420364166666665,
-      "appendWorkloadMs": 0.7763024166666572,
-      "appendLineMs": 2.446418249999965,
-      "replaceParagraphMs": 0.3781355000000062,
+      "oneShotMs": 0.2112423583333334,
+      "appendWorkloadMs": 0.5910967499999913,
+      "appendLineMs": 1.7770309999999796,
+      "replaceParagraphMs": 0.19618224999999967,
       "lastMode": "chunked",
       "appendHits": 0,
       "chunkInfoOne": {
@@ -43,10 +43,10 @@
       "size": 5000,
       "scenario": "S2",
       "label": "stream ON, cache ON, chunk OFF",
-      "oneShotMs": 0.21580315833333305,
-      "appendWorkloadMs": 0.4252354166666711,
-      "appendLineMs": 0.8706695000000764,
-      "replaceParagraphMs": 0.3371563750000064,
+      "oneShotMs": 0.1567683999999995,
+      "appendWorkloadMs": 0.3035415833333749,
+      "appendLineMs": 0.44069774999988454,
+      "replaceParagraphMs": 0.1617292500000076,
       "lastMode": "full",
       "appendHits": 240,
       "chunkInfoOne": null,
@@ -58,10 +58,10 @@
       "size": 5000,
       "scenario": "S3",
       "label": "stream ON, cache ON, chunk ON",
-      "oneShotMs": 0.236642333333333,
-      "appendWorkloadMs": 0.3107459166666805,
-      "appendLineMs": 0.568668500000058,
-      "replaceParagraphMs": 0.41418412500000557,
+      "oneShotMs": 0.19330694166666737,
+      "appendWorkloadMs": 0.3224583333333252,
+      "appendLineMs": 0.3887605000001315,
+      "replaceParagraphMs": 0.18641674999999225,
       "lastMode": "chunked",
       "appendHits": 240,
       "chunkInfoOne": {
@@ -83,10 +83,10 @@
       "size": 5000,
       "scenario": "S4",
       "label": "stream OFF, chunk ON",
-      "oneShotMs": 0.22405420000000048,
-      "appendWorkloadMs": 0.6785357499999616,
-      "appendLineMs": 2.1433389999998553,
-      "replaceParagraphMs": 0.3805053750000411,
+      "oneShotMs": 0.18908610833333342,
+      "appendWorkloadMs": 0.5678645000000415,
+      "appendLineMs": 1.7128227500000435,
+      "replaceParagraphMs": 0.19385950000001628,
       "lastMode": "idle",
       "appendHits": 0,
       "chunkInfoOne": {
@@ -108,10 +108,10 @@
       "size": 5000,
       "scenario": "S5",
       "label": "stream OFF, chunk OFF",
-      "oneShotMs": 0.07147301666666787,
-      "appendWorkloadMs": 0.2018228333333051,
-      "appendLineMs": 0.9925262500000827,
-      "replaceParagraphMs": 0.3134982500000092,
+      "oneShotMs": 0.045407641666666144,
+      "appendWorkloadMs": 0.12689258333330145,
+      "appendLineMs": 0.6507602499998484,
+      "replaceParagraphMs": 0.050364625000000274,
       "lastMode": "idle",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -123,10 +123,10 @@
       "size": 5000,
       "scenario": "M1",
       "label": "markdown-it (baseline)",
-      "oneShotMs": 0.24229495833333203,
-      "appendWorkloadMs": 0.8049192499999929,
-      "appendLineMs": 2.461853749999989,
-      "replaceParagraphMs": 0.5989568749999421,
+      "oneShotMs": 0.19878785000000032,
+      "appendWorkloadMs": 0.6122430000000729,
+      "appendLineMs": 1.920970000000068,
+      "replaceParagraphMs": 0.20194799999995894,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -138,10 +138,10 @@
       "size": 5000,
       "scenario": "E1",
       "label": "markdown-exit",
-      "oneShotMs": 0.36635530000000166,
-      "appendWorkloadMs": 1.2200310833333106,
-      "appendLineMs": 3.388103250000313,
-      "replaceParagraphMs": 0.7790611250000268,
+      "oneShotMs": 0.2538211833333321,
+      "appendWorkloadMs": 0.8172464166665918,
+      "appendLineMs": 2.432823500000154,
+      "replaceParagraphMs": 0.2778332499999294,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -153,10 +153,10 @@
       "size": 5000,
       "scenario": "OX1",
       "label": "@ox-content/napi (parse only)",
-      "oneShotMs": 0.04194487499999961,
-      "appendWorkloadMs": 0.08810583333342947,
-      "appendLineMs": 0.1265079999997738,
-      "replaceParagraphMs": 0.04395062499997948,
+      "oneShotMs": 0.042892708333333,
+      "appendWorkloadMs": 0.06368766666669975,
+      "appendLineMs": 0.0987502500003643,
+      "replaceParagraphMs": 0.042265749999955915,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -168,10 +168,10 @@
       "size": 5000,
       "scenario": "OXJ",
       "label": "@ox-content/napi (parse + JSON.parse)",
-      "oneShotMs": 0.214206333333334,
-      "appendWorkloadMs": 0.24259708333299085,
-      "appendLineMs": 0.31042124999976295,
-      "replaceParagraphMs": 0.218322374999957,
+      "oneShotMs": 0.18140277499999988,
+      "appendWorkloadMs": 0.20497941666665534,
+      "appendLineMs": 0.24452024999970945,
+      "replaceParagraphMs": 0.1804063749999898,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -183,10 +183,10 @@
       "size": 5000,
       "scenario": "MM1",
       "label": "micromark (parse only)",
-      "oneShotMs": 7.291493275000001,
-      "appendWorkloadMs": 25.052569666666464,
-      "appendLineMs": 70.82947949999925,
-      "replaceParagraphMs": 6.7641768749999756,
+      "oneShotMs": 3.867648266666667,
+      "appendWorkloadMs": 12.823701583333332,
+      "appendLineMs": 35.8986977499992,
+      "replaceParagraphMs": 4.298979250000116,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -198,10 +198,10 @@
       "size": 5000,
       "scenario": "R1",
       "label": "remark (parse only)",
-      "oneShotMs": 9.607561108333341,
-      "appendWorkloadMs": 30.006027583333132,
-      "appendLineMs": 96.95184150000296,
-      "replaceParagraphMs": 8.673013749999882,
+      "oneShotMs": 4.783002783333336,
+      "appendWorkloadMs": 14.881215166666454,
+      "appendLineMs": 43.31905124999912,
+      "replaceParagraphMs": 4.742817749999858,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -213,10 +213,10 @@
       "size": 20000,
       "scenario": "S2",
       "label": "stream ON, cache ON, chunk OFF",
-      "oneShotMs": 0.7599808333333082,
-      "appendWorkloadMs": 1.0764515999995639,
-      "appendLineMs": 1.598505125004067,
-      "replaceParagraphMs": 0.7697474166670872,
+      "oneShotMs": 0.6076104166666483,
+      "appendWorkloadMs": 1.1667079999991983,
+      "appendLineMs": 1.5095098750009583,
+      "replaceParagraphMs": 0.6435172500002106,
       "lastMode": "full",
       "appendHits": 149,
       "chunkInfoOne": null,
@@ -228,10 +228,10 @@
       "size": 20000,
       "scenario": "S3",
       "label": "stream ON, cache ON, chunk ON",
-      "oneShotMs": 0.9565418000000137,
-      "appendWorkloadMs": 1.0876422000023012,
-      "appendLineMs": 2.270602250000593,
-      "replaceParagraphMs": 0.933368750000227,
+      "oneShotMs": 0.7628041666666832,
+      "appendWorkloadMs": 1.093000799998117,
+      "appendLineMs": 1.4201459999992494,
+      "replaceParagraphMs": 0.7456250833336829,
       "lastMode": "chunked",
       "appendHits": 149,
       "chunkInfoOne": {
@@ -253,10 +253,10 @@
       "size": 20000,
       "scenario": "S4",
       "label": "stream OFF, chunk ON",
-      "oneShotMs": 0.9342153833333213,
-      "appendWorkloadMs": 3.0149346000012884,
-      "appendLineMs": 8.434138874998098,
-      "replaceParagraphMs": 0.9516240000002654,
+      "oneShotMs": 0.7451486166666654,
+      "appendWorkloadMs": 2.504266600002302,
+      "appendLineMs": 7.124233499997672,
+      "replaceParagraphMs": 0.745222249999794,
       "lastMode": "idle",
       "appendHits": 0,
       "chunkInfoOne": {
@@ -278,10 +278,10 @@
       "size": 20000,
       "scenario": "S5",
       "label": "stream OFF, chunk OFF",
-      "oneShotMs": 0.28558040000001106,
-      "appendWorkloadMs": 0.9332558000009158,
-      "appendLineMs": 3.780432749997999,
-      "replaceParagraphMs": 1.0268151666668928,
+      "oneShotMs": 0.14900625000000217,
+      "appendWorkloadMs": 0.5000416000002588,
+      "appendLineMs": 2.422260750000987,
+      "replaceParagraphMs": 0.15837158333306434,
       "lastMode": "idle",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -293,10 +293,10 @@
       "size": 20000,
       "scenario": "M1",
       "label": "markdown-it (baseline)",
-      "oneShotMs": 0.9959597333333173,
-      "appendWorkloadMs": 3.3761613999973634,
-      "appendLineMs": 9.148754624998219,
-      "replaceParagraphMs": 1.0418209166661352,
+      "oneShotMs": 0.7380541666666735,
+      "appendWorkloadMs": 2.488783599999806,
+      "appendLineMs": 6.94970312499936,
+      "replaceParagraphMs": 0.8730798333331222,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -308,10 +308,10 @@
       "size": 20000,
       "scenario": "E1",
       "label": "markdown-exit",
-      "oneShotMs": 1.4367973833333356,
-      "appendWorkloadMs": 4.7088634000007,
-      "appendLineMs": 13.101484500001334,
-      "replaceParagraphMs": 1.3799226666663647,
+      "oneShotMs": 1.00484653333336,
+      "appendWorkloadMs": 3.3879662000006645,
+      "appendLineMs": 9.461421375000555,
+      "replaceParagraphMs": 1.1406701666669505,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -323,10 +323,10 @@
       "size": 20000,
       "scenario": "OX1",
       "label": "@ox-content/napi (parse only)",
-      "oneShotMs": 0.16398471666670958,
-      "appendWorkloadMs": 0.20870820000272944,
-      "appendLineMs": 0.27708787500432663,
-      "replaceParagraphMs": 0.15804558333335686,
+      "oneShotMs": 0.16245208333333114,
+      "appendWorkloadMs": 0.19885840000060853,
+      "appendLineMs": 0.24627037500022197,
+      "replaceParagraphMs": 0.16671175000010408,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -338,10 +338,10 @@
       "size": 20000,
       "scenario": "OXJ",
       "label": "@ox-content/napi (parse + JSON.parse)",
-      "oneShotMs": 0.8172579499999605,
-      "appendWorkloadMs": 0.8618210000007821,
-      "appendLineMs": 0.9532998749991748,
-      "replaceParagraphMs": 0.8119476666667348,
+      "oneShotMs": 0.7104083333333316,
+      "appendWorkloadMs": 0.7731908000001567,
+      "appendLineMs": 0.8050467500011109,
+      "replaceParagraphMs": 0.7078714999997828,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -353,10 +353,10 @@
       "size": 20000,
       "scenario": "MM1",
       "label": "micromark (parse only)",
-      "oneShotMs": 33.54609544999997,
-      "appendWorkloadMs": 98.35959260000091,
-      "appendLineMs": 299.4680178749986,
-      "replaceParagraphMs": 40.37822550000055,
+      "oneShotMs": 17.0358757,
+      "appendWorkloadMs": 49.63287480000072,
+      "appendLineMs": 134.5507248749991,
+      "replaceParagraphMs": 15.465343833333463,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -368,10 +368,10 @@
       "size": 20000,
       "scenario": "R1",
       "label": "remark (parse only)",
-      "oneShotMs": 39.11147970000008,
-      "appendWorkloadMs": 138.0029675999991,
-      "appendLineMs": 377.71080787499704,
-      "replaceParagraphMs": 40.47457141666807,
+      "oneShotMs": 23.210768049999995,
+      "appendWorkloadMs": 73.36414079999959,
+      "appendLineMs": 205.6392869999995,
+      "replaceParagraphMs": 23.142729166666264,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -383,10 +383,10 @@
       "size": 20000,
       "scenario": "S1",
       "label": "stream ON, cache OFF, chunk ON",
-      "oneShotMs": 0.9157424499999858,
-      "appendWorkloadMs": 3.058029199998418,
-      "appendLineMs": 8.250139875006425,
-      "replaceParagraphMs": 0.8948286666667021,
+      "oneShotMs": 0.7584423499999805,
+      "appendWorkloadMs": 2.5828241999988677,
+      "appendLineMs": 7.137312750004639,
+      "replaceParagraphMs": 0.7509757500010892,
       "lastMode": "chunked",
       "appendHits": 0,
       "chunkInfoOne": {
@@ -408,10 +408,10 @@
       "size": 50000,
       "scenario": "S3",
       "label": "stream ON, cache ON, chunk ON",
-      "oneShotMs": 2.2306753666666435,
-      "appendWorkloadMs": 3.336442625003656,
-      "appendLineMs": 5.3564295000045,
-      "replaceParagraphMs": 2.0944018000001963,
+      "oneShotMs": 1.8932513666666637,
+      "appendWorkloadMs": 2.6372297500010973,
+      "appendLineMs": 3.200875333329653,
+      "replaceParagraphMs": 1.9243710000002465,
       "lastMode": "chunked",
       "appendHits": 146,
       "chunkInfoOne": {
@@ -433,10 +433,10 @@
       "size": 50000,
       "scenario": "S4",
       "label": "stream OFF, chunk ON",
-      "oneShotMs": 2.1466389666665537,
-      "appendWorkloadMs": 7.661555000004228,
-      "appendLineMs": 20.377103333328705,
-      "replaceParagraphMs": 2.1139784000013604,
+      "oneShotMs": 1.8929638666668325,
+      "appendWorkloadMs": 6.648750000000291,
+      "appendLineMs": 17.798249499994803,
+      "replaceParagraphMs": 1.8486624000004668,
       "lastMode": "idle",
       "appendHits": 0,
       "chunkInfoOne": {
@@ -458,10 +458,10 @@
       "size": 50000,
       "scenario": "S5",
       "label": "stream OFF, chunk OFF",
-      "oneShotMs": 0.6261866333331757,
-      "appendWorkloadMs": 2.0113108749992534,
-      "appendLineMs": 5.681447500005257,
-      "replaceParagraphMs": 2.499449000000459,
+      "oneShotMs": 0.3580027666665652,
+      "appendWorkloadMs": 1.3650106249988312,
+      "appendLineMs": 3.6196043333390358,
+      "replaceParagraphMs": 0.440558100000635,
       "lastMode": "idle",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -473,10 +473,10 @@
       "size": 50000,
       "scenario": "M1",
       "label": "markdown-it (baseline)",
-      "oneShotMs": 2.4260563999998945,
-      "appendWorkloadMs": 7.5485254999948665,
-      "appendLineMs": 21.436637000000097,
-      "replaceParagraphMs": 2.3712510000012115,
+      "oneShotMs": 1.854834733333458,
+      "appendWorkloadMs": 6.439984625005309,
+      "appendLineMs": 17.452444999996562,
+      "replaceParagraphMs": 1.8164959999994608,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -488,10 +488,10 @@
       "size": 50000,
       "scenario": "E1",
       "label": "markdown-exit",
-      "oneShotMs": 3.4819510000001173,
-      "appendWorkloadMs": 12.016062499998043,
-      "appendLineMs": 32.65123100000103,
-      "replaceParagraphMs": 3.6567834000001316,
+      "oneShotMs": 2.5149485999999643,
+      "appendWorkloadMs": 8.7209947500005,
+      "appendLineMs": 23.584805000002234,
+      "replaceParagraphMs": 2.5156124999994063,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -503,10 +503,10 @@
       "size": 50000,
       "scenario": "OX1",
       "label": "@ox-content/napi (parse only)",
-      "oneShotMs": 0.5090513666667297,
-      "appendWorkloadMs": 0.4708467499976905,
-      "appendLineMs": 0.5447164999968663,
-      "replaceParagraphMs": 0.5517159000009997,
+      "oneShotMs": 0.4359208333332693,
+      "appendWorkloadMs": 0.48145800000020245,
+      "appendLineMs": 0.5332911666664586,
+      "replaceParagraphMs": 0.44222939999890515,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -518,10 +518,10 @@
       "size": 50000,
       "scenario": "OXJ",
       "label": "@ox-content/napi (parse + JSON.parse)",
-      "oneShotMs": 2.1755088999998407,
-      "appendWorkloadMs": 2.0647377499981303,
-      "appendLineMs": 2.1658549999980705,
-      "replaceParagraphMs": 2.1358331999996154,
+      "oneShotMs": 1.7975333333333159,
+      "appendWorkloadMs": 1.82763574999899,
+      "appendLineMs": 1.8978546666694456,
+      "replaceParagraphMs": 1.8288373999988834,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -533,10 +533,10 @@
       "size": 50000,
       "scenario": "MM1",
       "label": "micromark (parse only)",
-      "oneShotMs": 89.91028056666643,
-      "appendWorkloadMs": 296.00297249999494,
-      "appendLineMs": 771.3974438333267,
-      "replaceParagraphMs": 90.10780180000148,
+      "oneShotMs": 45.63051113333325,
+      "appendWorkloadMs": 147.57175537500098,
+      "appendLineMs": 394.7595904999944,
+      "replaceParagraphMs": 43.683966700000745,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -548,10 +548,10 @@
       "size": 50000,
       "scenario": "R1",
       "label": "remark (parse only)",
-      "oneShotMs": 106.31566236666694,
-      "appendWorkloadMs": 359.98940025000957,
-      "appendLineMs": 979.233926166659,
-      "replaceParagraphMs": 100.74857670000056,
+      "oneShotMs": 63.925137499999984,
+      "appendWorkloadMs": 195.9248074999996,
+      "appendLineMs": 539.7784793333365,
+      "replaceParagraphMs": 61.100583400002506,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -563,10 +563,10 @@
       "size": 50000,
       "scenario": "S1",
       "label": "stream ON, cache OFF, chunk ON",
-      "oneShotMs": 2.1417343333329577,
-      "appendWorkloadMs": 7.553906125003778,
-      "appendLineMs": 20.424444500005244,
-      "replaceParagraphMs": 2.1051401000018815,
+      "oneShotMs": 1.9199930666664538,
+      "appendWorkloadMs": 6.70716099999845,
+      "appendLineMs": 18.05180466665479,
+      "replaceParagraphMs": 1.9661165000012262,
       "lastMode": "chunked",
       "appendHits": 0,
       "chunkInfoOne": {
@@ -588,10 +588,10 @@
       "size": 50000,
       "scenario": "S2",
       "label": "stream ON, cache ON, chunk OFF",
-      "oneShotMs": 1.8804169333331326,
-      "appendWorkloadMs": 2.94009675000234,
-      "appendLineMs": 5.3153084999988405,
-      "replaceParagraphMs": 1.9163272000005236,
+      "oneShotMs": 1.5134222333334038,
+      "appendWorkloadMs": 2.544551874991157,
+      "appendLineMs": 3.23229133333128,
+      "replaceParagraphMs": 1.466816599998856,
       "lastMode": "full",
       "appendHits": 146,
       "chunkInfoOne": null,
@@ -603,10 +603,10 @@
       "size": 100000,
       "scenario": "S4",
       "label": "stream OFF, chunk ON",
-      "oneShotMs": 4.60471624999991,
-      "appendWorkloadMs": 16.549085666668056,
-      "appendLineMs": 42.68382774999918,
-      "replaceParagraphMs": 4.47743362500114,
+      "oneShotMs": 3.9369791874996736,
+      "appendWorkloadMs": 13.18364616667289,
+      "appendLineMs": 35.96037400002024,
+      "replaceParagraphMs": 3.820786499998576,
       "lastMode": "idle",
       "appendHits": 0,
       "chunkInfoOne": {
@@ -628,10 +628,10 @@
       "size": 100000,
       "scenario": "S5",
       "label": "stream OFF, chunk OFF",
-      "oneShotMs": 1.4154754375003904,
-      "appendWorkloadMs": 3.7945638333306606,
-      "appendLineMs": 11.128827500000625,
-      "replaceParagraphMs": 7.652188499998374,
+      "oneShotMs": 0.8497421874999418,
+      "appendWorkloadMs": 2.4758748333260883,
+      "appendLineMs": 7.21769699997094,
+      "replaceParagraphMs": 1.0243437500012078,
       "lastMode": "idle",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -643,10 +643,10 @@
       "size": 100000,
       "scenario": "M1",
       "label": "markdown-it (baseline)",
-      "oneShotMs": 5.587340437500643,
-      "appendWorkloadMs": 16.06588016666501,
-      "appendLineMs": 47.93378200002189,
-      "replaceParagraphMs": 5.715403874997719,
+      "oneShotMs": 4.086549437500253,
+      "appendWorkloadMs": 13.11556233333734,
+      "appendLineMs": 35.71866574999149,
+      "replaceParagraphMs": 3.94634374999805,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -658,10 +658,10 @@
       "size": 100000,
       "scenario": "E1",
       "label": "markdown-exit",
-      "oneShotMs": 8.114431062500444,
-      "appendWorkloadMs": 24.677510999987135,
-      "appendLineMs": 67.28001749999385,
-      "replaceParagraphMs": 7.975460875004501,
+      "oneShotMs": 5.190815124999972,
+      "appendWorkloadMs": 17.25110433333369,
+      "appendLineMs": 47.28838625000208,
+      "replaceParagraphMs": 5.197041750003336,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -673,10 +673,10 @@
       "size": 100000,
       "scenario": "OX1",
       "label": "@ox-content/napi (parse only)",
-      "oneShotMs": 1.5505905624995648,
-      "appendWorkloadMs": 0.9085648333420977,
-      "appendLineMs": 0.9760197500072536,
-      "replaceParagraphMs": 1.562544499996875,
+      "oneShotMs": 0.8550598750007339,
+      "appendWorkloadMs": 0.90916683334702,
+      "appendLineMs": 0.996802249999746,
+      "replaceParagraphMs": 0.8576511250012118,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -688,10 +688,10 @@
       "size": 100000,
       "scenario": "OXJ",
       "label": "@ox-content/napi (parse + JSON.parse)",
-      "oneShotMs": 4.877751250000074,
-      "appendWorkloadMs": 4.10397216665054,
-      "appendLineMs": 4.162009999992733,
-      "replaceParagraphMs": 4.7842292499990435,
+      "oneShotMs": 3.564955750000081,
+      "appendWorkloadMs": 3.6323673333269353,
+      "appendLineMs": 3.7434912500320934,
+      "replaceParagraphMs": 3.5730522499998187,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -703,10 +703,10 @@
       "size": 100000,
       "scenario": "MM1",
       "label": "micromark (parse only)",
-      "oneShotMs": 169.1068993125009,
-      "appendWorkloadMs": 575.2911124999955,
-      "appendLineMs": 1593.549712749962,
-      "replaceParagraphMs": 181.56557162500394,
+      "oneShotMs": 90.13472918749994,
+      "appendWorkloadMs": 308.37979949999374,
+      "appendLineMs": 834.4126467499918,
+      "replaceParagraphMs": 89.81220824999946,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -718,10 +718,10 @@
       "size": 100000,
       "scenario": "R1",
       "label": "remark (parse only)",
-      "oneShotMs": 225.24359018749965,
-      "appendWorkloadMs": 748.6261634999925,
-      "appendLineMs": 2244.0730592499676,
-      "replaceParagraphMs": 227.8432222499905,
+      "oneShotMs": 144.79828906249986,
+      "appendWorkloadMs": 462.09347916666593,
+      "appendLineMs": 1238.3911247499927,
+      "replaceParagraphMs": 142.95817162500316,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -733,10 +733,10 @@
       "size": 100000,
       "scenario": "S1",
       "label": "stream ON, cache OFF, chunk ON",
-      "oneShotMs": 4.658214499999303,
-      "appendWorkloadMs": 16.58257566665028,
-      "appendLineMs": 43.11805975007883,
-      "replaceParagraphMs": 4.525933875000192,
+      "oneShotMs": 3.9346900624996124,
+      "appendWorkloadMs": 13.33465249999669,
+      "appendLineMs": 36.09421999999904,
+      "replaceParagraphMs": 3.865609250000489,
       "lastMode": "chunked",
       "appendHits": 0,
       "chunkInfoOne": {
@@ -758,10 +758,10 @@
       "size": 100000,
       "scenario": "S2",
       "label": "stream ON, cache ON, chunk OFF",
-      "oneShotMs": 6.476294250000137,
-      "appendWorkloadMs": 6.690742833326416,
-      "appendLineMs": 12.021421749966976,
-      "replaceParagraphMs": 5.747499999997672,
+      "oneShotMs": 3.1414192499996716,
+      "appendWorkloadMs": 4.6955346666654805,
+      "appendLineMs": 6.090771250004764,
+      "replaceParagraphMs": 3.0670623750011146,
       "lastMode": "full",
       "appendHits": 92,
       "chunkInfoOne": null,
@@ -773,10 +773,10 @@
       "size": 100000,
       "scenario": "S3",
       "label": "stream ON, cache ON, chunk ON",
-      "oneShotMs": 4.612843500000963,
-      "appendWorkloadMs": 6.815154166644788,
-      "appendLineMs": 12.055410500070138,
-      "replaceParagraphMs": 4.368904749997455,
+      "oneShotMs": 3.9309791249997943,
+      "appendWorkloadMs": 4.736861666671757,
+      "appendLineMs": 6.063197999985277,
+      "replaceParagraphMs": 3.998687750001409,
       "lastMode": "chunked",
       "appendHits": 92,
       "chunkInfoOne": {
@@ -798,10 +798,10 @@
       "size": 200000,
       "scenario": "S5",
       "label": "stream OFF, chunk OFF",
-      "oneShotMs": 5.9899992999999085,
-      "appendWorkloadMs": 9.31009975001507,
-      "appendLineMs": 30.667856499989284,
-      "replaceParagraphMs": 19.730989499997424,
+      "oneShotMs": 2.021341599999869,
+      "appendWorkloadMs": 5.415885500009608,
+      "appendLineMs": 14.15411400001176,
+      "replaceParagraphMs": 1.5439096666693026,
       "lastMode": "idle",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -813,10 +813,10 @@
       "size": 200000,
       "scenario": "M1",
       "label": "markdown-it (baseline)",
-      "oneShotMs": 10.52656910000078,
-      "appendWorkloadMs": 53.312553250005294,
-      "appendLineMs": 108.59379524998076,
-      "replaceParagraphMs": 10.256122999994357,
+      "oneShotMs": 8.659708399999364,
+      "appendWorkloadMs": 28.226739499994437,
+      "appendLineMs": 73.5691767499884,
+      "replaceParagraphMs": 7.990277833334403,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -828,10 +828,10 @@
       "size": 200000,
       "scenario": "E1",
       "label": "markdown-exit",
-      "oneShotMs": 16.991680300000006,
-      "appendWorkloadMs": 60.20475474998966,
-      "appendLineMs": 145.43421275002038,
-      "replaceParagraphMs": 17.49503966667786,
+      "oneShotMs": 11.495391700000619,
+      "appendWorkloadMs": 36.92568649999885,
+      "appendLineMs": 98.50937474999591,
+      "replaceParagraphMs": 11.080340333331453,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -843,10 +843,10 @@
       "size": 200000,
       "scenario": "OX1",
       "label": "@ox-content/napi (parse only)",
-      "oneShotMs": 3.2684528000012505,
-      "appendWorkloadMs": 2.2171302500137244,
-      "appendLineMs": 1.9688892500271322,
-      "replaceParagraphMs": 3.218824000000798,
+      "oneShotMs": 1.6948457999998936,
+      "appendWorkloadMs": 1.98616674997902,
+      "appendLineMs": 1.9177195000520442,
+      "replaceParagraphMs": 1.6591528333325791,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -858,10 +858,10 @@
       "size": 200000,
       "scenario": "OXJ",
       "label": "@ox-content/napi (parse + JSON.parse)",
-      "oneShotMs": 9.996594199998071,
-      "appendWorkloadMs": 8.689415499960887,
-      "appendLineMs": 8.213870250008767,
-      "replaceParagraphMs": 9.88479633332463,
+      "oneShotMs": 7.05346669999999,
+      "appendWorkloadMs": 7.374843249985133,
+      "appendLineMs": 7.289990499964915,
+      "replaceParagraphMs": 7.04051366666196,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -873,10 +873,10 @@
       "size": 200000,
       "scenario": "MM1",
       "label": "micromark (parse only)",
-      "oneShotMs": 335.2684722999984,
-      "appendWorkloadMs": 1244.361365249999,
-      "appendLineMs": 3166.894954250005,
-      "replaceParagraphMs": 338.97062966667966,
+      "oneShotMs": 184.82707919999956,
+      "appendWorkloadMs": 627.1363645000165,
+      "appendLineMs": 1749.1960417500086,
+      "replaceParagraphMs": 179.20931916666933,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -888,10 +888,10 @@
       "size": 200000,
       "scenario": "R1",
       "label": "remark (parse only)",
-      "oneShotMs": 509.0586475999968,
-      "appendWorkloadMs": 1640.8604450000566,
-      "appendLineMs": 4758.406958499967,
-      "replaceParagraphMs": 515.8696354999944,
+      "oneShotMs": 366.8944833000016,
+      "appendWorkloadMs": 1122.8248747499965,
+      "appendLineMs": 3134.5909690000262,
+      "replaceParagraphMs": 358.4055763333308,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -903,10 +903,10 @@
       "size": 200000,
       "scenario": "S1",
       "label": "stream ON, cache OFF, chunk ON",
-      "oneShotMs": 10.649088600004324,
-      "appendWorkloadMs": 36.7494512500125,
-      "appendLineMs": 108.20479149997118,
-      "replaceParagraphMs": 13.962008833341923,
+      "oneShotMs": 8.266004099999554,
+      "appendWorkloadMs": 27.118229249987053,
+      "appendLineMs": 73.21032099997683,
+      "replaceParagraphMs": 9.923173666664905,
       "lastMode": "chunked",
       "appendHits": 0,
       "chunkInfoOne": {
@@ -928,10 +928,10 @@
       "size": 200000,
       "scenario": "S2",
       "label": "stream ON, cache ON, chunk OFF",
-      "oneShotMs": 15.795205199997872,
-      "appendWorkloadMs": 21.11198225004773,
-      "appendLineMs": 27.82937974995002,
-      "replaceParagraphMs": 13.513846833346179,
+      "oneShotMs": 6.889162499998929,
+      "appendWorkloadMs": 10.78688549999788,
+      "appendLineMs": 14.17201074998593,
+      "replaceParagraphMs": 6.036076166667044,
       "lastMode": "full",
       "appendHits": 72,
       "chunkInfoOne": null,
@@ -943,10 +943,10 @@
       "size": 200000,
       "scenario": "S3",
       "label": "stream ON, cache ON, chunk ON",
-      "oneShotMs": 10.460935000004246,
-      "appendWorkloadMs": 15.276953749969834,
-      "appendLineMs": 22.908353499951772,
-      "replaceParagraphMs": 9.499264833333047,
+      "oneShotMs": 8.205591600001208,
+      "appendWorkloadMs": 9.598312750000332,
+      "appendLineMs": 13.236864499973308,
+      "replaceParagraphMs": 8.08473633333536,
       "lastMode": "chunked",
       "appendHits": 72,
       "chunkInfoOne": {
@@ -968,10 +968,10 @@
       "size": 200000,
       "scenario": "S4",
       "label": "stream OFF, chunk ON",
-      "oneShotMs": 10.750863300001948,
-      "appendWorkloadMs": 38.70982025002013,
-      "appendLineMs": 107.602785999974,
-      "replaceParagraphMs": 9.57034533332141,
+      "oneShotMs": 8.240645900001983,
+      "appendWorkloadMs": 26.768198500001745,
+      "appendLineMs": 72.13796925000497,
+      "replaceParagraphMs": 7.971069333342408,
       "lastMode": "idle",
       "appendHits": 0,
       "chunkInfoOne": {
@@ -993,10 +993,10 @@
       "size": 500000,
       "scenario": "M1",
       "label": "markdown-it (baseline)",
-      "oneShotMs": 53.31782412499888,
-      "appendWorkloadMs": 188.61419400002342,
-      "appendLineMs": 448.10934250007267,
-      "replaceParagraphMs": 57.2895514999982,
+      "oneShotMs": 26.688651124997705,
+      "appendWorkloadMs": 75.36312600006931,
+      "appendLineMs": 210.04227150000224,
+      "replaceParagraphMs": 22.875625499997113,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -1008,10 +1008,10 @@
       "size": 500000,
       "scenario": "E1",
       "label": "markdown-exit",
-      "oneShotMs": 64.32197325000016,
-      "appendWorkloadMs": 190.17245400004322,
-      "appendLineMs": 554.4667335000413,
-      "replaceParagraphMs": 58.04795500001637,
+      "oneShotMs": 32.07142187499994,
+      "appendWorkloadMs": 99.80662500002654,
+      "appendLineMs": 263.9137685000169,
+      "replaceParagraphMs": 29.231624749983894,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -1023,10 +1023,10 @@
       "size": 500000,
       "scenario": "OX1",
       "label": "@ox-content/napi (parse only)",
-      "oneShotMs": 7.604003749991534,
-      "appendWorkloadMs": 5.418908999999985,
-      "appendLineMs": 5.791471500124317,
-      "replaceParagraphMs": 7.285739500002819,
+      "oneShotMs": 4.1881978749988775,
+      "appendWorkloadMs": 4.738622999982908,
+      "appendLineMs": 4.8840225000312785,
+      "replaceParagraphMs": 5.034708249993855,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -1038,10 +1038,10 @@
       "size": 500000,
       "scenario": "OXJ",
       "label": "@ox-content/napi (parse + JSON.parse)",
-      "oneShotMs": 25.306932125000458,
-      "appendWorkloadMs": 22.348213000048418,
-      "appendLineMs": 22.023499499919126,
-      "replaceParagraphMs": 23.686126000000513,
+      "oneShotMs": 17.376770875001966,
+      "appendWorkloadMs": 17.978458000026876,
+      "appendLineMs": 20.04806400006055,
+      "replaceParagraphMs": 17.46586449998722,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -1053,10 +1053,10 @@
       "size": 500000,
       "scenario": "S1",
       "label": "stream ON, cache OFF, chunk ON",
-      "oneShotMs": 43.108097249998536,
-      "appendWorkloadMs": 126.45392399991397,
-      "appendLineMs": 374.46244600007776,
-      "replaceParagraphMs": 40.42999000000418,
+      "oneShotMs": 23.721546875000058,
+      "appendWorkloadMs": 66.45946000001277,
+      "appendLineMs": 193.10837400001765,
+      "replaceParagraphMs": 21.38320799999201,
       "lastMode": "chunked",
       "appendHits": 0,
       "chunkInfoOne": {
@@ -1078,10 +1078,10 @@
       "size": 500000,
       "scenario": "S2",
       "label": "stream ON, cache ON, chunk OFF",
-      "oneShotMs": 45.477655499998946,
-      "appendWorkloadMs": 56.74534499994479,
-      "appendLineMs": 87.86861399997724,
-      "replaceParagraphMs": 39.99140149998129,
+      "oneShotMs": 21.540182375003496,
+      "appendWorkloadMs": 33.25979200005531,
+      "appendLineMs": 41.04989449997083,
+      "replaceParagraphMs": 27.527635250000458,
       "lastMode": "full",
       "appendHits": 25,
       "chunkInfoOne": null,
@@ -1093,10 +1093,10 @@
       "size": 500000,
       "scenario": "S3",
       "label": "stream ON, cache ON, chunk ON",
-      "oneShotMs": 42.36718287499389,
-      "appendWorkloadMs": 54.17135200003395,
-      "appendLineMs": 72.42013849984505,
-      "replaceParagraphMs": 41.41536400001496,
+      "oneShotMs": 22.556338499998674,
+      "appendWorkloadMs": 29.80075000002398,
+      "appendLineMs": 33.83856250002282,
+      "replaceParagraphMs": 19.613531499999226,
       "lastMode": "chunked",
       "appendHits": 25,
       "chunkInfoOne": {
@@ -1118,10 +1118,10 @@
       "size": 500000,
       "scenario": "S4",
       "label": "stream OFF, chunk ON",
-      "oneShotMs": 42.5514409999887,
-      "appendWorkloadMs": 127.10486799996579,
-      "appendLineMs": 365.999119999964,
-      "replaceParagraphMs": 43.317594749998534,
+      "oneShotMs": 22.487750000000233,
+      "appendWorkloadMs": 68.51137500000186,
+      "appendLineMs": 189.8711010000261,
+      "replaceParagraphMs": 21.380708250013413,
       "lastMode": "idle",
       "appendHits": 0,
       "chunkInfoOne": {
@@ -1143,10 +1143,10 @@
       "size": 500000,
       "scenario": "S5",
       "label": "stream OFF, chunk OFF",
-      "oneShotMs": 24.225977500005683,
-      "appendWorkloadMs": 58.75792700005695,
-      "appendLineMs": 238.34604549995856,
-      "replaceParagraphMs": 70.94011324999155,
+      "oneShotMs": 6.526260375001584,
+      "appendWorkloadMs": 15.772293000016361,
+      "appendLineMs": 72.60239700005332,
+      "replaceParagraphMs": 3.5848127499994007,
       "lastMode": "idle",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -1158,10 +1158,10 @@
       "size": 1000000,
       "scenario": "E1",
       "label": "markdown-exit",
-      "oneShotMs": 127.47558900000877,
-      "appendWorkloadMs": 476.7941044999752,
-      "appendLineMs": 1200.44382149991,
-      "replaceParagraphMs": 124.55624899998656,
+      "oneShotMs": 63.82254199999443,
+      "appendWorkloadMs": 206.17222900001798,
+      "appendLineMs": 588.0474364999973,
+      "replaceParagraphMs": 71.85993750000489,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -1173,10 +1173,10 @@
       "size": 1000000,
       "scenario": "OX1",
       "label": "@ox-content/napi (parse only)",
-      "oneShotMs": 14.720999999990454,
-      "appendWorkloadMs": 11.405361000011908,
-      "appendLineMs": 12.630063499993412,
-      "replaceParagraphMs": 13.842251999973087,
+      "oneShotMs": 10.477208500000415,
+      "appendWorkloadMs": 9.571477999998024,
+      "appendLineMs": 9.463938000015332,
+      "replaceParagraphMs": 10.321416999999201,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -1188,10 +1188,10 @@
       "size": 1000000,
       "scenario": "OXJ",
       "label": "@ox-content/napi (parse + JSON.parse)",
-      "oneShotMs": 50.4059830000042,
-      "appendWorkloadMs": 43.90793449993362,
-      "appendLineMs": 44.32453899993561,
-      "replaceParagraphMs": 49.883591999998316,
+      "oneShotMs": 37.18341649998911,
+      "appendWorkloadMs": 39.87824949997594,
+      "appendLineMs": 38.73114549998718,
+      "replaceParagraphMs": 39.1697290000011,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -1203,10 +1203,10 @@
       "size": 1000000,
       "scenario": "S1",
       "label": "stream ON, cache OFF, chunk ON",
-      "oneShotMs": 87.1037490000017,
-      "appendWorkloadMs": 325.87583350011846,
-      "appendLineMs": 858.7622285000107,
-      "replaceParagraphMs": 82.83285949999117,
+      "oneShotMs": 54.25185400000191,
+      "appendWorkloadMs": 152.2641864999896,
+      "appendLineMs": 415.5820004999987,
+      "replaceParagraphMs": 56.3932710000081,
       "lastMode": "chunked",
       "appendHits": 0,
       "chunkInfoOne": {
@@ -1228,10 +1228,10 @@
       "size": 1000000,
       "scenario": "S2",
       "label": "stream ON, cache ON, chunk OFF",
-      "oneShotMs": 78.04734350001672,
-      "appendWorkloadMs": 103.29704049995053,
-      "appendLineMs": 139.4297399998759,
-      "replaceParagraphMs": 86.94126350001898,
+      "oneShotMs": 51.626541499994346,
+      "appendWorkloadMs": 77.65062500000931,
+      "appendLineMs": 77.92847800001618,
+      "replaceParagraphMs": 55.07035400001041,
       "lastMode": "full",
       "appendHits": 32,
       "chunkInfoOne": null,
@@ -1243,10 +1243,10 @@
       "size": 1000000,
       "scenario": "S3",
       "label": "stream ON, cache ON, chunk ON",
-      "oneShotMs": 81.2754460000142,
-      "appendWorkloadMs": 107.14211999997497,
-      "appendLineMs": 147.09969799988903,
-      "replaceParagraphMs": 79.00666250003269,
+      "oneShotMs": 46.650541499999235,
+      "appendWorkloadMs": 67.48620800000208,
+      "appendLineMs": 74.10785600006056,
+      "replaceParagraphMs": 52.5595830000093,
       "lastMode": "chunked",
       "appendHits": 32,
       "chunkInfoOne": {
@@ -1268,10 +1268,10 @@
       "size": 1000000,
       "scenario": "S4",
       "label": "stream OFF, chunk ON",
-      "oneShotMs": 83.32252349998453,
-      "appendWorkloadMs": 306.7750970000343,
-      "appendLineMs": 831.7401484999864,
-      "replaceParagraphMs": 105.09262299997499,
+      "oneShotMs": 47.25643750000745,
+      "appendWorkloadMs": 153.0324164999911,
+      "appendLineMs": 411.8802509999514,
+      "replaceParagraphMs": 52.603000000002794,
       "lastMode": "idle",
       "appendHits": 0,
       "chunkInfoOne": {
@@ -1293,10 +1293,10 @@
       "size": 1000000,
       "scenario": "S5",
       "label": "stream OFF, chunk OFF",
-      "oneShotMs": 54.04191650002031,
-      "appendWorkloadMs": 184.21638250004617,
-      "appendLineMs": 472.09355300001334,
-      "replaceParagraphMs": 127.60269500000868,
+      "oneShotMs": 15.592687500000466,
+      "appendWorkloadMs": 40.47010500001488,
+      "appendLineMs": 91.5470010000281,
+      "replaceParagraphMs": 13.776895500021055,
       "lastMode": "idle",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -1308,10 +1308,10 @@
       "size": 1000000,
       "scenario": "M1",
       "label": "markdown-it (baseline)",
-      "oneShotMs": 100.78781499998877,
-      "appendWorkloadMs": 372.2860365000088,
-      "appendLineMs": 1011.4090825000603,
-      "replaceParagraphMs": 135.3310094999906,
+      "oneShotMs": 49.000749999977415,
+      "appendWorkloadMs": 164.94612449998385,
+      "appendLineMs": 445.0100819999352,
+      "replaceParagraphMs": 57.5368539999763,
       "lastMode": "n/a",
       "appendHits": 0,
       "chunkInfoOne": null,
@@ -1326,224 +1326,224 @@
       "id": "TS",
       "label": "markdown-it-ts (stream+chunk)",
       "type": "ts",
-      "coldMs": 0.24364199995761737,
-      "hotMs": 0.4169642000051681
+      "coldMs": 0.21899999998277053,
+      "hotMs": 0.19067919999943114
     },
     {
       "size": 5000,
       "id": "MD",
       "label": "markdown-it (baseline)",
       "type": "md-original",
-      "coldMs": 0.2557980000274256,
-      "hotMs": 0.2169820000010077
+      "coldMs": 0.20087499998044223,
+      "hotMs": 0.17829580000252462
     },
     {
       "size": 5000,
       "id": "OX",
       "label": "@ox-content/napi (parse only)",
       "type": "ox-content",
-      "coldMs": 0.04118999995989725,
-      "hotMs": 0.04059220000053756
+      "coldMs": 0.043249999987892807,
+      "hotMs": 0.04159579999977723
     },
     {
       "size": 5000,
       "id": "OXJ",
       "label": "@ox-content/napi (parse + JSON.parse)",
       "type": "ox-content-json",
-      "coldMs": 0.20485800004098564,
-      "hotMs": 0.20451389999943786
+      "coldMs": 0.17862500000046566,
+      "hotMs": 0.17783329999656416
     },
     {
       "size": 5000,
       "id": "MM",
       "label": "micromark (parse only)",
       "type": "micromark-parse",
-      "coldMs": 8.466188999998849,
-      "hotMs": 8.464492500002962
+      "coldMs": 3.38962500001071,
+      "hotMs": 3.4865500000014435
     },
     {
       "size": 5000,
       "id": "RM",
       "label": "remark (parse only)",
       "type": "remark",
-      "coldMs": 8.613975999993272,
-      "hotMs": 9.088858100003563
+      "coldMs": 4.428333999996539,
+      "hotMs": 4.123633400001563
     },
     {
       "size": 5000,
       "id": "EX",
       "label": "markdown-exit",
       "type": "md-exit",
-      "coldMs": 0.670125000004191,
-      "hotMs": 0.7338162000000011
+      "coldMs": 0.2666249999892898,
+      "hotMs": 0.2608249999990221
     },
     {
       "size": 20000,
       "id": "TS",
       "label": "markdown-it-ts (stream+chunk)",
       "type": "ts",
-      "coldMs": 0.9355670000077225,
-      "hotMs": 0.9721887999970932
+      "coldMs": 0.7640829999581911,
+      "hotMs": 0.7417542000010144
     },
     {
       "size": 20000,
       "id": "MD",
       "label": "markdown-it (baseline)",
       "type": "md-original",
-      "coldMs": 0.9389780000201426,
-      "hotMs": 0.9855564999976195
+      "coldMs": 0.7494169999845326,
+      "hotMs": 0.7178332999988924
     },
     {
       "size": 20000,
       "id": "OX",
       "label": "@ox-content/napi (parse only)",
       "type": "ox-content",
-      "coldMs": 0.18090700003085658,
-      "hotMs": 0.1599802999990061
+      "coldMs": 0.1594999999506399,
+      "hotMs": 0.15997090000309983
     },
     {
       "size": 20000,
       "id": "OXJ",
       "label": "@ox-content/napi (parse + JSON.parse)",
       "type": "ox-content-json",
-      "coldMs": 0.8220909999799915,
-      "hotMs": 0.8013257000013254
+      "coldMs": 0.7054999999818392,
+      "hotMs": 0.7187250000017229
     },
     {
       "size": 20000,
       "id": "MM",
       "label": "micromark (parse only)",
       "type": "micromark-parse",
-      "coldMs": 29.372669000003953,
-      "hotMs": 28.79193100000266
+      "coldMs": 15.529417000012472,
+      "hotMs": 16.155508299998473
     },
     {
       "size": 20000,
       "id": "RM",
       "label": "remark (parse only)",
       "type": "remark",
-      "coldMs": 38.458755999978166,
-      "hotMs": 40.719028999999864
+      "coldMs": 19.106792000005953,
+      "hotMs": 19.95852919999743
     },
     {
       "size": 20000,
       "id": "EX",
       "label": "markdown-exit",
       "type": "md-exit",
-      "coldMs": 1.3764540000120178,
-      "hotMs": 1.4148977000033482
+      "coldMs": 1.0129159999778494,
+      "hotMs": 0.9702708000026178
     },
     {
       "size": 50000,
       "id": "TS",
       "label": "markdown-it-ts (stream+chunk)",
       "type": "ts",
-      "coldMs": 2.2224439999554306,
-      "hotMs": 2.5433719000022394
+      "coldMs": 1.8716669999994338,
+      "hotMs": 2.0211875000037254
     },
     {
       "size": 50000,
       "id": "MD",
       "label": "markdown-it (baseline)",
       "type": "md-original",
-      "coldMs": 3.0794130000285804,
-      "hotMs": 2.73661350000184
+      "coldMs": 1.795542000036221,
+      "hotMs": 1.899895799998194
     },
     {
       "size": 50000,
       "id": "OX",
       "label": "@ox-content/napi (parse only)",
       "type": "ox-content",
-      "coldMs": 0.4965780000202358,
-      "hotMs": 0.49429139999556354
+      "coldMs": 0.4199169999919832,
+      "hotMs": 0.4377582999994047
     },
     {
       "size": 50000,
       "id": "OXJ",
       "label": "@ox-content/napi (parse + JSON.parse)",
       "type": "ox-content-json",
-      "coldMs": 2.1198250000015832,
-      "hotMs": 2.1411859999992884
+      "coldMs": 1.848416000022553,
+      "hotMs": 1.8061709000030532
     },
     {
       "size": 50000,
       "id": "MM",
       "label": "micromark (parse only)",
       "type": "micromark-parse",
-      "coldMs": 76.03349000000162,
-      "hotMs": 84.85305830000434
+      "coldMs": 49.507707999960985,
+      "hotMs": 44.86293750000186
     },
     {
       "size": 50000,
       "id": "RM",
       "label": "remark (parse only)",
       "type": "remark",
-      "coldMs": 112.10751999996137,
-      "hotMs": 115.28137589999824
+      "coldMs": 62.163624999986496,
+      "hotMs": 63.451516700000504
     },
     {
       "size": 50000,
       "id": "EX",
       "label": "markdown-exit",
       "type": "md-exit",
-      "coldMs": 3.30566800001543,
-      "hotMs": 3.9086455999989993
+      "coldMs": 2.4678750000311993,
+      "hotMs": 2.5121959000010974
     },
     {
       "size": 100000,
       "id": "TS",
       "label": "markdown-it-ts (stream+chunk)",
       "type": "ts",
-      "coldMs": 4.846664999960922,
-      "hotMs": 6.568130400002701
+      "coldMs": 3.8304169999901205,
+      "hotMs": 4.207966599997599
     },
     {
       "size": 100000,
       "id": "MD",
       "label": "markdown-it (baseline)",
       "type": "md-original",
-      "coldMs": 7.131076999998186,
-      "hotMs": 8.457080400001724
+      "coldMs": 3.559750000014901,
+      "hotMs": 4.16158750000177
     },
     {
       "size": 100000,
       "id": "OX",
       "label": "@ox-content/napi (parse only)",
       "type": "ox-content",
-      "coldMs": 0.9722049999982119,
-      "hotMs": 1.0236152000026777
+      "coldMs": 0.8901249999762513,
+      "hotMs": 0.8429917000001297
     },
     {
       "size": 100000,
       "id": "OXJ",
       "label": "@ox-content/napi (parse + JSON.parse)",
       "type": "ox-content-json",
-      "coldMs": 4.197098000033293,
-      "hotMs": 4.198505200003273
+      "coldMs": 3.518707999959588,
+      "hotMs": 3.544820799998706
     },
     {
       "size": 100000,
       "id": "MM",
       "label": "micromark (parse only)",
       "type": "micromark-parse",
-      "coldMs": 166.65990299999248,
-      "hotMs": 174.97830449999893
+      "coldMs": 89.38970800000243,
+      "hotMs": 90.27601249999717
     },
     {
       "size": 100000,
       "id": "RM",
       "label": "remark (parse only)",
       "type": "remark",
-      "coldMs": 228.83577700000023,
-      "hotMs": 248.14663009999785
+      "coldMs": 157.9029580000206,
+      "hotMs": 145.85292090000002
     },
     {
       "size": 100000,
       "id": "EX",
       "label": "markdown-exit",
       "type": "md-exit",
-      "coldMs": 10.124585999990813,
-      "hotMs": 11.124756699998397
+      "coldMs": 4.992417000001296,
+      "hotMs": 5.091854199999943
     }
   ],
   "renderComparisons": [
@@ -1551,315 +1551,315 @@
       "size": 5000,
       "scenario": "TS_RENDER",
       "label": "markdown-it-ts.render",
-      "renderMs": 0.024517541666379355
+      "renderMs": 0.021986458333655416
     },
     {
       "size": 5000,
       "scenario": "TS_RENDER_ASYNC",
       "label": "markdown-it-ts.renderAsync",
-      "renderMs": 0.021077575000041784
+      "renderMs": 0.018419791666868454
     },
     {
       "size": 5000,
       "scenario": "MD_RENDER",
       "label": "markdown-it.render",
-      "renderMs": 0.28935233333322685
+      "renderMs": 0.23219583333314706
     },
     {
       "size": 5000,
       "scenario": "OX_RENDER",
       "label": "@ox-content/napi",
-      "renderMs": 0.04030886666635827
+      "renderMs": 0.03847500000022895
     },
     {
       "size": 5000,
       "scenario": "MM_RENDER",
       "label": "micromark (CommonMark)",
-      "renderMs": 8.695422566667064
+      "renderMs": 3.880862500000027
     },
     {
       "size": 5000,
       "scenario": "RM_RENDER",
       "label": "remark+rehype",
-      "renderMs": 10.314399566666786
+      "renderMs": 4.762767008333564
     },
     {
       "size": 5000,
       "scenario": "EX_RENDER",
       "label": "markdown-exit",
-      "renderMs": 0.40507586666644785
+      "renderMs": 0.30345937499999615
     },
     {
       "size": 20000,
       "scenario": "TS_RENDER_ASYNC",
       "label": "markdown-it-ts.renderAsync",
-      "renderMs": 0.07795273333322257
+      "renderMs": 0.07114236666626918
     },
     {
       "size": 20000,
       "scenario": "MD_RENDER",
       "label": "markdown-it.render",
-      "renderMs": 1.2084099833329673
+      "renderMs": 0.9151673499999258
     },
     {
       "size": 20000,
       "scenario": "OX_RENDER",
       "label": "@ox-content/napi",
-      "renderMs": 0.15219736666670844
+      "renderMs": 0.14974374999971285
     },
     {
       "size": 20000,
       "scenario": "MM_RENDER",
       "label": "micromark (CommonMark)",
-      "renderMs": 41.29665998333367
+      "renderMs": 17.906638883332683
     },
     {
       "size": 20000,
       "scenario": "RM_RENDER",
       "label": "remark+rehype",
-      "renderMs": 41.466178899999555
+      "renderMs": 22.294052083333373
     },
     {
       "size": 20000,
       "scenario": "EX_RENDER",
       "label": "markdown-exit",
-      "renderMs": 1.65260984999865
+      "renderMs": 1.1972750000005665
     },
     {
       "size": 20000,
       "scenario": "TS_RENDER",
       "label": "markdown-it-ts.render",
-      "renderMs": 0.07802426666603424
+      "renderMs": 0.07137638333369978
     },
     {
       "size": 50000,
       "scenario": "MD_RENDER",
       "label": "markdown-it.render",
-      "renderMs": 3.1147865333322744
+      "renderMs": 2.3025652666653817
     },
     {
       "size": 50000,
       "scenario": "OX_RENDER",
       "label": "@ox-content/napi",
-      "renderMs": 0.36925056666368616
+      "renderMs": 0.3690735999999257
     },
     {
       "size": 50000,
       "scenario": "MM_RENDER",
       "label": "micromark (CommonMark)",
-      "renderMs": 102.36222230000034
+      "renderMs": 51.84031110000021
     },
     {
       "size": 50000,
       "scenario": "RM_RENDER",
       "label": "remark+rehype",
-      "renderMs": 129.4776714999966
+      "renderMs": 70.04301943333316
     },
     {
       "size": 50000,
       "scenario": "EX_RENDER",
       "label": "markdown-exit",
-      "renderMs": 4.3408131666675525
+      "renderMs": 3.0095652666680204
     },
     {
       "size": 50000,
       "scenario": "TS_RENDER",
       "label": "markdown-it-ts.render",
-      "renderMs": 0.19130450000132745
+      "renderMs": 0.17682916666769113
     },
     {
       "size": 50000,
       "scenario": "TS_RENDER_ASYNC",
       "label": "markdown-it-ts.renderAsync",
-      "renderMs": 0.18993243333340312
+      "renderMs": 0.1767541666670392
     },
     {
       "size": 100000,
       "scenario": "OX_RENDER",
       "label": "@ox-content/napi",
-      "renderMs": 0.8253006875020219
+      "renderMs": 0.7627187500002037
     },
     {
       "size": 100000,
       "scenario": "MM_RENDER",
       "label": "micromark (CommonMark)",
-      "renderMs": 213.8400615624996
+      "renderMs": 108.08328643749701
     },
     {
       "size": 100000,
       "scenario": "RM_RENDER",
       "label": "remark+rehype",
-      "renderMs": 267.6922856250021
+      "renderMs": 163.641361937498
     },
     {
       "size": 100000,
       "scenario": "EX_RENDER",
       "label": "markdown-exit",
-      "renderMs": 11.69112231249892
+      "renderMs": 6.151927124999929
     },
     {
       "size": 100000,
       "scenario": "TS_RENDER",
       "label": "markdown-it-ts.render",
-      "renderMs": 0.3905064999999013
+      "renderMs": 0.3519713749992661
     },
     {
       "size": 100000,
       "scenario": "TS_RENDER_ASYNC",
       "label": "markdown-it-ts.renderAsync",
-      "renderMs": 0.4303197499975795
+      "renderMs": 0.35180731249784003
     },
     {
       "size": 100000,
       "scenario": "MD_RENDER",
       "label": "markdown-it.render",
-      "renderMs": 8.894972500005679
+      "renderMs": 4.818723937500181
     },
     {
       "size": 200000,
       "scenario": "MM_RENDER",
       "label": "micromark (CommonMark)",
-      "renderMs": 411.7756992000039
+      "renderMs": 221.6725167000026
     },
     {
       "size": 200000,
       "scenario": "RM_RENDER",
       "label": "remark+rehype",
-      "renderMs": 663.9397429000004
+      "renderMs": 404.366379099997
     },
     {
       "size": 200000,
       "scenario": "EX_RENDER",
       "label": "markdown-exit",
-      "renderMs": 25.87299799999455
+      "renderMs": 13.17644169999985
     },
     {
       "size": 200000,
       "scenario": "TS_RENDER",
       "label": "markdown-it-ts.render",
-      "renderMs": 0.8627008000039496
+      "renderMs": 0.6999458000005688
     },
     {
       "size": 200000,
       "scenario": "TS_RENDER_ASYNC",
       "label": "markdown-it-ts.renderAsync",
-      "renderMs": 0.8850956000038422
+      "renderMs": 0.7009833000018262
     },
     {
       "size": 200000,
       "scenario": "MD_RENDER",
       "label": "markdown-it.render",
-      "renderMs": 17.564134099998046
+      "renderMs": 10.602425000001677
     },
     {
       "size": 200000,
       "scenario": "OX_RENDER",
       "label": "@ox-content/napi",
-      "renderMs": 1.7536868999945
+      "renderMs": 1.5136875000025611
     },
     {
       "size": 500000,
       "scenario": "TS_RENDER",
       "label": "markdown-it-ts.render",
-      "renderMs": 3.4997324999858392
+      "renderMs": 2.41932812500454
     },
     {
       "size": 500000,
       "scenario": "TS_RENDER_ASYNC",
       "label": "markdown-it-ts.renderAsync",
-      "renderMs": 2.9928137500101
+      "renderMs": 2.379666624998208
     },
     {
       "size": 500000,
       "scenario": "MD_RENDER",
       "label": "markdown-it.render",
-      "renderMs": 58.375222000002395
+      "renderMs": 31.60101037500135
     },
     {
       "size": 500000,
       "scenario": "OX_RENDER",
       "label": "@ox-content/napi",
-      "renderMs": 4.421276874985779
+      "renderMs": 3.775218874994607
     },
     {
       "size": 500000,
       "scenario": "EX_RENDER",
       "label": "markdown-exit",
-      "renderMs": 70.9049085000006
+      "renderMs": 40.60687500000495
     },
     {
       "size": 1000000,
       "scenario": "TS_RENDER_ASYNC",
       "label": "markdown-it-ts.renderAsync",
-      "renderMs": 7.079092499974649
+      "renderMs": 4.798479499993846
     },
     {
       "size": 1000000,
       "scenario": "MD_RENDER",
       "label": "markdown-it.render",
-      "renderMs": 135.3457359999884
+      "renderMs": 72.63222900000983
     },
     {
       "size": 1000000,
       "scenario": "OX_RENDER",
       "label": "@ox-content/napi",
-      "renderMs": 9.65269850002369
+      "renderMs": 7.4784790000121575
     },
     {
       "size": 1000000,
       "scenario": "EX_RENDER",
       "label": "markdown-exit",
-      "renderMs": 139.22016000002623
+      "renderMs": 81.72135449998314
     },
     {
       "size": 1000000,
       "scenario": "TS_RENDER",
       "label": "markdown-it-ts.render",
-      "renderMs": 7.608318499987945
+      "renderMs": 4.896458500006702
     }
   ],
   "stockAstJsonComparisons": [
     {
       "size": 5000,
-      "tsAstJsonMs": 0.03143472499990215,
-      "oxParseMs": 0.041238049999810754,
-      "oxParseJsonMs": 0.209554408332527
+      "tsAstJsonMs": 0.024996874999972836,
+      "oxParseMs": 0.04183263333349411,
+      "oxParseJsonMs": 0.18550729166648428
     },
     {
       "size": 20000,
-      "tsAstJsonMs": 0.11010441666585394,
-      "oxParseMs": 0.15764851666754112,
-      "oxParseJsonMs": 0.8097823499992955
+      "tsAstJsonMs": 0.08640486666699872,
+      "oxParseMs": 0.16205903333320748,
+      "oxParseJsonMs": 0.7217840333333394
     },
     {
       "size": 50000,
-      "tsAstJsonMs": 0.23873476666631177,
-      "oxParseMs": 0.4933324666693807,
-      "oxParseJsonMs": 2.1666191333322784
+      "tsAstJsonMs": 0.2123500000006364,
+      "oxParseMs": 0.4286305333332469,
+      "oxParseJsonMs": 1.8596750000006674
     },
     {
       "size": 100000,
-      "tsAstJsonMs": 0.5410736250050832,
-      "oxParseMs": 0.9846265000014682,
-      "oxParseJsonMs": 4.28635968749586
+      "tsAstJsonMs": 0.4210859375016298,
+      "oxParseMs": 0.8407760624977527,
+      "oxParseJsonMs": 3.5798125000001164
     },
     {
       "size": 200000,
-      "tsAstJsonMs": 1.0810676000081003,
-      "oxParseMs": 2.1046670999960044,
-      "oxParseJsonMs": 8.639998300001025
+      "tsAstJsonMs": 0.8311041000008117,
+      "oxParseMs": 1.6539624999975786,
+      "oxParseJsonMs": 7.111533300002338
     },
     {
       "size": 500000,
-      "tsAstJsonMs": 3.0160499999910826,
-      "oxParseMs": 5.362583499998436,
-      "oxParseJsonMs": 22.844140499990317
+      "tsAstJsonMs": 2.065687624999555,
+      "oxParseMs": 4.165489500002877,
+      "oxParseJsonMs": 17.940036499996495
     },
     {
       "size": 1000000,
-      "tsAstJsonMs": 7.247478000004776,
-      "oxParseMs": 13.740585000021383,
-      "oxParseJsonMs": 49.95136300002923
+      "tsAstJsonMs": 4.5582295000203885,
+      "oxParseMs": 10.141854000015883,
+      "oxParseJsonMs": 36.93275000000722
     }
   ],
   "nativeCorpusComparisons": [
@@ -1876,9 +1876,9 @@
         "orderPolicy": "rotate-each-sample"
       },
       "parse": {
-        "markdownItTsMs": 0.05758401666632078,
-        "markdownItMs": 0.23220512500071588,
-        "oxContentMs": 0.041540050000185146,
+        "markdownItTsMs": 0.05728403333390209,
+        "markdownItMs": 0.18083611666612948,
+        "oxContentMs": 0.04211979166720994,
         "markdownItTsOutput": "mutable markdown-it-compatible Token[]",
         "oxContentOutput": "object containing an mdast JSON string",
         "equivalentOutput": false,
@@ -1886,9 +1886,9 @@
         "reason": "stock-subset"
       },
       "render": {
-        "markdownItTsMs": 0.022499866667203605,
-        "markdownItMs": 0.28335159166696633,
-        "oxContentMs": 0.04061554999983248,
+        "markdownItTsMs": 0.02045277500001248,
+        "markdownItMs": 0.22954929999978047,
+        "oxContentMs": 0.03886215833335882,
         "path": "stock-fast",
         "fallbackParsePath": null,
         "outputComparison": {
@@ -1915,9 +1915,9 @@
         "orderPolicy": "rotate-each-sample"
       },
       "parse": {
-        "markdownItTsMs": 0.22973340000025927,
-        "markdownItMs": 0.9191478166671003,
-        "oxContentMs": 0.15689958333193016,
+        "markdownItTsMs": 0.14071736666567936,
+        "markdownItMs": 0.7280860999996852,
+        "oxContentMs": 0.16185278333335495,
         "markdownItTsOutput": "mutable markdown-it-compatible Token[]",
         "oxContentOutput": "object containing an mdast JSON string",
         "equivalentOutput": false,
@@ -1925,9 +1925,9 @@
         "reason": "stock-subset"
       },
       "render": {
-        "markdownItTsMs": 0.07717540000060884,
-        "markdownItMs": 1.1509920000001634,
-        "oxContentMs": 0.15261468333192169,
+        "markdownItTsMs": 0.07227640000055544,
+        "markdownItMs": 0.9062486166668047,
+        "oxContentMs": 0.14982848333311266,
         "path": "stock-fast",
         "fallbackParsePath": null,
         "outputComparison": {
@@ -1954,9 +1954,9 @@
         "orderPolicy": "rotate-each-sample"
       },
       "parse": {
-        "markdownItTsMs": 0.5877600624990009,
-        "markdownItMs": 2.556044187498628,
-        "oxContentMs": 0.492197093746654,
+        "markdownItTsMs": 0.35139581250041374,
+        "markdownItMs": 1.852798187499502,
+        "oxContentMs": 0.42470965625034296,
         "markdownItTsOutput": "mutable markdown-it-compatible Token[]",
         "oxContentOutput": "object containing an mdast JSON string",
         "equivalentOutput": false,
@@ -1964,9 +1964,9 @@
         "reason": "stock-subset"
       },
       "render": {
-        "markdownItTsMs": 0.19105218749973574,
-        "markdownItMs": 2.7775384375017893,
-        "oxContentMs": 0.378233999999793,
+        "markdownItTsMs": 0.17619009374902816,
+        "markdownItMs": 2.289266937499633,
+        "oxContentMs": 0.3686054999998305,
         "path": "stock-fast",
         "fallbackParsePath": null,
         "outputComparison": {
@@ -1993,9 +1993,9 @@
         "orderPolicy": "rotate-each-sample"
       },
       "parse": {
-        "markdownItTsMs": 1.6764549500017893,
-        "markdownItMs": 5.839231049997034,
-        "oxContentMs": 0.9950385499978438,
+        "markdownItTsMs": 0.7434770999971079,
+        "markdownItMs": 3.9029521499993276,
+        "oxContentMs": 0.8360853999998653,
         "markdownItTsOutput": "mutable markdown-it-compatible Token[]",
         "oxContentOutput": "object containing an mdast JSON string",
         "equivalentOutput": false,
@@ -2003,9 +2003,9 @@
         "reason": "stock-subset"
       },
       "render": {
-        "markdownItTsMs": 0.3815853000036441,
-        "markdownItMs": 8.538258899998617,
-        "oxContentMs": 0.8433507999987342,
+        "markdownItTsMs": 0.354491650001728,
+        "markdownItMs": 4.814327050000429,
+        "oxContentMs": 0.7646749999985332,
         "path": "stock-fast",
         "fallbackParsePath": null,
         "outputComparison": {
@@ -2032,9 +2032,9 @@
         "orderPolicy": "rotate-each-sample"
       },
       "parse": {
-        "markdownItTsMs": 2.5934816250082804,
-        "markdownItMs": 10.631840749992989,
-        "oxContentMs": 1.9859071250102716,
+        "markdownItTsMs": 1.3219114999956219,
+        "markdownItMs": 8.252036375008174,
+        "oxContentMs": 1.6816041249985574,
         "markdownItTsOutput": "mutable markdown-it-compatible Token[]",
         "oxContentOutput": "object containing an mdast JSON string",
         "equivalentOutput": false,
@@ -2042,9 +2042,9 @@
         "reason": "stock-subset"
       },
       "render": {
-        "markdownItTsMs": 1.1088721249980154,
-        "markdownItMs": 17.888248874995043,
-        "oxContentMs": 1.7922318749915576,
+        "markdownItTsMs": 0.7008124999993015,
+        "markdownItMs": 10.128426999996009,
+        "oxContentMs": 1.4987448749961914,
         "path": "stock-fast",
         "fallbackParsePath": null,
         "outputComparison": {
@@ -2071,9 +2071,9 @@
         "orderPolicy": "rotate-each-sample"
       },
       "parse": {
-        "markdownItTsMs": 24.196271000022534,
-        "markdownItMs": 44.130206000001635,
-        "oxContentMs": 4.924872499948833,
+        "markdownItTsMs": 5.04706250000163,
+        "markdownItMs": 21.700770499999635,
+        "oxContentMs": 4.149833500006935,
         "markdownItTsOutput": "mutable markdown-it-compatible Token[]",
         "oxContentOutput": "object containing an mdast JSON string",
         "equivalentOutput": false,
@@ -2081,9 +2081,9 @@
         "reason": "stock-subset"
       },
       "render": {
-        "markdownItTsMs": 3.0671689999871887,
-        "markdownItMs": 53.62636599998223,
-        "oxContentMs": 4.6127180000185035,
+        "markdownItTsMs": 2.359146000002511,
+        "markdownItMs": 29.93541649999679,
+        "oxContentMs": 3.7105624999967404,
         "path": "stock-fast",
         "fallbackParsePath": null,
         "outputComparison": {
@@ -2110,9 +2110,9 @@
         "orderPolicy": "rotate-each-sample"
       },
       "parse": {
-        "markdownItTsMs": 45.11180399998557,
-        "markdownItMs": 108.28947650000919,
-        "oxContentMs": 14.695380499993917,
+        "markdownItTsMs": 14.546957999991719,
+        "markdownItMs": 54.095187500002794,
+        "oxContentMs": 9.889729000016814,
         "markdownItTsOutput": "mutable markdown-it-compatible Token[]",
         "oxContentOutput": "object containing an mdast JSON string",
         "equivalentOutput": false,
@@ -2120,9 +2120,9 @@
         "reason": "stock-subset"
       },
       "render": {
-        "markdownItTsMs": 8.094860999961384,
-        "markdownItMs": 130.08207750000292,
-        "oxContentMs": 9.20711499999743,
+        "markdownItTsMs": 7.238791500014486,
+        "markdownItMs": 71.35668749999604,
+        "oxContentMs": 7.457770499982871,
         "path": "stock-fast",
         "fallbackParsePath": null,
         "outputComparison": {
@@ -2149,9 +2149,9 @@
         "orderPolicy": "rotate-each-sample"
       },
       "parse": {
-        "markdownItTsMs": 0.31108081666655685,
-        "markdownItMs": 0.331138608334004,
-        "oxContentMs": 0.06856923333349793,
+        "markdownItTsMs": 0.23569479166714397,
+        "markdownItMs": 0.26827464999999695,
+        "oxContentMs": 0.057964241666680516,
         "markdownItTsOutput": "mutable markdown-it-compatible Token[]",
         "oxContentOutput": "object containing an mdast JSON string",
         "equivalentOutput": false,
@@ -2159,9 +2159,9 @@
         "reason": "default-plain"
       },
       "render": {
-        "markdownItTsMs": 0.3649104833340971,
-        "markdownItMs": 0.4118032499992599,
-        "oxContentMs": 0.05820320000057109,
+        "markdownItTsMs": 0.2662850750003902,
+        "markdownItMs": 0.33019895833325186,
+        "oxContentMs": 0.05445868333335966,
         "path": "token-renderer",
         "fallbackParsePath": "general",
         "outputComparison": {
@@ -2191,9 +2191,9 @@
         "orderPolicy": "rotate-each-sample"
       },
       "parse": {
-        "markdownItTsMs": 1.0535966499999632,
-        "markdownItMs": 1.2867523333309994,
-        "oxContentMs": 0.2166121166665107,
+        "markdownItTsMs": 0.7679652833331299,
+        "markdownItMs": 0.9864479166668995,
+        "oxContentMs": 0.2162152833334403,
         "markdownItTsOutput": "mutable markdown-it-compatible Token[]",
         "oxContentOutput": "object containing an mdast JSON string",
         "equivalentOutput": false,
@@ -2201,9 +2201,9 @@
         "reason": "default-plain"
       },
       "render": {
-        "markdownItTsMs": 1.2597280000006625,
-        "markdownItMs": 1.5729701666665883,
-        "oxContentMs": 0.20850184999872,
+        "markdownItTsMs": 0.9327902666671435,
+        "markdownItMs": 1.2530069500004175,
+        "oxContentMs": 0.2003395833336981,
         "path": "token-renderer",
         "fallbackParsePath": "general",
         "outputComparison": {
@@ -2233,9 +2233,9 @@
         "orderPolicy": "rotate-each-sample"
       },
       "parse": {
-        "markdownItTsMs": 2.7764050937475986,
-        "markdownItMs": 3.2381380625010934,
-        "oxContentMs": 0.6857246250001481,
+        "markdownItTsMs": 1.9582344062491757,
+        "markdownItMs": 2.4425090937493223,
+        "oxContentMs": 0.5586041875012597,
         "markdownItTsOutput": "mutable markdown-it-compatible Token[]",
         "oxContentOutput": "object containing an mdast JSON string",
         "equivalentOutput": false,
@@ -2243,9 +2243,9 @@
         "reason": "default-plain"
       },
       "render": {
-        "markdownItTsMs": 3.3706747812502726,
-        "markdownItMs": 4.207138718753413,
-        "oxContentMs": 0.5123514687511488,
+        "markdownItTsMs": 2.296604156248577,
+        "markdownItMs": 3.139553374998286,
+        "oxContentMs": 0.49321612499988987,
         "path": "token-renderer",
         "fallbackParsePath": "general",
         "outputComparison": {
@@ -2275,9 +2275,9 @@
         "orderPolicy": "rotate-each-sample"
       },
       "parse": {
-        "markdownItTsMs": 8.392063900007635,
-        "markdownItMs": 9.539683149999473,
-        "oxContentMs": 1.3674979000003078,
+        "markdownItTsMs": 4.07386454999796,
+        "markdownItMs": 5.241900049996911,
+        "oxContentMs": 1.1038729000021703,
         "markdownItTsOutput": "mutable markdown-it-compatible Token[]",
         "oxContentOutput": "object containing an mdast JSON string",
         "equivalentOutput": false,
@@ -2285,9 +2285,9 @@
         "reason": "default-plain"
       },
       "render": {
-        "markdownItTsMs": 10.37031465000473,
-        "markdownItMs": 10.318417349999072,
-        "oxContentMs": 1.1643397000036204,
+        "markdownItTsMs": 4.929939550004201,
+        "markdownItMs": 6.580112449999433,
+        "oxContentMs": 1.0053187499986962,
         "path": "token-renderer",
         "fallbackParsePath": "general",
         "outputComparison": {
@@ -2317,9 +2317,9 @@
         "orderPolicy": "rotate-each-sample"
       },
       "parse": {
-        "markdownItTsMs": 16.54171674999816,
-        "markdownItMs": 19.13394137501018,
-        "oxContentMs": 2.7805888750008307,
+        "markdownItTsMs": 9.998593749995052,
+        "markdownItMs": 10.847354250006902,
+        "oxContentMs": 2.178375000003143,
         "markdownItTsOutput": "mutable markdown-it-compatible Token[]",
         "oxContentOutput": "object containing an mdast JSON string",
         "equivalentOutput": false,
@@ -2327,9 +2327,9 @@
         "reason": "default-large-string"
       },
       "render": {
-        "markdownItTsMs": 23.629240374983056,
-        "markdownItMs": 23.60714537500462,
-        "oxContentMs": 2.447852249999414,
+        "markdownItTsMs": 11.220364624998183,
+        "markdownItMs": 14.1628802500054,
+        "oxContentMs": 2.0494167500073672,
         "path": "token-renderer",
         "fallbackParsePath": "full-chunk",
         "outputComparison": {
@@ -2359,9 +2359,9 @@
         "orderPolicy": "rotate-each-sample"
       },
       "parse": {
-        "markdownItTsMs": 0.1257783416668341,
-        "markdownItMs": 0.17615240000013727,
-        "oxContentMs": 0.02463152500082894,
+        "markdownItTsMs": 0.08771528333357613,
+        "markdownItMs": 0.12839269999967656,
+        "oxContentMs": 0.03224339999966712,
         "markdownItTsOutput": "mutable markdown-it-compatible Token[]",
         "oxContentOutput": "object containing an mdast JSON string",
         "equivalentOutput": false,
@@ -2369,9 +2369,9 @@
         "reason": "default-plain"
       },
       "render": {
-        "markdownItTsMs": 0.12602018333370021,
-        "markdownItMs": 0.19058020833375244,
-        "oxContentMs": 0.022451083333968808,
+        "markdownItTsMs": 0.10202083333327513,
+        "markdownItMs": 0.14664409166628806,
+        "oxContentMs": 0.0267145916664352,
         "path": "token-renderer",
         "fallbackParsePath": "general",
         "outputComparison": {
@@ -2401,9 +2401,9 @@
         "orderPolicy": "rotate-each-sample"
       },
       "parse": {
-        "markdownItTsMs": 0.11887232083342193,
-        "markdownItMs": 0.16540546666656156,
-        "oxContentMs": 0.02566065833331474,
+        "markdownItTsMs": 0.10385937500007761,
+        "markdownItMs": 0.13342395833315096,
+        "oxContentMs": 0.030156425000071367,
         "markdownItTsOutput": "mutable markdown-it-compatible Token[]",
         "oxContentOutput": "object containing an mdast JSON string",
         "equivalentOutput": false,
@@ -2411,9 +2411,9 @@
         "reason": "default-plain"
       },
       "render": {
-        "markdownItTsMs": 0.13674042916682083,
-        "markdownItMs": 0.19418542083343104,
-        "oxContentMs": 0.024846183333041456,
+        "markdownItTsMs": 0.11890920000005281,
+        "markdownItMs": 0.15571128333346373,
+        "oxContentMs": 0.02656059166644506,
         "path": "token-renderer",
         "fallbackParsePath": "general",
         "outputComparison": {
@@ -2443,9 +2443,9 @@
         "orderPolicy": "rotate-each-sample"
       },
       "parse": {
-        "markdownItTsMs": 0.03277999166651474,
-        "markdownItMs": 0.04406046250078362,
-        "oxContentMs": 0.008897700000185674,
+        "markdownItTsMs": 0.02795155833349175,
+        "markdownItMs": 0.034947737500139436,
+        "oxContentMs": 0.009113887500037283,
         "markdownItTsOutput": "mutable markdown-it-compatible Token[]",
         "oxContentOutput": "object containing an mdast JSON string",
         "equivalentOutput": false,
@@ -2453,9 +2453,9 @@
         "reason": "default-plain"
       },
       "render": {
-        "markdownItTsMs": 0.03948662499994195,
-        "markdownItMs": 0.05247232500017465,
-        "oxContentMs": 0.00905482499996045,
+        "markdownItTsMs": 0.03365069583329993,
+        "markdownItMs": 0.041333329167052096,
+        "oxContentMs": 0.008194966666875796,
         "path": "token-renderer",
         "fallbackParsePath": "general",
         "outputComparison": {

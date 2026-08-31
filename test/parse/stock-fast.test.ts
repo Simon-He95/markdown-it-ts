@@ -189,22 +189,60 @@ console.log(0)
     expect(getParseDiagnostics(env)?.stockFast?.attemptMs).toBeGreaterThanOrEqual(0)
   })
 
-  it('records a late stock parse fallback before using the general parser', () => {
+  it('uses the hybrid stock path for supported blocks with rich inline content', () => {
     const md = MarkdownIt()
     const env = {}
+    const src = '# Fast **heading**\n\nPlain text\n\nLate **strong** [link](https://example.com) and `code`\n'
 
-    md.parse('# Fast\n\nPlain text\n\nLate **strong** text\n', env)
+    const tokens = md.parse(src, env)
 
-    expect(getParseDiagnostics(env)?.strategy?.path).toBe('plain')
+    expect(serialize(tokens)).toEqual(serialize(normalParse(src)))
+    expect(getParseDiagnostics(env)?.strategy?.path).toBe('stock-fast')
     expect(getParseDiagnostics(env)?.stockFast).toMatchObject({
       area: 'parse',
       attempted: true,
-      matched: false,
-      fallbackReason: 'unsupported-stock-subset',
+      matched: true,
       headings: 1,
-      paragraphs: 1,
-      blocks: 2,
+      paragraphs: 2,
+      blocks: 3,
     })
+  })
+
+  it('matches the general parser across hybrid block and inline combinations', () => {
+    const inlineSamples = [
+      'plain text',
+      '**strong** and *emphasis*',
+      '[link](https://example.com) and `code`',
+      'escaped \\*text\\* and &amp;',
+      '~~deleted~~ plus ![image](https://example.com/a.png)',
+    ]
+    const blocks = inlineSamples.flatMap((inline, index) => [
+      `## ${inline}\n\n`,
+      `${inline}\n\n`,
+      `- ${inline}\n- item ${index}\n\n`,
+    ])
+
+    let seed = 0x5EED1234
+    const random = () => {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0
+      return seed / 0x100000000
+    }
+
+    let hybridMatches = 0
+    for (let round = 0; round < 100; round++) {
+      let src = ''
+      for (let index = 0; index < 12; index++)
+        src += blocks[Math.floor(random() * blocks.length)]
+
+      const md = MarkdownIt()
+      const env = {}
+      const tokens = md.parse(src, env)
+
+      expect(serialize(tokens)).toEqual(serialize(normalParse(src)))
+      if (getParseDiagnostics(env)?.strategy?.path === 'stock-fast')
+        hybridMatches++
+    }
+    expect(hybridMatches).toBeGreaterThan(25)
   })
 
   it('keeps plugin instances on the normal parse path', () => {

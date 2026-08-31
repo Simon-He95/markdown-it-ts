@@ -24,7 +24,7 @@ export { DebouncedStreamParser, ThrottledStreamParser } from './stream/debounced
 export { EditableBuffer } from './stream/editable'
 export type { EditableBufferStats } from './stream/editable'
 
-export type { StreamStats } from './stream/parser'
+export type { StreamSnapshot, StreamStats } from './stream/parser'
 
 export { PieceTable, PieceTableSourceView } from './stream/piece_table'
 export type { PieceTableStats } from './stream/piece_table'

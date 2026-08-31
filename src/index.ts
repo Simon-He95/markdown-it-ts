@@ -3,7 +3,7 @@ import type { ParserBlock } from './parse/parser_block'
 import type { ParserInline } from './parse/parser_inline'
 import type { StockFastDiagnostics } from './parse/strategy_diagnostics'
 import type { RendererOptions } from './render/renderer'
-import type { StreamStats } from './stream/parser'
+import type { StreamSnapshot, StreamStats } from './stream/parser'
 import type { UnboundedBufferStats, UnboundedChunkInfo } from './stream/unbounded'
 import { LinkifyIt } from 'linkify-it'
 import * as utils from './common/utils'
@@ -18,6 +18,7 @@ import defaultPreset from './presets/default'
 import zeroPreset from './presets/zero'
 import Renderer from './render/renderer'
 import { renderStockFast, renderStockFastWithDiagnostics } from './render/stock_fast'
+import { text_join } from './rules/core/text_join'
 import { chunkedParse } from './stream/chunked'
 import { StreamParser } from './stream/parser'
 import {
@@ -178,6 +179,9 @@ export interface MarkdownIt {
   stream: {
     enabled: boolean
     parse: (src: string, env?: Record<string, unknown>) => TokenType[]
+    append: (segment: string, env?: Record<string, unknown>) => TokenType[]
+    snapshot: () => StreamSnapshot | null
+    restore: (snapshot: StreamSnapshot) => TokenType[]
     reset: () => void
     peek: () => TokenType[]
     stats: () => StreamStats
@@ -719,10 +723,24 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       if (env !== undefined)
         beginParseDiagnostics(env)
 
-      if (canUseStockParseFastPath(this, src.length)) {
+      const ruleProfilingRequested = !!env && (
+        Object.prototype.hasOwnProperty.call(env, '__mdtsRuleProfile')
+        || Object.prototype.hasOwnProperty.call(env, '__mdtsProfileRules')
+      )
+      const hasOwnedGlobalState = !!env && !!getKnownGlobalMarkdownState(env)
+      if (canUseStockParseFastPath(this, src.length) && !ruleProfilingRequested && !hasOwnedGlobalState) {
         const stockFastDiagnostics = env === undefined ? undefined : createStockFastDiagnostics('parse')
         const startedAt = stockFastDiagnostics ? getDiagnosticNow() : 0
-        const tokens = parseStockFast(src, stockFastDiagnostics)
+        const envRef = env ?? {}
+        let usedRichInline = false
+        const tokens = parseStockFast(src, stockFastDiagnostics, (content) => {
+          usedRichInline = true
+          const children: TokenType[] = []
+          this.inline.parse(content, this, envRef, children)
+          return children
+        })
+        if (tokens && usedRichInline)
+          text_join({ tokens } as any)
         if (stockFastDiagnostics) {
           stockFastDiagnostics.attemptMs = getDiagnosticNow() - startedAt
           if (tokens === null)
@@ -871,6 +889,19 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
       if (!md.stream.enabled)
         return md.parse(src, env ?? {})
       return getStreamParser().parse(src, env, md)
+    },
+    append(segment: string, env?: Record<string, unknown>) {
+      if (!md.stream.enabled)
+        throw new Error('Stream append requires stream mode')
+      return getStreamParser().append(segment, env, md)
+    },
+    snapshot() {
+      return streamParser ? streamParser.snapshot(md) : null
+    },
+    restore(snapshot: StreamSnapshot) {
+      if (!md.stream.enabled)
+        throw new Error('Stream restore requires stream mode')
+      return getStreamParser().restore(snapshot, md)
     },
     reset() {
       getStreamParser().reset()

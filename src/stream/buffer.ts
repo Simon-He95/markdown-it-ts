@@ -40,7 +40,6 @@ export class StreamBuffer {
     if (totalLen <= prevLen)
       return null
 
-    const prev = this.text.slice(0, prevLen)
     const segment = this.text.slice(prevLen)
 
     // If nothing flushed yet, allow first flush when current buffer
@@ -56,7 +55,7 @@ export class StreamBuffer {
     // Safe boundary rules matching StreamParser.getAppendedSegment:
     // - prev must end with newline
     // - appended must end with newline and contain at least two newlines
-    if (!prev || prev.charCodeAt(prev.length - 1) !== 0x0A)
+    if (this.text.charCodeAt(prevLen - 1) !== 0x0A)
       return null
 
     if (segment.charCodeAt(segment.length - 1) !== 0x0A)
@@ -70,14 +69,16 @@ export class StreamBuffer {
     if (newlineCount < 2)
       return null
 
-    const tokens = this.md.stream.parse(this.text)
+    const tokens = this.md.stream.append(segment)
     this.lastFlushedLength = this.text.length
     return tokens
   }
 
   // Force flush regardless of boundary; ensures final state is parsed
   flushForce(): Token[] {
-    const tokens = this.md.stream.parse(this.text)
+    const tokens = this.lastFlushedLength === 0
+      ? this.md.stream.parse(this.text)
+      : this.md.stream.append(this.text.slice(this.lastFlushedLength))
     this.lastFlushedLength = this.text.length
     return tokens
   }

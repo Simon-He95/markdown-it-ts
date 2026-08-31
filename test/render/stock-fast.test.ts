@@ -162,12 +162,12 @@ if (a < b && c > d) {
     })
   })
 
-  it('preserves stock fallback diagnostics after token rendering', () => {
+  it('uses hybrid stock parsing after direct rich-inline rendering falls back', () => {
     const localMd = MarkdownIt()
     const env = {}
 
     expect(localMd.render('Plain text\n\nLate **strong** text\n', env)).toContain('<strong>strong</strong>')
-    expect(getParseDiagnostics(env)?.strategy).toMatchObject({ area: 'parse', path: 'plain' })
+    expect(getParseDiagnostics(env)?.strategy).toMatchObject({ area: 'parse', path: 'stock-fast' })
     expect(getParseDiagnostics(env)?.stockFast).toMatchObject({
       area: 'render',
       attempted: true,

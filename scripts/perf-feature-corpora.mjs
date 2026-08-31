@@ -25,7 +25,7 @@ export const FEATURE_STRESS_CORPORA = [
     id: 'inline-formatting',
     label: 'Emphasis, strong, and inline code',
     description: 'Dense emphasis, strong text, combined delimiters, escapes, and inline code.',
-    expectedParsePath: 'plain',
+    expectedParsePath: 'stock-fast',
     expectedRenderPath: 'token-renderer',
     makeDocument: targetChars => repeatSections(targetChars, index => `Paragraph ${index} has *emphasis ${index}*, **strong ${index}**, ***combined ${index}***, \`inline code ${index}\`, and \\*escaped ${index}\\*.\n\n`),
   },
@@ -33,7 +33,7 @@ export const FEATURE_STRESS_CORPORA = [
     id: 'links-media-autolinks',
     label: 'Links, images, and autolinks',
     description: 'Inline links, images, angle-bracket autolinks, and varied destinations.',
-    expectedParsePath: 'plain',
+    expectedParsePath: 'stock-fast',
     expectedRenderPath: 'token-renderer',
     makeDocument: targetChars => repeatSections(targetChars, index => `Paragraph ${index}: [link ${index}](https://example.com/path/${index}?q=${index}) ![image ${index}](https://example.com/image-${index}.png) <https://example.org/auto/${index}>.\n\n`),
   },
@@ -90,9 +90,9 @@ export const STOCK_BOUNDARY_CORPORA = [
   },
   {
     id: 'stock-near-miss',
-    label: 'Stock subset with a late unsupported construct',
-    description: 'A stock-shaped document with inline emphasis appended near the end to measure late fallback cost.',
-    expectedParsePath: 'plain',
+    label: 'Stock subset with late rich inline content',
+    description: 'A stock-shaped document with inline emphasis appended near the end to measure the hybrid block/inline path.',
+    expectedParsePath: 'stock-fast',
     expectedRenderPath: 'token-renderer',
     makeDocument(targetChars) {
       const prefix = makeStockSubsetParts(Math.max(0, targetChars - 80)).join('')
