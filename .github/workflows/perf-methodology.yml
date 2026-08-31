@@ -15,6 +15,7 @@ on:
       - docs/development.md
       - docs/security.md
       - docs/perf-*.md
+      - docs/perf-history/**
       - docs/perf-latest.json
       - package.json
       - pnpm-lock.yaml
@@ -32,6 +33,7 @@ on:
       - docs/development.md
       - docs/security.md
       - docs/perf-*.md
+      - docs/perf-history/**
       - docs/perf-latest.json
       - package.json
       - pnpm-lock.yaml
