@@ -1,4 +1,4 @@
-// Find the most recent archived snapshot and compare it against docs/perf-latest.json
+// Find the most recent archived snapshot and compare normalized implementation ratios.
 // Usage: node scripts/perf-check.mjs [--threshold=0.10]
 
 import { readdirSync, statSync, readFileSync } from 'node:fs'
@@ -8,6 +8,10 @@ import { join } from 'node:path'
 function load(path) { return JSON.parse(readFileSync(path, 'utf8')) }
 
 function pct(a, b) { return (a - b) / b }
+
+function normalizedPct(current, currentAnchor, baseline, baselineAnchor) {
+  return pct(current / currentAnchor, baseline / baselineAnchor)
+}
 
 function fmtPct(x) { return (x * 100).toFixed(1) + '%' }
 
@@ -21,6 +25,16 @@ function shouldCheckMetric(current, baseline, minSignalMs) {
 
 function resolveBenchmarkVersion(payload) {
   return Number.isFinite(payload?.benchmarkVersion) ? payload.benchmarkVersion : 1
+}
+
+function nodeMajor(payload) {
+  return String(payload?.environment?.node ?? payload?.node ?? '').match(/^v?(\d+)/)?.[1] ?? ''
+}
+
+function comparableEnvironment(current, baseline) {
+  return current?.environment?.platform === baseline?.environment?.platform
+    && current?.environment?.cpu === baseline?.environment?.cpu
+    && nodeMajor(current) === nodeMajor(baseline)
 }
 
 function main() {
@@ -81,6 +95,11 @@ function main() {
     process.exit(0)
   }
 
+  if (!comparableEnvironment(cur, base)) {
+    console.log(`Skipping perf check because the current and baseline environments differ (current=${cur.environment?.platform}/${cur.environment?.cpu}/Node ${nodeMajor(cur)}, baseline=${base.environment?.platform}/${base.environment?.cpu}/Node ${nodeMajor(base)}).`)
+    process.exit(0)
+  }
+
   const curMap = new Map(cur.results.map(r => [`${r.size}-${r.scenario}`, r]))
   const baseMap = new Map(base.results.map(r => [`${r.size}-${r.scenario}`, r]))
 
@@ -91,10 +110,14 @@ function main() {
     const b = baseMap.get(k)
     if (!b || !isInternalScenario(c.scenario))
       continue
+    const currentAnchor = curMap.get(`${c.size}-M1`)
+    const baselineAnchor = baseMap.get(`${c.size}-M1`)
+    if (!currentAnchor || !baselineAnchor)
+      continue
 
     if (shouldCheckMetric(c.oneShotMs, b.oneShotMs, minSignalMs)) {
       checkedMetrics++
-      if (pct(c.oneShotMs, b.oneShotMs) > threshold)
+      if (normalizedPct(c.oneShotMs, currentAnchor.oneShotMs, b.oneShotMs, baselineAnchor.oneShotMs) > threshold)
         regressions++
     }
     else {
@@ -103,7 +126,7 @@ function main() {
 
     if (shouldCheckMetric(c.appendWorkloadMs, b.appendWorkloadMs, appendMinSignalMs)) {
       checkedMetrics++
-      if (pct(c.appendWorkloadMs, b.appendWorkloadMs) > threshold)
+      if (normalizedPct(c.appendWorkloadMs, currentAnchor.appendWorkloadMs, b.appendWorkloadMs, baselineAnchor.appendWorkloadMs) > threshold)
         regressions++
     }
     else {
@@ -118,10 +141,14 @@ function main() {
     const b = baseRenderMap.get(k)
     if (!b || (c.scenario !== 'TS_RENDER' && c.scenario !== 'TS_RENDER_ASYNC'))
       continue
+    const currentAnchor = curRenderMap.get(`${c.size}-MD_RENDER`)
+    const baselineAnchor = baseRenderMap.get(`${c.size}-MD_RENDER`)
+    if (!currentAnchor || !baselineAnchor)
+      continue
 
     if (shouldCheckMetric(c.renderMs, b.renderMs, minSignalMs)) {
       checkedMetrics++
-      if (pct(c.renderMs, b.renderMs) > threshold)
+      if (normalizedPct(c.renderMs, currentAnchor.renderMs, b.renderMs, baselineAnchor.renderMs) > threshold)
         regressions++
     }
     else {
@@ -148,7 +175,7 @@ function main() {
 
     if (shouldCheckMetric(c.tsAstJsonMs, b.tsAstJsonMs, minSignalMs)) {
       checkedMetrics++
-      if (pct(c.tsAstJsonMs, b.tsAstJsonMs) > threshold)
+      if (normalizedPct(c.tsAstJsonMs, c.oxParseMs, b.tsAstJsonMs, b.oxParseMs) > threshold)
         regressions++
     }
     else {
@@ -158,10 +185,10 @@ function main() {
 
 
   if (regressions) {
-    console.error(`Perf check failed: ${regressions} metric(s) regressed beyond +${fmtPct(threshold)} vs ${basePath.pathname} (checked=${checkedMetrics}, skipped=${skippedMetrics}, minSignalMs=${minSignalMs}, appendMinSignalMs=${appendMinSignalMs})`)
+    console.error(`Perf check failed: ${regressions} normalized metric(s) regressed beyond +${fmtPct(threshold)} vs ${basePath.pathname} (checked=${checkedMetrics}, skipped=${skippedMetrics}, minSignalMs=${minSignalMs}, appendMinSignalMs=${appendMinSignalMs})`)
     process.exit(1)
   } else {
-    console.log(`Perf check passed vs ${basePath.pathname} (checked=${checkedMetrics}, skipped=${skippedMetrics}, minSignalMs=${minSignalMs}, appendMinSignalMs=${appendMinSignalMs})`)
+    console.log(`Perf check passed vs ${basePath.pathname} using normalized implementation ratios (checked=${checkedMetrics}, skipped=${skippedMetrics}, minSignalMs=${minSignalMs}, appendMinSignalMs=${appendMinSignalMs})`)
   }
 }
 
