@@ -1,6 +1,6 @@
 // Convert straight quotation marks to typographic ones
 
-import { isMdAsciiPunct, isPunctChar, isWhiteSpace } from '../../common/utils'
+import { isPunctCode, isWhiteSpace } from '../../common/utils'
 
 const QUOTE_TEST_RE = /['"]/
 const QUOTE_RE = /['"]/g
@@ -75,8 +75,10 @@ function process_inlines(tokens: any[], state: any): void {
         }
       }
 
-      const isLastPunctChar = isMdAsciiPunct(lastChar) || isPunctChar(String.fromCharCode(lastChar))
-      const isNextPunctChar = isMdAsciiPunct(nextChar) || isPunctChar(String.fromCharCode(nextChar))
+      // isPunctCode caches non-ASCII code-point lookups and fast-paths ASCII,
+      // avoiding the two giant ucmicro regexes per quote character.
+      const isLastPunctChar = isPunctCode(lastChar)
+      const isNextPunctChar = isPunctCode(nextChar)
       const isLastWhiteSpace = isWhiteSpace(lastChar)
       const isNextWhiteSpace = isWhiteSpace(nextChar)
 

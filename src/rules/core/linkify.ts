@@ -13,6 +13,42 @@ interface LinkifyMatch {
 const CJK_CHAR_RE = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u
 const ASCII_DOMAIN_START_RE = /[0-9a-z]/i
 
+// A linkify-it match always contains one of these characters:
+// - `:` for schema-based links (all schemas end with `:`)
+// - `@` for fuzzy email matches
+// - `.` for fuzzy domain links (TLD is required)
+// Screening with native `indexOf` avoids running the (very large) linkify
+// regexes over link-free text tokens. This is only used when every registered
+// schema ends with `:`; otherwise linkify may match colonless user schemas.
+function hasLinkifySeed(text: string): boolean {
+  return text.indexOf('.') !== -1 || text.indexOf('@') !== -1 || text.indexOf(':') !== -1
+}
+
+const linkifySeedSafety = new WeakMap<object, { schemaSearch: object, safe: boolean }>()
+
+function isLinkifySeedSafe(linkify: { re?: { get_schema_search?: () => object }, __schemas__?: Record<string, unknown> }): boolean {
+  const schemaSearch = linkify.re?.get_schema_search?.()
+  if (!schemaSearch)
+    return false
+
+  const cached = linkifySeedSafety.get(linkify)
+  if (cached && cached.schemaSearch === schemaSearch)
+    return cached.safe
+
+  const schemas = linkify.__schemas__
+  let safe = true
+  if (schemas) {
+    for (const name in schemas) {
+      if (name.charCodeAt(name.length - 1) !== 0x3A /* : */) {
+        safe = false
+        break
+      }
+    }
+  }
+  linkifySeedSafety.set(linkify, { schemaSearch, safe })
+  return safe
+}
+
 function isLinkOpen(str: string): boolean {
   return /^<a[>\s]/i.test(str)
 }
@@ -55,12 +91,18 @@ export function linkify(state: State): void {
     return
   }
 
+  // Resolve the seed-screen policy once per rule run (per parse), not per
+  // text token: WeakMap + schema-search lookups would otherwise dominate
+  // short link-free tokens.
+  const seedSafe = isLinkifySeedSafe(state.md.linkify)
+  const mayMatch = (text: string) => seedSafe ? hasLinkifySeed(text) : true
+
   for (let j = 0; j < blockTokens.length; j++) {
     const blockToken = blockTokens[j]
 
     // linkify-it@6 removed `pretest`; `test` is the exact (non-false-negative)
     // equivalent — it is slightly heavier but never skips a block containing a link.
-    if (blockToken.type !== 'inline' || !state.md.linkify.test(blockToken.content)) {
+    if (blockToken.type !== 'inline' || !mayMatch(blockToken.content)) {
       continue
     }
 
@@ -95,11 +137,14 @@ export function linkify(state: State): void {
         continue
       }
 
-      if (currentToken.type !== 'text' || !state.md.linkify.test(currentToken.content)) {
+      if (currentToken.type !== 'text' || !mayMatch(currentToken.content)) {
         continue
       }
 
       const text = currentToken.content
+      // `test()` followed by `match()` would scan the same text twice; a
+      // single `match()` returns `null` when nothing matches, which is
+      // exactly equivalent.
       let links = (state.md.linkify.match(text) || []).map((link: LinkifyMatch) => trimCjkPrefixFromFuzzyLink(state.md.linkify, link))
 
       if (links.length === 0) {
