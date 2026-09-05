@@ -78,6 +78,24 @@ describe('core ruler cache invalidation', () => {
     expect(env.__mdtsRuleProfile.records['core:block'].calls).toBeGreaterThan(0)
   })
 
+  it.each([false, true])('runs post-rule callbacks in order with profiling=%s', (profile) => {
+    const md = MarkdownIt()
+    const env: any = profile ? { __mdtsProfileRules: true } : {}
+    const state = md.core.createState('before', env, md)
+    const visited: string[] = []
+    md.core.process(state, (rule, current) => {
+      visited.push(rule.name)
+      if (rule.name === 'block')
+        current.tokens.find(token => token.type === 'inline')!.content = '**after**'
+    })
+
+    expect(visited).toEqual(md.core.ruler.getNamedRules('').map(rule => rule.name))
+    expect(md.renderer.render(state.tokens, md.options, env)).toBe('<p><strong>after</strong></p>\n')
+    expect(Boolean(env.__mdtsRuleProfile)).toBe(profile)
+    if (profile)
+      expect(env.__mdtsRuleProfile.records['core:block'].calls).toBe(1)
+  })
+
   it('profiling mode does not change rendered output', () => {
     const md = MarkdownIt()
     const src = [

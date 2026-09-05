@@ -159,6 +159,14 @@ export class ParserCore {
     }
 
     const namedRules = this.getCoreNamedRules()
+    if (!shouldProfile) {
+      for (let i = 0; i < namedRules.length; i++) {
+        namedRules[i].fn(state)
+        afterRule?.(namedRules[i], state)
+      }
+      return
+    }
+
     for (let i = 0; i < namedRules.length; i++) {
       const startedAt = typeof performance !== 'undefined' && typeof performance.now === 'function'
         ? performance.now()
