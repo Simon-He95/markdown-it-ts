@@ -839,7 +839,7 @@ export class StreamParser {
     const fallbackEnv = envProvided ?? cached.env
 
     const tailReparsed = verifiedUntrustedTail
-      ? this.tryTailSegmentReparse(src, cached, fallbackEnv, md, cachedLastSegment ?? undefined, knownAppend)
+      ? this.tryTailSegmentReparse(src, cached, fallbackEnv, md, cachedLastSegment ?? undefined, appendDelta ?? undefined)
       : (this.allowUntrustedTailReuse ? this.tryUntrustedParagraphTailReparse(src, cached, fallbackEnv, md) : null)
     if (tailReparsed) {
       this.stats.total += 1
@@ -1140,7 +1140,7 @@ export class StreamParser {
       : (src.startsWith(cached.src) ? src.slice(cached.src.length) : null)
     const postBlockSrc = directAppend && this.tokenMapsTrusted
       ? src
-      : this.getNormalizedUpdatedSource(cached, src)
+      : this.getNormalizedUpdatedSource(cached, src, knownAppend)
     if (appended) {
       const merged = this.tryContainerTailAppendMerge(src, cached, env, md, lastSegment, appended, postBlockSrc)
       if (merged) {
@@ -1332,14 +1332,14 @@ export class StreamParser {
     cache.hasFenceMarker = boundary.includes('```') || boundary.includes('~~~')
   }
 
-  private getNormalizedUpdatedSource(cache: StreamCache, next: string): string {
+  private getNormalizedUpdatedSource(cache: StreamCache, next: string, knownAppend?: string): string {
     if (!this.normalizeLineEndings)
       return next
-    if (!next.startsWith(cache.src))
+    if (knownAppend === undefined && !next.startsWith(cache.src))
       return this.normalizeSource(next)
 
     const normalizedCached = cache.normalizedSrc ?? this.normalizeSource(cache.src)
-    const appended = next.slice(cache.src.length)
+    const appended = knownAppend ?? next.slice(cache.src.length)
     let normalizedAppend = this.normalizeSource(appended)
     if (cache.src.endsWith('\r') && appended.startsWith('\n'))
       normalizedAppend = normalizedAppend.slice(1)
