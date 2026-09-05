@@ -21,7 +21,7 @@ const ASCII_DOMAIN_START_RE = /[0-9a-z]/i
 // regexes over link-free text tokens. This is only used when every registered
 // schema ends with `:`; otherwise linkify may match colonless user schemas.
 function hasLinkifySeed(text: string): boolean {
-  return text.indexOf('.') !== -1 || text.indexOf('@') !== -1 || text.indexOf(':') !== -1
+  return text.includes('.') || text.includes('@') || text.includes(':')
 }
 
 const linkifySeedSafety = new WeakMap<object, { schemaSearch: object, safe: boolean }>()

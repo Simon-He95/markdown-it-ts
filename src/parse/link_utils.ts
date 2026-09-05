@@ -13,7 +13,7 @@ const PUNYCODE_LABEL_RE = /xn--/
 // mdurl.encode(url) with default keepEscaped + defaultChars is the identity
 // when every character is alphanumeric / in defaultChars, and every `%` is
 // part of a valid two-hex-digit escape sequence.
-const ENCODE_IDENTITY_RE = /%(?![0-9a-f]{2})|[^0-9a-zA-Z;/?:@&=+$,\-_.!~*'()#%]/i
+const ENCODE_IDENTITY_RE = /%(?![0-9a-f]{2})|[^\w;/?:@&=+$,\-.!~*'()#%]/i
 // mdurl.decode(str, defaultChars + '%') is the identity when there is no
 // `%` + two-hex-digit sequence (bare `%` is excluded from decoding).
 const DECODE_SCAN_RE = /%[0-9a-f]{2}/i
