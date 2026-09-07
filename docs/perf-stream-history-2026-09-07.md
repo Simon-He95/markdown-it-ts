@@ -1,5 +1,7 @@
 # Markstream streaming / history CPU 实验（2026-09-07）
 
+> 此报告记录初版候选 `2f3ea6f1e`。CI 后续发现并修正了稳定的单帧峰值回退，最终版本与重新测量的收益见 [CI 修正报告](./perf-stream-history-ci-followup.md)。
+
 最终仅保留 Markstream 消费端的整组 inline 候选筛选。每轮 core linkify 执行前验证一次原生方法、REBuilder 和配置；如果一组 inline 的所有文本都没有链接起始特征，直接排除这组候选。含候选的 inline 及本次 core 调用中其后的所有 inline 完整执行原有过滤路径，避免 validator 在调用中修改配置后误用旧判断，`linkify.test()` / `match()` 本身保持不变。
 
 筛选包含 `:`、`@`、`//`、后接非空白字符的 `.`，不会把普通句末标点当作域名。自定义 test / matcher / REBuilder、实例正则生成方法、无冒号 schema、含正则语法的 TLD 都绕过筛选；`add()` / `set()` / `tlds()` 更换正则缓存后重新判断。使用真实解析后的文本，不依据原始 Markdown 猜测链接，也不共享正则、AST 或插件状态。
