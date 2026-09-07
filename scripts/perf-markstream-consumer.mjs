@@ -66,6 +66,9 @@ if (option('suite') === 'extended') {
     workloads.push({ name: `options-${name}`, source: unit(0).repeat(30), chunk: 97, options })
     workloads.push({ name: `options-restore-${name}`, messages: Array.from({ length: 60 }, (_, i) => unit(i).repeat(15)), options })
   }
+  for (const size of [100_000, 1_000_000]) {
+    workloads.push({ name: `history-restore-${size}`, messages: [prose(0).repeat(Math.ceil(size / prose(0).length))] })
+  }
   const readme = readFileSync(option('readme') ? resolve(option('readme')) : new URL('../README.md', import.meta.url), 'utf8')
   workloads.push({ name: 'real-readme-stream', source: readme, chunk: 211 })
   workloads.push({ name: 'real-readme-restore', messages: Array(10).fill(readme) })
