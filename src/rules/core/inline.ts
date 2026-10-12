@@ -9,7 +9,11 @@ import { isPlainInlineText } from '../../parse/parser_inline'
 export function inline(state: State): void {
   const tokens = state.tokens
   const inlineParser = state.md?.inline
+  // The plain-text shortcut below pushes a token without ever constructing a state, so it has
+  // to stand down when a plugin replaced `md.inline.State`. Duck-typed parsers without the
+  // predicate keep the previous behavior.
   const canUsePlainTextFastPath = !!inlineParser?.isDefaultRuleset?.()
+    && inlineParser?.usesDefaultState?.() !== false
 
   // Parse inlines
   for (let i = 0, l = tokens.length; i < l; i++) {

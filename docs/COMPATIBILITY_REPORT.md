@@ -16,6 +16,7 @@
 - 与 markdown-it 行为对齐的公开选项和 preset 风格用法
 - `Token` shape 和常见 token mutation helper
 - `Ruler` / `CoreRuler` / `BlockRuler` / `InlineRuler` 风格的规则注册
+- `md.inline.State`（可继承并替换的 inline state 构造器，markdown-it 同样公开）
 - `md.renderer.rules` 渲染规则扩展
 - 遵循 `function plugin(md, options)` 模式的常见插件 hook
 - 本包文档化并通过 `exports` 发布的稳定子路径
@@ -81,12 +82,14 @@ main().catch((error) => {
 
 ## 插件兼容性说明
 
-大多数使用 markdown-it 公开 API 的插件，在替换 import 后应当可以工作。当前 CI 的插件矩阵覆盖 abbreviation、container、definition list、emoji、footnote、inline hook、ins、mark、sub、sup 等常见插件。
+大多数使用 markdown-it 公开 API 的插件，在替换 import 后应当可以工作。当前 CI 的插件矩阵覆盖 abbreviation、container、definition list、emoji、footnote、inline hook、ins、mark、sub、sup、markdown-it-cjk-friendly 等常见插件。
+
+`md.inline.State` 属于支持的接口：插件可以继承它（覆盖 `scanDelims`、`push`、`pushPending` 等）并赋值回 `md.inline.State`，inline parser 会用 `new this.State(...)` 构造它；替换 `State` 后，纯文本快速路径会自动让位，避免绕过插件。
 
 以下插件需要重点验证：
 
 - 导入 `markdown-it/lib/...` 等上游内部路径
-- patch 未文档化的 state 对象
+- 依赖 `md.inline.State`/`md.block.State` 之外的未文档化内部 state 结构
 - 假设 CommonJS-only 加载方式
 - 在 streaming/chunked parsing 期间修改 renderer 或 parser state
 
@@ -111,7 +114,7 @@ Markdown 不总是 chunk-local。Reference definition、footnote definition、ab
 
 `markdown-it-ts` targets the markdown-it public API, not every private upstream implementation detail.
 
-- **Stable**: main parse/render APIs, `Token` shape, ruler APIs, renderer rules, common public plugin hooks, and documented stable package exports.
+- **Stable**: main parse/render APIs, `Token` shape, ruler APIs, `md.inline.State`, renderer rules, common public plugin hooks, and documented stable package exports.
 - **Best effort**: third-party plugins that avoid private upstream files, CJS plugin interop from ESM, async render/highlight integrations, and large-input stream/chunk/editable APIs imported from `markdown-it-ts/experimental`; selected helpers also have explicit subpaths: `markdown-it-ts/stream/buffer`, `markdown-it-ts/stream/chunked`, `markdown-it-ts/stream/debounced`, and `markdown-it-ts/support/chunk_recommend`.
 - **Unsupported**: private upstream imports such as `markdown-it/lib/...`, undocumented internal state dependencies, direct CommonJS `require('markdown-it-ts')`, Node.js < 18, and assuming stream/chunk output is always equivalent before future document-level definitions are known.
 

@@ -38,7 +38,7 @@ A TypeScript migration of [markdown-it](https://github.com/markdown-it/markdown-
 
 | Level | API surface |
 | --- | --- |
-| Stable target | `MarkdownIt()`, `parse`, `render`, `renderInline`, `renderAsync`, `renderer.rules`, `Token`, and public ruler/plugin APIs |
+| Stable target | `MarkdownIt()`, `parse`, `render`, `renderInline`, `renderAsync`, `renderer.rules`, `Token`, `md.inline.State`, and public ruler/plugin APIs |
 | Advanced | Root `withRenderer`, documented subpath exports such as `core`, renderer helpers, and common utilities |
 | Experimental | `stream`, `chunkedParse`, `StreamBuffer`, `UnboundedBuffer`, `EditableBuffer`, `PieceTable`, iterable/sink parsing, and chunk strategy recommenders via `markdown-it-ts/experimental`; selected helpers also have explicit subpaths such as `markdown-it-ts/stream/buffer`, `markdown-it-ts/stream/chunked`, `markdown-it-ts/stream/debounced`, and `markdown-it-ts/support/chunk_recommend` |
 

@@ -60,6 +60,13 @@ export function isPlainInlineText(src: string): boolean {
 export class ParserInline {
   public ruler: InlineRuler
   public ruler2: InlineRuler
+  /**
+   * State class used for inline parsing, mirroring `ParserInline.prototype.State` in
+   * markdown-it. Plugins subclass it (`scanDelims`, `push`, `pushPending`, ...) and assign
+   * the subclass back to `md.inline.State`; the parser then constructs it with
+   * `new this.State(...)`.
+   */
+  public State: typeof StateInline = StateInline
   private cachedRulesVersion = -1
   private cachedRules: Array<(state: StateInline, silent?: boolean) => boolean | void> = []
   private cachedRules2Version = -1
@@ -282,11 +289,20 @@ export class ParserInline {
       && this.ruler2.version === this.defaultRuler2Version
   }
 
+  /**
+   * Whether inline parsing still uses the stock `StateInline`. The plain-text fast paths
+   * construct no state at all, so they must stand down once a plugin replaces `State`.
+   */
+  public usesDefaultState(): boolean {
+    return this.State === StateInline
+  }
+
   public parseSource(src: ParseSource, md: any, env: any, outTokens: Token[]): void {
     if (
       typeof src === 'string'
       && src.length > 0
       && this.isDefaultRuleset()
+      && this.usesDefaultState()
       && isPlainInlineText(src)
     ) {
       const token = new TokenClass('text', '', 0)
@@ -295,7 +311,7 @@ export class ParserInline {
       return
     }
 
-    const state = new StateInline(src, md, env, outTokens)
+    const state = new this.State(src, md, env, outTokens)
 
     this.tokenize(state)
 
