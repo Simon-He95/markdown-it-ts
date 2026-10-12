@@ -253,6 +253,7 @@ interface ParserRuleVersions {
   block: number
   inline: number
   inline2: number
+  inlineState: unknown
 }
 
 function getParserRuleVersions(md: MarkdownIt): ParserRuleVersions {
@@ -261,6 +262,7 @@ function getParserRuleVersions(md: MarkdownIt): ParserRuleVersions {
     block: md.block.ruler.version,
     inline: md.inline.ruler.version,
     inline2: md.inline.ruler2.version,
+    inlineState: md.inline.State,
   }
 }
 
@@ -269,6 +271,7 @@ function hasParserRuleChanges(md: MarkdownIt, initial: ParserRuleVersions): bool
     || md.block.ruler.version !== initial.block
     || md.inline.ruler.version !== initial.inline
     || md.inline.ruler2.version !== initial.inline2
+    || md.inline.State !== initial.inlineState
 }
 
 function applyExperimentalOptions(options: MarkdownItOptions): MarkdownItOptions {

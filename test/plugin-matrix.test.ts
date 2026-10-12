@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import markdownit from '../src/index'
 
 import abbr from 'markdown-it-abbr'
+import cjkFriendly from 'markdown-it-cjk-friendly'
 import container from 'markdown-it-container'
 import deflist from 'markdown-it-deflist'
 import * as emojiModule from 'markdown-it-emoji'
@@ -118,5 +119,19 @@ describe('markdown-it plugin compatibility matrix', () => {
     const html = md.render('[x](https://example.com)')
 
     expect(html).toContain('target="_blank"')
+  })
+
+  it('supports markdown-it-cjk-friendly', () => {
+    // This plugin subclasses `md.inline.State` and overrides `scanDelims`, so it only works
+    // when the inline parser exposes and honours that member.
+    const md = markdownit().use(unwrapPlugin(cjkFriendly))
+
+    expect(md.render('说明**「A」**。和**「B」**。')).toBe(
+      '<p>说明<strong>「A」</strong>。和<strong>「B」</strong>。</p>\n',
+    )
+    // The same seam drives GFM strikethrough, which shares `scanDelims`.
+    expect(md.render('说明~~「A」~~。')).toBe('<p>说明<s>「A」</s>。</p>\n')
+    // Non-CJK input keeps the CommonMark result.
+    expect(md.render('**foo**')).toBe('<p><strong>foo</strong></p>\n')
   })
 })

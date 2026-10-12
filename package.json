@@ -180,6 +180,7 @@
     "markdown-exit": "latest",
     "markdown-it": "^14.3.0",
     "markdown-it-abbr": "^2.0.0",
+    "markdown-it-cjk-friendly": "3.0.0",
     "markdown-it-container": "^4.0.0",
     "markdown-it-deflist": "^3.0.1",
     "markdown-it-emoji": "^3.1.0",
