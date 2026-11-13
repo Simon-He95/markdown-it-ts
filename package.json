@@ -1,7 +1,7 @@
 {
   "name": "markdown-it-ts",
   "type": "module",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "packageManager": "pnpm@10.34.9",
   "description": "TypeScript-first Markdown parser and renderer compatible with the markdown-it public API, with streaming, chunked parsing, and async render.",
   "author": "Simon He",
@@ -113,7 +113,7 @@
     "audit:prod": "pnpm audit --prod --audit-level high",
     "test:original": "RUN_ORIGINAL=1 pnpm test",
     "test:original:network": "RUN_ORIGINAL=1 RUN_NETWORK=1 pnpm test",
-    "prepublishOnly": "pnpm run audit:prod && pnpm run lint && pnpm run typecheck && pnpm run test:types && pnpm test -- --run && pnpm run build && publint && attw --pack . --profile esm-only && rm -rf /tmp/mdts-pack && mkdir -p /tmp/mdts-pack && pnpm pack --pack-destination /tmp/mdts-pack && node scripts/package-type-smoke.mjs \"$(ls /tmp/mdts-pack/markdown-it-ts-*.tgz)\" && MDTS_PACKAGE_SPEC=\"$(ls /tmp/mdts-pack/markdown-it-ts-*.tgz)\" node scripts/bundler-smoke.mjs",
+    "prepublishOnly": "pnpm run audit:prod && pnpm run lint && pnpm run typecheck && pnpm run test:types && pnpm test --run && pnpm run build && publint && attw --pack . --profile esm-only && rm -rf /tmp/mdts-pack && mkdir -p /tmp/mdts-pack && pnpm pack --pack-destination /tmp/mdts-pack && node scripts/package-type-smoke.mjs \"$(ls /tmp/mdts-pack/markdown-it-ts-*.tgz)\" && MDTS_PACKAGE_SPEC=\"$(ls /tmp/mdts-pack/markdown-it-ts-*.tgz)\" node scripts/bundler-smoke.mjs",
     "release": "bumpp --commit --tag --push --execute \"pnpm run prepublishOnly\" && npm publish \"$(ls /tmp/mdts-pack/markdown-it-ts-*.tgz)\" --access public --ignore-scripts --provenance=false",
     "perf:matrix": "npm run build && node scripts/perf-matrix.mjs",
     "perf:profile": "npm run build && node --expose-gc scripts/perf-feature-profile.mjs",
