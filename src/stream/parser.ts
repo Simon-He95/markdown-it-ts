@@ -7,7 +7,7 @@ import { detectGlobalMarkdownState, getKnownGlobalMarkdownState, resetKnownGloba
 import { ParserBlock } from '../parse/parser_block'
 import { beginParseDiagnostics, getParseDiagnostics, setStrategyDiagnostics } from '../parse/strategy_diagnostics'
 import { block } from '../rules/core/block'
-import { inline } from '../rules/core/inline'
+import { inline, streamInlineReuse } from '../rules/core/inline'
 import { linkify } from '../rules/core/linkify'
 import { normalize } from '../rules/core/normalize'
 import { replacements } from '../rules/core/replacements'
@@ -33,6 +33,8 @@ interface StreamCache {
   globalStateCarry?: string
   boundary?: StreamBoundaryState
   lastSegmentSource?: string
+  inlineTailTokens?: Map<string, Token[]>
+  flatListTail?: { tokenStart: number, line: number, offset: number }
 }
 
 interface StreamParserConfig {
@@ -596,12 +598,18 @@ export class StreamParser {
 
     // inspect appended detection
     const cachedLastSegment = this.ensureLastSegment(cached, knownAppend !== undefined)
-    const verifiedUntrustedTail = this.tokenMapsTrusted
+    const fallbackEnv = envProvided ?? cached.env
+    const reusedList = knownAppend && cachedLastSegment && fallbackEnv.__mdtsReuseFlatListTail === true
+      ? this.tryFlatListTail(src, cached, fallbackEnv, md, cachedLastSegment, knownAppend)
+      : null
+    if (!reusedList)
+      cached.flatListTail = undefined
+    const verifiedUntrustedTail = reusedList !== null || this.tokenMapsTrusted
       || (this.allowUntrustedTailReuse && (
         cached.lastSegmentVerified === true
         || !!(cachedLastSegment && this.hasVerifiedSegmentAnchor(cached, cachedLastSegment, md))
       ))
-    const preferTailReparse = appendDelta !== null && this.shouldPreferTailReparseForAppend(cached, verifiedUntrustedTail)
+    const preferTailReparse = reusedList !== null || (appendDelta !== null && this.shouldPreferTailReparseForAppend(cached, verifiedUntrustedTail))
     const appended = preferTailReparse || !this.tokenMapsTrusted
       ? null
       : this.getAppendedSegment(cached, src, appendDelta)
@@ -836,11 +844,9 @@ export class StreamParser {
       return cached.tokens
     }
 
-    const fallbackEnv = envProvided ?? cached.env
-
-    const tailReparsed = verifiedUntrustedTail
+    const tailReparsed = reusedList ?? (verifiedUntrustedTail
       ? this.tryTailSegmentReparse(src, cached, fallbackEnv, md, cachedLastSegment ?? undefined, appendDelta ?? undefined)
-      : (this.allowUntrustedTailReuse ? this.tryUntrustedParagraphTailReparse(src, cached, fallbackEnv, md) : null)
+      : (this.allowUntrustedTailReuse ? this.tryUntrustedParagraphTailReparse(src, cached, fallbackEnv, md) : null))
     if (tailReparsed) {
       this.stats.total += 1
       this.stats.tailHits += 1
@@ -1155,7 +1161,16 @@ export class StreamParser {
       return null
 
     try {
-      const parsedTail = this.parseAtLineOffset(nextTail, env, md, lastSegment.lineStart, postBlockSrc)
+      // Experimental opt-in for callers with deterministic inline rules.
+      const opening = cached.tokens[lastSegment.tokenStart]?.type
+      const reuse = directAppend && env.__mdtsReuseListInline === true
+        && (opening === 'bullet_list_open' || opening === 'ordered_list_open')
+        && !env.references && !env.abbreviations && !env.abbr && !env.abbrs
+        && !(env.footnotes as { refs?: unknown } | undefined)?.refs
+        ? { previous: cached.inlineTailTokens ?? new Map<string, Token[]>(), next: new Map<string, Token[]>() }
+        : undefined
+      const parsedTail = this.parseAtLineOffset(nextTail, env, md, lastSegment.lineStart, postBlockSrc, reuse)
+      cached.inlineTailTokens = reuse?.next
       const tailState = parsedTail.state
       const localLastSegment = this.getLastSegment(
         tailState.tokens,
@@ -1352,14 +1367,18 @@ export class StreamParser {
     md: MarkdownIt,
     lineOffset: number,
     globalSrc?: string,
+    inlineReuse?: Parameters<typeof streamInlineReuse.set>[1],
   ): { state: ReturnType<ParserCore['parse']>, mapsShifted: boolean } {
-    if (this.tokenMapsTrusted || lineOffset <= 0)
+    const shiftMaps = !this.tokenMapsTrusted && lineOffset > 0
+    if (!inlineReuse && !shiftMaps)
       return { state: this.core.parse(src, env, md), mapsShifted: false }
 
     const state = this.core.createState(src, env, md)
+    if (inlineReuse)
+      streamInlineReuse.set(state, inlineReuse)
     let mapsShifted = false
     this.core.process(state, (rule, currentState) => {
-      if (!mapsShifted && rule.fn === block) {
+      if (shiftMaps && !mapsShifted && rule.fn === block) {
         this.shiftTokenLines(currentState.tokens, lineOffset)
         if (globalSrc !== undefined)
           currentState.src = globalSrc
@@ -1732,6 +1751,96 @@ export class StreamParser {
       default:
         return null
     }
+  }
+
+  private getFlatListTail(
+    tokens: Token[],
+    start: number,
+    source: string,
+    firstLine: number,
+    firstOffset: number,
+  ): StreamCache['flatListTail'] {
+    const opening = tokens[start]
+    if (opening?.type !== 'bullet_list_open' || !opening.map || opening.map[0] !== firstLine
+      || tokens.at(-1)?.type !== 'bullet_list_close') {
+      return undefined
+    }
+
+    let offset = firstOffset
+    let line = firstLine
+    let tail: StreamCache['flatListTail']
+    for (let i = start + 1; i < tokens.length - 1; i += 5) {
+      const item = tokens[i]
+      const paragraph = tokens[i + 1]
+      const inline = tokens[i + 2]
+      let end = source.indexOf('\n', offset)
+      if (end === -1)
+        end = source.length
+      if (item?.type !== 'list_item_open' || item.map?.[0] !== line || item.map[1] !== line + 1
+        || paragraph?.type !== 'paragraph_open' || !paragraph.hidden || inline?.type !== 'inline'
+        || tokens[i + 3]?.type !== 'paragraph_close' || tokens[i + 4]?.type !== 'list_item_close'
+        || source[offset] !== opening.markup || source[offset + 1] !== ' '
+        || source.slice(offset + 2, end) !== inline.content || end === offset + 2) {
+        return undefined
+      }
+      tail = { tokenStart: i, line, offset }
+      offset = end + 1
+      line++
+    }
+    return offset >= source.length && opening.map[1] === line ? tail : undefined
+  }
+
+  private tryFlatListTail(
+    src: string,
+    cached: StreamCache,
+    env: Record<string, unknown>,
+    md: MarkdownIt,
+    segment: StreamSegment,
+    appended: string,
+  ): Token[] | null {
+    const opening = cached.tokens[segment.tokenStart]
+    if (opening?.type !== 'bullet_list_open' || !opening.map
+      || appended.includes('\r') || this.mayContainReferenceDefinition(appended)) {
+      return null
+    }
+
+    const offset = this.ensureSegmentSourceOffset(cached, segment)
+    const active = cached.flatListTail ??= this.getFlatListTail(cached.tokens, segment.tokenStart, cached.src, segment.lineStart, offset)
+    if (!active || active.tokenStart <= segment.tokenStart + 1)
+      return null
+
+    const tail = src.slice(active.offset)
+    // A continuation line, marker change or loose list can change earlier items.
+    const lines = tail.endsWith('\n') ? tail.slice(0, -1).split('\n') : tail.split('\n')
+    if (!lines.every(line => line[0] === opening.markup && line[1] === ' ' && line.length > 2
+      && !line.includes('\r') && !detectGlobalMarkdownState(line.slice(2)))) {
+      return null
+    }
+
+    const normalized = this.getNormalizedUpdatedSource(cached, src, appended)
+    const { state, mapsShifted } = this.parseAtLineOffset(tail, env, md, active.line, normalized)
+    if (!mapsShifted)
+      this.shiftTokenLines(state.tokens, active.line)
+    const next = this.getFlatListTail(state.tokens, 0, tail, active.line, 0)
+    if (!next)
+      return null
+
+    cached.flatListTail = {
+      tokenStart: active.tokenStart + next.tokenStart - 1,
+      line: next.line,
+      offset: active.offset + next.offset,
+    }
+    cached.tokens.length = active.tokenStart
+    this.appendTokens(cached.tokens, state.tokens, 1)
+    opening.map[1] = next.line + 1
+    this.updateBoundaryStateForAppend(cached, appended)
+    cached.src = src
+    cached.normalizedSrc = normalized
+    cached.lineCount = active.line + countLines(tail)
+    cached.lastSegment = { ...segment, tokenEnd: cached.tokens.length, lineEnd: opening.map[1] }
+    cached.lastSegmentSource = undefined
+    cached.lastSegmentVerified = undefined
+    return cached.tokens
   }
 
   private tryListTailAppendMerge(

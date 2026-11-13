@@ -42,6 +42,38 @@ describe('stream parser', () => {
     expect(streamHtml).toEqual(baselineHtml)
   })
 
+  it('reuses inline tokens while a list item grows across appends', () => {
+    const md = MarkdownIt({ stream: true })
+    const cold = MarkdownIt()
+    const env = { __mdtsReuseListInline: true }
+    let source = '# Heading\n\n- [First](/first) with **bold**\n- Second'
+    md.stream.parse(source, env)
+    const parseInline = vi.spyOn(md.inline, 'parse')
+
+    for (const chunk of [' continues', ' with [a link](/a)', '\n- Third']) {
+      source += chunk
+      const nodes = md.stream.append(chunk, env)
+      expect(nodes).toEqual(cold.parse(source, {}))
+    }
+    expect(parseInline.mock.calls.filter(([text]) => text.startsWith('[First]'))).toHaveLength(1)
+  })
+
+  it('retains completed flat list tokens and falls back for a continuation or loose list', () => {
+    const md = MarkdownIt({ stream: true })
+    const cold = MarkdownIt()
+    const env = { __mdtsReuseFlatListTail: true }
+    let source = '# Heading\n\n- First **item**\n- Second'
+    const first = md.stream.parse(source, env).find(token => token.type === 'list_item_open')
+
+    for (const chunk of [' continues', '\n- Third', ' **item**', '\n  continuation', '\n\n- Fourth']) {
+      source += chunk
+      const tokens = md.stream.append(chunk, env)
+      expect(tokens).toEqual(cold.parse(source, {}))
+      if (!chunk.includes('continuation') && !chunk.startsWith('\n\n'))
+        expect(tokens.find(token => token.type === 'list_item_open')).toBe(first)
+    }
+  })
+
   it('returns cached tokens when the source string is unchanged', () => {
     const md = MarkdownIt({ stream: true })
     md.stream.resetStats()
