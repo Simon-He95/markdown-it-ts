@@ -17,6 +17,8 @@ const ENCODE_IDENTITY_RE = /%(?![0-9a-f]{2})|[^\w;/?:@&=+$,\-.!~*'()#%]/i
 // mdurl.decode(str, defaultChars + '%') is the identity when there is no
 // `%` + two-hex-digit sequence (bare `%` is excluded from decoding).
 const DECODE_SCAN_RE = /%[0-9a-f]{2}/i
+// These URLs have an unchanged mdurl parse/format round trip and need no encoding.
+const SIMPLE_HTTP_URL_RE = /^https?:\/\/(?=[a-z0-9.-]{1,255}(?:\/|$))[a-z0-9-]{1,63}(?:\.[a-z0-9-]{1,63})*(?:\/[\w./~!$&'()*+,;=:@?\x23-]*)?$/i
 
 /**
  * Validate URL to prevent XSS attacks.
@@ -33,6 +35,9 @@ export function validateLink(url: string): boolean {
  * Normalize link URL by encoding hostname to ASCII (punycode)
  */
 export function normalizeLink(url: string): string {
+  if (SIMPLE_HTTP_URL_RE.test(url))
+    return url
+
   const parsed = mdurl.parse(url, true)
 
   if (parsed.hostname) {
