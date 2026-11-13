@@ -74,6 +74,73 @@ describe('stream parser', () => {
     }
   })
 
+  it('reports the stable block boundary used by core rules', () => {
+    const md = MarkdownIt({ stream: true, streamTailLocalPostBlockRules: true })
+    const cold = MarkdownIt()
+    const seen: string[] = []
+    md.core.ruler.after('inline', 'observe_inline', (state) => {
+      seen.push(...state.tokens.filter(token => token.type === 'inline').map(token => token.content))
+    })
+    const env = { __mdtsReuseStableBlocks: true }
+    const prefix = '# Heading\n\nA paragraph with **strong**'
+    const initial = md.stream.parse(prefix, env).slice()
+    const chunk = '\n\nNext paragraph'
+    seen.length = 0
+
+    const next = md.stream.append(chunk, env)
+    expect(md.stream.lastUpdate()).toEqual({
+      tokenStart: initial.length,
+      coreSourceStart: prefix.length + 2,
+    })
+    expect(next).toEqual(cold.parse(prefix + chunk))
+    expect(next.slice(0, initial.length)).toEqual(initial)
+    expect(next[initial.length - 1]).toBe(initial.at(-1))
+    expect(seen).toEqual(['Next paragraph'])
+
+    md.stream.parse(prefix + chunk, env)
+    expect(md.stream.lastUpdate()).toEqual({ tokenStart: next.length, coreSourceStart: null })
+
+    md.stream.append('\n\n[ref]: /destination\n', env)
+    expect(md.stream.lastUpdate()).toEqual({ tokenStart: 0, coreSourceStart: 0 })
+    md.stream.reset()
+    expect(md.stream.lastUpdate()).toEqual({ tokenStart: 0, coreSourceStart: null })
+  })
+
+  it('keeps the stable source offset when the blank line spans chunks', () => {
+    const md = MarkdownIt({ stream: true, streamTailLocalPostBlockRules: true })
+    const cold = MarkdownIt()
+    const env = { __mdtsReuseStableBlocks: true }
+    let source = '# Heading\n\nFirst paragraph'
+    md.stream.parse(source, env)
+
+    for (const [chunk, tokenStart] of [
+      ['\n ', undefined],
+      ['\t\nSecond', 6],
+      [' paragraph', undefined],
+      ['\n\nThird paragraph', 9],
+    ] as const) {
+      source += chunk
+      const tokens = md.stream.append(chunk, env)
+      expect(tokens).toEqual(cold.parse(source))
+      if (tokenStart !== undefined) {
+        expect(md.stream.lastUpdate()).toEqual({
+          tokenStart,
+          coreSourceStart: source.length - chunk.split('\n').at(-1)!.length,
+        })
+      }
+    }
+  })
+
+  it('invalidates the active paragraph when a Setext underline arrives', () => {
+    const md = MarkdownIt({ stream: true, streamTailLocalPostBlockRules: true })
+    const env = { __mdtsReuseStableBlocks: true }
+    const prefix = '# Heading\n\nPotential title'
+    md.stream.parse(prefix, env)
+    const tokens = md.stream.append('\n---\n', env)
+    expect(md.stream.lastUpdate()).toEqual({ tokenStart: 3, coreSourceStart: 11 })
+    expect(tokens).toEqual(MarkdownIt().parse(prefix + '\n---\n'))
+  })
+
   it('returns cached tokens when the source string is unchanged', () => {
     const md = MarkdownIt({ stream: true })
     md.stream.resetStats()

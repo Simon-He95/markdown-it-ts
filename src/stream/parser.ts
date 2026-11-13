@@ -64,6 +64,13 @@ interface StreamSegment {
   srcOffset: number
 }
 
+/** Coordinates of the last stream update. A zero token start invalidates the full tree. */
+export interface StreamUpdate {
+  readonly tokenStart: number
+  /** Start of the reparsed source window. Zero is conservative for reconstructed input; null means no parse ran. */
+  readonly coreSourceStart: number | null
+}
+
 export interface StreamSnapshot {
   readonly sourceLength: number
   readonly tokenCount: number
@@ -323,6 +330,7 @@ export class StreamParser {
   private cache: StreamCache | null = null
   private readonly snapshots = new WeakSet<StreamSnapshot>()
   private stats: StreamStats = makeEmptyStats()
+  private update: StreamUpdate = { tokenStart: 0, coreSourceStart: 0 }
   private normalizeLineEndings = true
   private tokenMapsTrusted = true
   private allowUntrustedTailReuse = false
@@ -353,6 +361,7 @@ export class StreamParser {
 
   reset(): void {
     this.cache = null
+    this.update = { tokenStart: 0, coreSourceStart: null }
     this.stats.resets += 1
     this.stats.lastMode = 'reset'
   }
@@ -386,6 +395,7 @@ export class StreamParser {
     const internal = snapshot as InternalStreamSnapshot
     const cache = internal.state.cache
     this.cache = cache
+    this.update = { tokenStart: 0, coreSourceStart: null }
 
     if (parserConfigEqual(cache.config, md))
       return cache.tokens
@@ -402,6 +412,7 @@ export class StreamParser {
   }
 
   parse(src: string, env: Record<string, unknown> | undefined, md: MarkdownIt, knownAppend?: string): Token[] {
+    this.update = { tokenStart: 0, coreSourceStart: 0 }
     const previousCache = this.cache
     const priorEnv = previousCache?.env
 
@@ -529,6 +540,7 @@ export class StreamParser {
     }
 
     if (src === cached.src) {
+      this.update = { tokenStart: cached.tokens.length, coreSourceStart: null }
       this.stats.total += 1
       this.stats.cacheHits += 1
       this.stats.lastMode = 'cache'
@@ -599,6 +611,15 @@ export class StreamParser {
     // inspect appended detection
     const cachedLastSegment = this.ensureLastSegment(cached, knownAppend !== undefined)
     const fallbackEnv = envProvided ?? cached.env
+    if (knownAppend && cachedLastSegment && this.allowUntrustedTailReuse
+      && fallbackEnv.__mdtsReuseStableBlocks === true
+      && this.tryAppendAfterStableBlock(src, cached, fallbackEnv, md, cachedLastSegment, knownAppend)) {
+      this.stats.total++
+      this.stats.appendHits++
+      this.stats.lastMode = 'append'
+      setStrategyDiagnostics(fallbackEnv, { area: 'stream', path: 'stream-append', reason: 'stable-block' })
+      return cached.tokens
+    }
     const reusedList = knownAppend && cachedLastSegment && fallbackEnv.__mdtsReuseFlatListTail === true
       ? this.tryFlatListTail(src, cached, fallbackEnv, md, cachedLastSegment, knownAppend)
       : null
@@ -767,8 +788,9 @@ export class StreamParser {
         // paragraph boundaries while keeping the safer inline-token merge above.
       }
 
-      // Append remaining tokens into cache
+      // The context parse may have read earlier lines. Report only token invalidation here.
       const appendStart = cached.tokens.length
+      this.update = { tokenStart: appendedTokenStart ? appendStart - 1 : appendStart, coreSourceStart: 0 }
       if (appendedState.tokens.length > appendedTokenStart) {
         // Avoid duplicating tokens that are already present at the end of the cache.
         // If the beginning of appendedState.tokens matches a trailing sequence in
@@ -817,7 +839,9 @@ export class StreamParser {
         if (appendedLastSegment) {
           cached.lastSegment = appendedLastSegment
           const appendedOffset = src.length - appended.length
-          cached.lastSegmentSource = appended.slice(Math.max(0, appendedLastSegment.srcOffset - appendedOffset))
+          cached.lastSegmentSource = appendedLastSegment.srcOffset >= appendedOffset
+            ? appended.slice(appendedLastSegment.srcOffset - appendedOffset)
+            : undefined
         }
         else {
           cached.lastSegment = undefined
@@ -1150,6 +1174,7 @@ export class StreamParser {
     if (appended) {
       const merged = this.tryContainerTailAppendMerge(src, cached, env, md, lastSegment, appended, postBlockSrc)
       if (merged) {
+        this.update = { tokenStart: lastSegment.tokenStart, coreSourceStart: 0 }
         cached.lastSegmentSource = directAppend ? nextTail : undefined
         return merged
       }
@@ -1199,6 +1224,7 @@ export class StreamParser {
       cached.globalStateReason = null
       if (!directAppend || !appended)
         cached.globalStateCarry = undefined
+      this.update = { tokenStart: lastSegment.tokenStart, coreSourceStart: lastSegment.srcOffset }
       cached.tokens.length = lastSegment.tokenStart
       this.appendTokens(cached.tokens, tailState.tokens)
       cached.lineCount = lastSegment.lineStart + countLines(nextTail)
@@ -1282,7 +1308,7 @@ export class StreamParser {
     if (segment.srcOffset < 0)
       this.ensureSegmentSourceOffset(cache, segment)
     const lineCount = cache.lineCount ?? countLines(cache.src)
-    const docLineCount = this.getDocLineCount(cache.src, lineCount)
+    const docLineCount = this.getCachedDocLineCount(cache, lineCount)
     const inRange = segment.lineStart >= 0
       && segment.lineStart <= segment.lineEnd
       && segment.lineEnd <= docLineCount
@@ -1290,7 +1316,7 @@ export class StreamParser {
     if (!inRange)
       return false
 
-    const tail = cache.src.slice(segment.srcOffset)
+    const tail = cache.lastSegmentSource ?? cache.src.slice(segment.srcOffset)
     try {
       const anchorMd = Object.create(md)
       Object.defineProperty(anchorMd, 'block', { value: this.anchorBlock })
@@ -1343,7 +1369,8 @@ export class StreamParser {
   private updateFenceMarkerCacheForAppend(cache: StreamCache, appended: string): void {
     if (this.cacheHasFenceMarker(cache))
       return
-    const boundary = cache.src.slice(-2) + appended
+    const tail = cache.lastSegmentSource
+    const boundary = (tail && tail.length >= 2 ? tail : cache.src).slice(-2) + appended
     cache.hasFenceMarker = boundary.includes('```') || boundary.includes('~~~')
   }
 
@@ -1356,7 +1383,7 @@ export class StreamParser {
     const normalizedCached = cache.normalizedSrc ?? this.normalizeSource(cache.src)
     const appended = knownAppend ?? next.slice(cache.src.length)
     let normalizedAppend = this.normalizeSource(appended)
-    if (cache.src.endsWith('\r') && appended.startsWith('\n'))
+    if (appended.startsWith('\n') && (cache.lastSegmentSource || cache.src).endsWith('\r'))
       normalizedAppend = normalizedAppend.slice(1)
     return normalizedCached + normalizedAppend
   }
@@ -1495,11 +1522,16 @@ export class StreamParser {
     return this.cache !== null
   }
 
+  public lastUpdate(): StreamUpdate {
+    return this.update
+  }
+
   public getStats(): StreamStats {
     return { ...this.stats }
   }
 
   private setCache(cache: Omit<StreamCache, 'config' | 'snapshotState'>, md: MarkdownIt): StreamCache {
+    this.update = { tokenStart: 0, coreSourceStart: 0 }
     const snapshotState = this.cache?.snapshotState
     const nextCache: StreamCache = {
       ...cache,
@@ -1790,6 +1822,79 @@ export class StreamParser {
     return offset >= source.length && opening.map[1] === line ? tail : undefined
   }
 
+  private tryAppendAfterStableBlock(
+    src: string,
+    cached: StreamCache,
+    env: Record<string, unknown>,
+    md: MarkdownIt,
+    segment: StreamSegment,
+    appended: string,
+  ): boolean {
+    const opening = cached.tokens[segment.tokenStart]
+    const inlineToken = cached.tokens[segment.tokenStart + 1]
+    const closing = cached.tokens[segment.tokenStart + 2]
+    if (segment.tokenEnd !== segment.tokenStart + 3 || segment.lineEnd !== segment.lineStart + 1
+      || opening?.level !== 0 || inlineToken?.type !== 'inline'
+      || !((opening.type === 'paragraph_open' && closing?.type === 'paragraph_close')
+        || (opening.type === 'heading_open' && closing?.type === 'heading_close'))) {
+      return false
+    }
+
+    const start = this.ensureSegmentSourceOffset(cached, segment)
+    const previousTail = cached.lastSegmentSource ?? cached.src.slice(start)
+    const nextTail = previousTail + appended
+    const end = nextTail.indexOf('\n')
+    if (end === -1 || end > previousTail.length)
+      return false
+    const line = nextTail.slice(0, end)
+    const expectedMarkup = opening.markup
+    // A literal one-line paragraph or ATX heading followed by a blank line.
+    // More complex constructs still use the verified tail or full parse.
+    if (opening.type === 'paragraph_open'
+      ? !/^[a-z]/i.test(line) || line.includes('|') || line !== inlineToken.content
+      : !/^#{1,6}$/.test(expectedMarkup) || line !== `${expectedMarkup} ${inlineToken.content}`) {
+      return false
+    }
+    if (line.includes('\r') || line.includes('\0'))
+      return false
+
+    const gap = /^(?:[ \t]*\n)+/.exec(nextTail.slice(end + 1))
+    if (!gap)
+      return false
+    const tailStart = end + 1 + gap[0].length
+    if (tailStart < previousTail.length)
+      return false
+    const tail = nextTail.slice(tailStart)
+    if (!/^[a-z#]/i.test(tail))
+      return false
+
+    const offset = start + tailStart
+    // A definition nested in the new suffix can also change earlier inline tokens.
+    if (/[\r\0]/.test(tail) || tail.includes(']:'))
+      return false
+
+    const lineStart = segment.lineEnd + countLines(gap[0])
+    const normalized = this.getNormalizedUpdatedSource(cached, src, appended)
+    const { state, mapsShifted } = this.parseAtLineOffset(tail, env, md, lineStart, normalized)
+    const tokenStart = cached.tokens.length
+    if (!mapsShifted)
+      this.shiftTokenLines(state.tokens, lineStart)
+    this.appendTokens(cached.tokens, state.tokens)
+    this.updateFenceMarkerCacheForAppend(cached, appended)
+    this.updateBoundaryStateForAppend(cached, appended)
+    cached.src = src
+    cached.normalizedSrc = normalized
+    cached.lineCount = lineStart + countLines(tail)
+    cached.lastSegment = this.getLastSegment(cached.tokens, src, tokenStart, cached.tokens.length, offset, lineStart)
+    cached.lastSegmentSource = cached.lastSegment && cached.lastSegment.srcOffset >= offset
+      ? tail.slice(cached.lastSegment.srcOffset - offset)
+      : undefined
+    cached.lastSegmentVerified = undefined
+    cached.inlineTailTokens = undefined
+    this.update = { tokenStart, coreSourceStart: offset }
+    return true
+  }
+
   private tryFlatListTail(
     src: string,
     cached: StreamCache,
@@ -1830,6 +1935,7 @@ export class StreamParser {
       line: next.line,
       offset: active.offset + next.offset,
     }
+    this.update = { tokenStart: segment.tokenStart, coreSourceStart: active.offset }
     cached.tokens.length = active.tokenStart
     this.appendTokens(cached.tokens, state.tokens, 1)
     opening.map[1] = next.line + 1
