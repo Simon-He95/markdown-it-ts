@@ -3,7 +3,7 @@ import type { ParserBlock } from './parse/parser_block'
 import type { ParserInline } from './parse/parser_inline'
 import type { StockFastDiagnostics } from './parse/strategy_diagnostics'
 import type { RendererOptions } from './render/renderer'
-import type { StreamSnapshot, StreamStats } from './stream/parser'
+import type { StreamSnapshot, StreamStats, StreamUpdate } from './stream/parser'
 import type { UnboundedBufferStats, UnboundedChunkInfo } from './stream/unbounded'
 import { LinkifyIt } from 'linkify-it'
 import * as utils from './common/utils'
@@ -37,6 +37,7 @@ export { parse, parseInline } from './parse'
 export type { ParseSource, TextSource } from './parse/source'
 export { withRenderer } from './plugins/with-renderer'
 export type { RendererEnv, RendererOptions } from './render'
+export type { StreamUpdate } from './stream/parser'
 
 type QuotesOption = string | [string, string, string, string]
 
@@ -184,6 +185,7 @@ export interface MarkdownIt {
     reset: () => void
     hasCache: () => boolean
     peek: () => TokenType[]
+    lastUpdate: () => StreamUpdate
     stats: () => StreamStats
     resetStats: () => void
   }
@@ -900,6 +902,9 @@ function markdownIt(presetName?: string | MarkdownItOptions, options?: MarkdownI
     },
     peek() {
       return streamParser ? streamParser.peek() : []
+    },
+    lastUpdate() {
+      return md.stream.enabled && streamParser ? streamParser.lastUpdate() : { tokenStart: 0, coreSourceStart: 0 }
     },
     stats() {
       return streamParser
