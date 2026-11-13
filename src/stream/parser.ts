@@ -548,9 +548,10 @@ export class StreamParser {
       return cached.tokens
     }
 
+    // Compare the full prefix using the engine's string equality path.
     const appendDelta = knownAppend !== undefined
       ? knownAppend
-      : (src.startsWith(cached.src) ? src.slice(cached.src.length) : null)
+      : (src.slice(0, cached.src.length) === cached.src ? src.slice(cached.src.length) : null)
     let cachedGlobalStateReason = cached.globalStateReason
     if (cachedGlobalStateReason === undefined) {
       cachedGlobalStateReason = detectGlobalMarkdownState(cached.src)
