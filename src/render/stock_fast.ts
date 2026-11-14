@@ -90,6 +90,7 @@ function renderBulletItem(src: string, pos: number, end: number): string | null 
 }
 
 interface FenceOpenCache {
+  info: string | null
   lang: string | null
   open: string
 }
@@ -105,12 +106,15 @@ function renderFence(
     return null
 
   const rawInfo = src.slice(pos + 3, end)
-  if (rawInfo.includes('`'))
-    return null
+  let lang = cache.lang
+  if (rawInfo !== cache.info) {
+    if (rawInfo.includes('`'))
+      return null
 
-  const info = unescapeAll(rawInfo).trim()
-  const langEnd = info.search(/\s/)
-  const lang = langEnd === -1 ? info : info.slice(0, langEnd)
+    const info = unescapeAll(rawInfo).trim()
+    const langEnd = info.search(/\s/)
+    lang = langEnd === -1 ? info : info.slice(0, langEnd)
+  }
 
   const contentStart = end < src.length ? end + 1 : end
   let contentEnd = contentStart
@@ -135,6 +139,7 @@ function renderFence(
         cache.lang = lang
         cache.open = open
       }
+      cache.info = rawInfo
       return {
         html: `${open}${escapeHtml(content)}</code></pre>\n`,
         nextPos: closeEnd < src.length ? closeEnd + 1 : closeEnd,
@@ -168,7 +173,7 @@ function renderStockFastInternal(src: string, diagnostics?: StockFastDiagnostics
   let html = ''
   const useChunks = src.length >= 250_000
   const chunks: string[] = []
-  const fenceOpenCache: FenceOpenCache = { lang: null, open: '' }
+  const fenceOpenCache: FenceOpenCache = { info: null, lang: null, open: '' }
   let lastListSource = ''
   let lastListHtml = ''
   let lastParagraph = ''

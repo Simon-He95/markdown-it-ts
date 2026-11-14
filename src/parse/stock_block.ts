@@ -6,12 +6,16 @@ export function isStockFenceClose(src: string, pos: number, end: number): boolea
   while (pos - start < 3 && src.charCodeAt(pos) === 0x20)
     pos++
 
-  const markerStart = pos
+  if (pos + 2 >= end
+    || src.charCodeAt(pos) !== 0x60
+    || src.charCodeAt(pos + 1) !== 0x60
+    || src.charCodeAt(pos + 2) !== 0x60) {
+    return false
+  }
+
+  pos += 3
   while (pos < end && src.charCodeAt(pos) === 0x60)
     pos++
-
-  if (pos - markerStart < 3)
-    return false
 
   while (pos < end && isSpace(src.charCodeAt(pos)))
     pos++
