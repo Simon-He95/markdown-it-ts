@@ -60,31 +60,13 @@ function renderAttrsFromList(attrs: [string, string][] | null | undefined): stri
 }
 
 function parseFenceInfo(info: string): { langName: string, langAttrs: string } {
-  if (!info)
-    return { langName: '', langAttrs: '' }
-
-  let markerEnd = 0
-  while (markerEnd < info.length) {
-    const ch = info.charCodeAt(markerEnd)
-    if (ch === 0x20 || ch === 0x09 || ch === 0x0A)
-      break
-    markerEnd++
-  }
-
-  if (markerEnd >= info.length)
+  const separator = /\s+/.exec(info)
+  if (!separator)
     return { langName: info, langAttrs: '' }
 
-  let attrsStart = markerEnd
-  while (attrsStart < info.length) {
-    const ch = info.charCodeAt(attrsStart)
-    if (ch !== 0x20 && ch !== 0x09 && ch !== 0x0A)
-      break
-    attrsStart++
-  }
-
   return {
-    langName: info.slice(0, markerEnd),
-    langAttrs: attrsStart < info.length ? info.slice(attrsStart) : '',
+    langName: info.slice(0, separator.index),
+    langAttrs: info.slice(separator.index + separator[0].length),
   }
 }
 

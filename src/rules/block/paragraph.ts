@@ -3,6 +3,7 @@
  */
 
 import type { StateBlock } from '../../parse/parser_block/state_block'
+import { asciiTrim } from '../../common/utils'
 import { canUseParagraphTerminatorFastPath, couldTerminateParagraph } from './paragraph_terminator_fast'
 
 function isSpace(code: number): boolean {
@@ -97,7 +98,7 @@ export function paragraph(state: StateBlock, startLine: number, endLine: number)
       break
   }
 
-  const content = state.getLines(startLine, nextLine, blkIndent, false).trim()
+  const content = asciiTrim(state.getLines(startLine, nextLine, blkIndent, false))
 
   state.line = nextLine
 

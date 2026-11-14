@@ -3,6 +3,7 @@
  */
 
 import type { StateBlock } from '../../parse/parser_block/state_block'
+import { asciiTrim } from '../../common/utils'
 
 const HEADING_TAGS = ['', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6']
 const HEADING_MARKUP = ['', '#', '##', '###', '####', '#####', '######']
@@ -59,7 +60,7 @@ export function heading(state: StateBlock, startLine: number, endLine: number, s
   token_o.map = [startLine, state.line]
 
   const token_i = state.push('inline', '', 0)
-  token_i.content = src.slice(pos, max).trim()
+  token_i.content = asciiTrim(src.slice(pos, max))
   token_i.map = [startLine, state.line]
   token_i.children = []
 

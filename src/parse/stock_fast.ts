@@ -1,5 +1,7 @@
 import type { StockFastDiagnostics } from './strategy_diagnostics'
 import { Token } from '../common/token'
+import { asciiTrim, unescapeAll } from '../common/utils'
+import { isStockFenceClose, startsWithDashMarker, startsWithOrderedItem, startsWithSimpleBulletItem, stockAtxHeading, stockParagraphContent } from './stock_block'
 
 const INLINE_TERMINATOR_RE = /[\n!#$%&*+\-:<=>@[\]\\^_`{}~]/
 const JSON_CONTROL_CHAR_RANGE = '\\u0000-\\u001F'
@@ -28,10 +30,6 @@ function startsWithFence(src: string, pos: number, end: number): boolean {
     && src.charCodeAt(pos) === 0x60
     && src.charCodeAt(pos + 1) === 0x60
     && src.charCodeAt(pos + 2) === 0x60
-}
-
-function startsWithBulletItem(src: string, pos: number, end: number): boolean {
-  return pos + 1 < end && src.charCodeAt(pos) === 0x2D && src.charCodeAt(pos + 1) === 0x20
 }
 
 function isShortPlainInlineText(src: string): boolean {
@@ -140,35 +138,11 @@ function inlineToken(content: string, line: number, level: number): Token {
 }
 
 function pushAtxHeading(tokens: Token[], src: string, pos: number, end: number, line: number): boolean {
-  let level = 0
-  let markerEnd = pos
-  while (markerEnd < end && src.charCodeAt(markerEnd) === 0x23 && level < 6) {
-    markerEnd++
-    level++
-  }
-
-  if (level === 0 || markerEnd >= end || src.charCodeAt(markerEnd) !== 0x20)
+  const heading = stockAtxHeading(src, pos, end)
+  if (!heading)
     return false
 
-  let contentStart = markerEnd + 1
-  while (contentStart < end && src.charCodeAt(contentStart) === 0x20)
-    contentStart++
-
-  let contentEnd = end
-  while (contentEnd > contentStart && src.charCodeAt(contentEnd - 1) === 0x20)
-    contentEnd--
-
-  let markerStart = contentEnd
-  while (markerStart > contentStart && src.charCodeAt(markerStart - 1) === 0x23)
-    markerStart--
-
-  if (markerStart > contentStart && src.charCodeAt(markerStart - 1) === 0x20) {
-    contentEnd = markerStart - 1
-    while (contentEnd > contentStart && src.charCodeAt(contentEnd - 1) === 0x20)
-      contentEnd--
-  }
-
-  const content = src.slice(contentStart, contentEnd)
+  const { level, content } = heading
   if (!isPlainInlineText(content))
     return false
 
@@ -193,11 +167,6 @@ function pushParagraph(tokens: Token[], content: string, line: number): void {
   tokens.push(open)
   tokens.push(inlineToken(content, line, 1))
   tokens.push(blockToken('paragraph_close', 'p', -1, 0))
-}
-
-function paragraphContent(src: string, start: number, end: number): string {
-  const lastCh = src.charCodeAt(end - 1)
-  return lastCh === 0x20 || lastCh === 0x09 ? src.slice(start, end).trim() : src.slice(start, end)
 }
 
 function skipEmptyLines(src: string, pos: number): number {
@@ -259,7 +228,7 @@ function parseFence(src: string, pos: number, end: number, line: number): { toke
 
   while (scan < src.length) {
     const closeEnd = lineEnd(src, scan)
-    if (startsWithFence(src, scan, closeEnd) && isBlankLine(src, scan + 3, closeEnd)) {
+    if (isStockFenceClose(src, scan, closeEnd)) {
       const token = blockToken('fence', 'code', 0, 0)
       token.map = [line, scanLine + 1]
       token.markup = '```'
@@ -291,7 +260,7 @@ function codeAstJsonParts(rawInfo: string, cache: Map<string, CodeAstJsonParts>)
   if (rawInfo.includes('`'))
     return null
 
-  const info = rawInfo.trim()
+  const info = asciiTrim(rawInfo)
   let parts: CodeAstJsonParts
   if (!info) {
     parts = ['{"type":"code","value":', '}']
@@ -306,10 +275,10 @@ function codeAstJsonParts(rawInfo: string, cache: Map<string, CodeAstJsonParts>)
       }
     }
 
-    const lang = JSON.stringify(info.slice(0, langEnd))
-    const meta = info.slice(langEnd).trim()
+    const lang = JSON.stringify(unescapeAll(info.slice(0, langEnd)))
+    const meta = asciiTrim(info.slice(langEnd))
     parts = meta
-      ? [`{"type":"code","lang":${lang},"meta":${JSON.stringify(meta)},"value":`, '}']
+      ? [`{"type":"code","lang":${lang},"meta":${JSON.stringify(unescapeAll(meta))},"value":`, '}']
       : [`{"type":"code","lang":${lang},"value":`, '}']
   }
 
@@ -332,7 +301,7 @@ function parseFenceAstJson(src: string, pos: number, end: number, cache: Map<str
 
   while (scan < src.length) {
     const closeEnd = lineEnd(src, scan)
-    if (startsWithFence(src, scan, closeEnd) && isBlankLine(src, scan + 3, closeEnd)) {
+    if (isStockFenceClose(src, scan, closeEnd)) {
       const content = JSON.stringify(src.slice(contentStart, contentEnd))
       return {
         json: parts[0] + content + parts[1],
@@ -387,35 +356,11 @@ function buildTightBulletListAstJson(src: string, pos: number, nextPos: number):
 }
 
 function atxHeadingAstJson(src: string, pos: number, end: number): string | null {
-  let level = 0
-  let markerEnd = pos
-  while (markerEnd < end && src.charCodeAt(markerEnd) === 0x23 && level < 6) {
-    markerEnd++
-    level++
-  }
-
-  if (level === 0 || markerEnd >= end || src.charCodeAt(markerEnd) !== 0x20)
+  const heading = stockAtxHeading(src, pos, end)
+  if (!heading)
     return null
 
-  let contentStart = markerEnd + 1
-  while (contentStart < end && src.charCodeAt(contentStart) === 0x20)
-    contentStart++
-
-  let contentEnd = end
-  while (contentEnd > contentStart && src.charCodeAt(contentEnd - 1) === 0x20)
-    contentEnd--
-
-  let markerStart = contentEnd
-  while (markerStart > contentStart && src.charCodeAt(markerStart - 1) === 0x23)
-    markerStart--
-
-  if (markerStart > contentStart && src.charCodeAt(markerStart - 1) === 0x20) {
-    contentEnd = markerStart - 1
-    while (contentEnd > contentStart && src.charCodeAt(contentEnd - 1) === 0x20)
-      contentEnd--
-  }
-
-  const content = src.slice(contentStart, contentEnd)
+  const { level, content } = heading
   const value = plainInlineAstJsonValue(content)
   if (value === null)
     return null
@@ -467,7 +412,7 @@ export function parseStockFastAstJson(src: string): string | null {
       pos = skipEmptyLines(src, end < src.length ? end + 1 : end)
     }
     else if (ch === 0x2D) {
-      if (!startsWithBulletItem(src, pos, end))
+      if (!startsWithSimpleBulletItem(src, pos, end))
         return null
 
       let firstItem = true
@@ -475,7 +420,7 @@ export function parseStockFastAstJson(src: string): string | null {
 
       while (nextPos < src.length) {
         const itemEnd = lineEnd(src, nextPos)
-        if (!startsWithBulletItem(src, nextPos, itemEnd))
+        if (!startsWithSimpleBulletItem(src, nextPos, itemEnd))
           break
 
         if (!isShortPlainInlineTextRange(src, nextPos + 2, itemEnd))
@@ -497,7 +442,7 @@ export function parseStockFastAstJson(src: string): string | null {
 
         const lookaheadEnd = lineEnd(src, lookahead)
         if (!isBlankLine(src, lookahead, lookaheadEnd)) {
-          if (startsWithBulletItem(src, lookahead, lookaheadEnd))
+          if (lookahead === nextPos || startsWithDashMarker(src, lookahead, lookaheadEnd))
             return null
           break
         }
@@ -535,7 +480,10 @@ export function parseStockFastAstJson(src: string): string | null {
       pos = skipEmptyLines(src, fence.nextPos)
     }
     else {
-      const paragraph = paragraphContent(src, pos, end)
+      if (startsWithOrderedItem(src, pos, end))
+        return null
+
+      const paragraph = stockParagraphContent(src, pos, end)
       if (paragraph === lastParagraph) {
         node = lastParagraphJson
       }
@@ -621,7 +569,7 @@ export function parseStockFast(src: string, diagnostics?: StockFastDiagnostics):
     }
 
     if (ch === 0x2D) {
-      if (!startsWithBulletItem(src, pos, end))
+      if (!startsWithSimpleBulletItem(src, pos, end))
         return null
 
       const startLine = line
@@ -632,7 +580,7 @@ export function parseStockFast(src: string, diagnostics?: StockFastDiagnostics):
 
       while (nextPos < src.length) {
         const itemEnd = lineEnd(src, nextPos)
-        if (!startsWithBulletItem(src, nextPos, itemEnd))
+        if (!startsWithSimpleBulletItem(src, nextPos, itemEnd))
           break
 
         const contentStart = nextPos + 2
@@ -661,7 +609,7 @@ export function parseStockFast(src: string, diagnostics?: StockFastDiagnostics):
 
         const lookaheadEnd = lineEnd(src, lookahead)
         if (!isBlankLine(src, lookahead, lookaheadEnd)) {
-          if (startsWithBulletItem(src, lookahead, lookaheadEnd))
+          if (lookahead === nextPos || startsWithDashMarker(src, lookahead, lookaheadEnd))
             return null
           break
         }
@@ -695,7 +643,10 @@ export function parseStockFast(src: string, diagnostics?: StockFastDiagnostics):
       continue
     }
 
-    const paragraph = paragraphContent(src, pos, end)
+    if (startsWithOrderedItem(src, pos, end))
+      return null
+
+    const paragraph = stockParagraphContent(src, pos, end)
     let paragraphIsPlain: boolean
     if (plainInlineCacheMode === PLAIN_CACHE_DISABLED) {
       if (diagnostics)

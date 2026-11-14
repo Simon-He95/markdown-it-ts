@@ -58,6 +58,23 @@ export function isSpace(code: number): boolean {
   return code === 0x09 || code === 0x20
 }
 
+// Trim Markdown block whitespace while preserving Unicode spaces.
+export function asciiTrim(str: string): string {
+  let start = 0
+  let end = str.length
+
+  while (start < end && isAsciiTrimmable(str.charCodeAt(start)))
+    start++
+  while (end > start && isAsciiTrimmable(str.charCodeAt(end - 1)))
+    end--
+
+  return str.slice(start, end)
+}
+
+function isAsciiTrimmable(code: number): boolean {
+  return isSpace(code) || code === 0x0A || code === 0x0D
+}
+
 // Zs (unicode class) || [\t\f\v\r\n]
 export function isWhiteSpace(code: number): boolean {
   if (code >= 0x2000 && code <= 0x200A)
