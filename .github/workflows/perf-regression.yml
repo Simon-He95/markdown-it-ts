@@ -3,13 +3,16 @@ name: Perf Regression
 on:
   pull_request:
     branches: [main]
-    paths:
+    paths: &perf-inputs
       - .github/workflows/perf-regression.yml
       - src/**
       - scripts/perf-*.mjs
       - test/parse/parse-performance.test.ts
       - package.json
       - pnpm-lock.yaml
+  push:
+    branches: [main]
+    paths: *perf-inputs
   workflow_dispatch:
     inputs:
       base_ref:
@@ -57,7 +60,7 @@ jobs:
 
       - name: Fetch baseline ref
         env:
-          BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || inputs.base_ref || 'main' }}
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before || inputs.base_ref || 'main' }}
         run: git -C head fetch --no-tags origin "$BASE_REF:refs/perf/base"
 
       - name: Run parser perf threshold tests (head)

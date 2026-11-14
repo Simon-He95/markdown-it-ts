@@ -37,7 +37,12 @@ export function getBenchmarkFingerprint() {
   for (const relativePath of files) {
     hash.update(relativePath)
     hash.update('\0')
-    const normalizedContent = readFileSync(new URL(relativePath, rootUrl), 'utf8').replaceAll('\r\n', '\n')
+    let normalizedContent = readFileSync(new URL(relativePath, rootUrl), 'utf8').replaceAll('\r\n', '\n')
+    if (relativePath === 'package.json') {
+      const manifest = JSON.parse(normalizedContent)
+      delete manifest.version
+      normalizedContent = JSON.stringify(manifest)
+    }
     hash.update(normalizedContent)
     hash.update('\0')
   }
