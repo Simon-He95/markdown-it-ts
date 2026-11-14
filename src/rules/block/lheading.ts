@@ -3,6 +3,7 @@
  */
 
 import type { StateBlock } from '../../parse/parser_block/state_block'
+import { asciiTrim } from '../../common/utils'
 import { canUseParagraphTerminatorFastPath, couldTerminateParagraph } from './paragraph_terminator_fast'
 
 const HEADING_TAGS = ['', 'h1', 'h2']
@@ -111,7 +112,7 @@ export function lheading(state: StateBlock, startLine: number, endLine: number):
     content = src.slice(lineStart, lineEnd)
   }
   else {
-    content = state.getLines(startLine, nextLine, blkIndent, false).trim()
+    content = asciiTrim(state.getLines(startLine, nextLine, blkIndent, false))
   }
 
   state.line = nextLine + 1

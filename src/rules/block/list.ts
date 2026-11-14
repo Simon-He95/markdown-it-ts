@@ -3,6 +3,7 @@
  */
 
 import type { StateBlock } from '../../parse/parser_block/state_block'
+import type { ParseSource } from '../../parse/source'
 
 function isSpace(code: number): boolean {
   switch (code) {
@@ -45,13 +46,7 @@ function skipBulletListMarker(state: StateBlock, startLine: number): number {
 
 // Search `\d+[.)][\n ]`, returns next pos after marker on success
 // or -1 on fail.
-function skipOrderedListMarker(state: StateBlock, startLine: number): number {
-  const bMarks = state.bMarks
-  const tShift = state.tShift
-  const eMarks = state.eMarks
-  const src = state.src
-  const start = bMarks[startLine] + tShift[startLine]
-  const max = eMarks[startLine]
+export function skipOrderedListMarker(src: ParseSource, start: number, max: number): number {
   let pos = start
 
   // List marker should have at least 2 chars (digit + dot)
@@ -191,7 +186,7 @@ export function list(state: StateBlock, startLine: number, endLine: number, sile
   }
   const marker = src.charCodeAt(lineStart)
   if (marker >= 0x30 && marker <= 0x39) {
-    posAfterMarker = skipOrderedListMarker(state, nextLine)
+    posAfterMarker = skipOrderedListMarker(src, lineStart, eMarks[nextLine])
     if (posAfterMarker < 0)
       return false
 
@@ -385,10 +380,11 @@ export function list(state: StateBlock, startLine: number, endLine: number, sile
 
     // fail if list has another type
     if (isOrdered) {
-      posAfterMarker = skipOrderedListMarker(state, nextLine)
+      const nextStart = bMarks[nextLine] + tShift[nextLine]
+      posAfterMarker = skipOrderedListMarker(src, nextStart, eMarks[nextLine])
       if (posAfterMarker < 0)
         break
-      start = bMarks[nextLine] + tShift[nextLine]
+      start = nextStart
     }
     else {
       posAfterMarker = skipBulletListMarker(state, nextLine)

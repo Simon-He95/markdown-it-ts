@@ -1,5 +1,6 @@
 import type { StockFastDiagnostics } from '../parse/strategy_diagnostics'
-import { escapeHtml } from './utils'
+import { isStockFenceClose, startsWithDashMarker, startsWithOrderedItem, startsWithSimpleBulletItem, stockAtxHeading, stockParagraphContent } from '../parse/stock_block'
+import { escapeHtml, unescapeAll } from './utils'
 
 const INLINE_FALLBACK_RE = /[\n!#$%&*+\-:<=>@[\]\\^_`{}~]/
 const INLINE_SPECIAL_RE = /[\n!"#$%&*+\-:<=>@[\]\\^_`{}~]/
@@ -40,11 +41,6 @@ function startsWithFence(src: string, pos: number, end: number): boolean {
     && src.charCodeAt(pos + 2) === 0x60
 }
 
-function paragraphContent(src: string, start: number, end: number): string {
-  const lastCh = src.charCodeAt(end - 1)
-  return lastCh === 0x20 || lastCh === 0x09 ? src.slice(start, end).trim() : src.slice(start, end)
-}
-
 function renderPlainInline(src: string): string | null {
   if (!INLINE_SPECIAL_RE.test(src))
     return src
@@ -56,43 +52,16 @@ function renderPlainInline(src: string): string | null {
 }
 
 function renderAtxHeading(src: string, pos: number, end: number): string | null {
-  let level = 0
-  let markerEnd = pos
-  while (markerEnd < end && src.charCodeAt(markerEnd) === 0x23 && level < 6) {
-    markerEnd++
-    level++
-  }
-
-  if (level === 0 || markerEnd >= end || src.charCodeAt(markerEnd) !== 0x20)
+  const heading = stockAtxHeading(src, pos, end)
+  if (!heading)
     return null
 
-  let contentStart = markerEnd + 1
-  while (contentStart < end && src.charCodeAt(contentStart) === 0x20)
-    contentStart++
-
-  let contentEnd = end
-  while (contentEnd > contentStart && src.charCodeAt(contentEnd - 1) === 0x20)
-    contentEnd--
-
-  let markerStart = contentEnd
-  while (markerStart > contentStart && src.charCodeAt(markerStart - 1) === 0x23)
-    markerStart--
-
-  if (markerStart > contentStart && src.charCodeAt(markerStart - 1) === 0x20) {
-    contentEnd = markerStart - 1
-    while (contentEnd > contentStart && src.charCodeAt(contentEnd - 1) === 0x20)
-      contentEnd--
-  }
-
-  const content = renderPlainInline(src.slice(contentStart, contentEnd))
+  const { level } = heading
+  const content = renderPlainInline(heading.content)
   if (content === null)
     return null
 
   return `<h${level}>${content}</h${level}>\n`
-}
-
-function startsWithBulletItem(src: string, pos: number, end: number): boolean {
-  return pos + 1 < end && src.charCodeAt(pos) === 0x2D && src.charCodeAt(pos + 1) === 0x20
 }
 
 // 0 = must fall back to the full parser, 1 = safe to render as-is.
@@ -120,36 +89,8 @@ function renderBulletItem(src: string, pos: number, end: number): string | null 
   return content === null ? null : `<li>${content}</li>\n`
 }
 
-function fenceLang(src: string, start: number, end: number): string | null {
-  while (start < end) {
-    const ch = src.charCodeAt(start)
-    if (ch !== 0x20 && ch !== 0x09)
-      break
-    start++
-  }
-
-  while (end > start) {
-    const ch = src.charCodeAt(end - 1)
-    if (ch !== 0x20 && ch !== 0x09)
-      break
-    end--
-  }
-
-  let langEnd = end
-  for (let pos = start; pos < end; pos++) {
-    const ch = src.charCodeAt(pos)
-    if (ch === 0x60)
-      return null
-    if (ch === 0x20 || ch === 0x09) {
-      langEnd = pos
-      break
-    }
-  }
-
-  return src.slice(start, langEnd)
-}
-
 interface FenceOpenCache {
+  info: string | null
   lang: string | null
   open: string
 }
@@ -164,9 +105,16 @@ function renderFence(
   if (!startsWithFence(src, pos, end))
     return null
 
-  const lang = fenceLang(src, pos + 3, end)
-  if (lang === null)
-    return null
+  const rawInfo = src.slice(pos + 3, end)
+  let lang = cache.lang
+  if (rawInfo !== cache.info) {
+    if (rawInfo.includes('`'))
+      return null
+
+    const info = unescapeAll(rawInfo).trim()
+    const langEnd = info.search(/\s/)
+    lang = langEnd === -1 ? info : info.slice(0, langEnd)
+  }
 
   const contentStart = end < src.length ? end + 1 : end
   let contentEnd = contentStart
@@ -174,7 +122,7 @@ function renderFence(
 
   while (scan < src.length) {
     const closeEnd = lineEnd(src, scan)
-    if (startsWithFence(src, scan, closeEnd) && isBlankLine(src, scan + 3, closeEnd)) {
+    if (isStockFenceClose(src, scan, closeEnd)) {
       const content = src.slice(contentStart, contentEnd)
       let open: string
       if (lang === cache.lang) {
@@ -191,6 +139,7 @@ function renderFence(
         cache.lang = lang
         cache.open = open
       }
+      cache.info = rawInfo
       return {
         html: `${open}${escapeHtml(content)}</code></pre>\n`,
         nextPos: closeEnd < src.length ? closeEnd + 1 : closeEnd,
@@ -224,7 +173,7 @@ function renderStockFastInternal(src: string, diagnostics?: StockFastDiagnostics
   let html = ''
   const useChunks = src.length >= 250_000
   const chunks: string[] = []
-  const fenceOpenCache: FenceOpenCache = { lang: null, open: '' }
+  const fenceOpenCache: FenceOpenCache = { info: null, lang: null, open: '' }
   let lastListSource = ''
   let lastListHtml = ''
   let lastParagraph = ''
@@ -268,7 +217,7 @@ function renderStockFastInternal(src: string, diagnostics?: StockFastDiagnostics
 
       while (nextPos < src.length) {
         const itemEnd = lineEnd(src, nextPos)
-        if (!startsWithBulletItem(src, nextPos, itemEnd))
+        if (!startsWithSimpleBulletItem(src, nextPos, itemEnd))
           break
         nextPos = itemEnd < src.length ? itemEnd + 1 : itemEnd
       }
@@ -302,7 +251,7 @@ function renderStockFastInternal(src: string, diagnostics?: StockFastDiagnostics
         lastListHtml = listHtml
       }
 
-      let lookahead = skipEmptyLines(src, nextPos)
+      let lookahead = nextPos
       while (lookahead < src.length) {
         if (src.charCodeAt(lookahead) === 0x0A) {
           lookahead++
@@ -311,7 +260,7 @@ function renderStockFastInternal(src: string, diagnostics?: StockFastDiagnostics
 
         const lookaheadEnd = lineEnd(src, lookahead)
         if (!isBlankLine(src, lookahead, lookaheadEnd)) {
-          if (startsWithBulletItem(src, lookahead, lookaheadEnd))
+          if (lookahead === nextPos || startsWithDashMarker(src, lookahead, lookaheadEnd))
             return null
           break
         }
@@ -347,7 +296,10 @@ function renderStockFastInternal(src: string, diagnostics?: StockFastDiagnostics
       continue
     }
 
-    const paragraph = paragraphContent(src, pos, end)
+    if (startsWithOrderedItem(src, pos, end))
+      return null
+
+    const paragraph = stockParagraphContent(src, pos, end)
     let paragraphHtml: string
     if (paragraph === lastParagraph) {
       if (diagnostics)
