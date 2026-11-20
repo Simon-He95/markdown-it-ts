@@ -57,5 +57,4 @@ run('npm', [
   '--access',
   'public',
   '--ignore-scripts',
-  '--provenance=false',
 ])
