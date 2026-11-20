@@ -39,6 +39,105 @@ function sameLineBlocksPlugin(md: MarkdownIt) {
 
 const countLeaves = (tokens: { type: string }[]) => tokens.filter(token => token.type === 'same_line_leaf').length
 
+function pushParagraph(state: any, content: string, line: number) {
+  const open = state.push('paragraph_open', 'p', 1)
+  open.map = [line, line + 1]
+  const inline = state.push('inline', '', 0)
+  inline.content = content
+  inline.map = [line, line + 1]
+  inline.children = []
+  state.push('paragraph_close', 'p', -1)
+}
+
+// Emits a paragraph and a container that absorbs the following lines, both
+// starting on the same line (a fenced container directly after text).
+function sameLineContainerPlugin(md: MarkdownIt) {
+  md.block.ruler.before('paragraph', 'same_line_container', (state: any, startLine: number, endLine: number, silent: boolean) => {
+    const start = state.bMarks[startLine] + state.tShift[startLine]
+    const max = state.eMarks[startLine]
+    const match = /^@@container@@(.*)$/.exec(state.src.slice(start, max))
+    if (!match)
+      return false
+    if (silent)
+      return true
+
+    pushParagraph(state, match[1].trim(), startLine)
+
+    let closeLine = -1
+    const body: string[] = []
+    for (let current = startLine + 1; current < endLine; current++) {
+      const lineStart = state.bMarks[current] + state.tShift[current]
+      const line = state.src.slice(lineStart, state.eMarks[current])
+      if (line.trim() === ':::') {
+        closeLine = current
+        break
+      }
+      body.push(line)
+    }
+
+    const open = state.push('container_open', 'div', 1)
+    open.map = [startLine, closeLine < 0 ? endLine : closeLine + 1]
+    open.markup = ':::'
+    const inline = state.push('inline', '', 0)
+    inline.content = body.join('\n')
+    inline.map = [startLine + 1, closeLine < 0 ? endLine : closeLine]
+    inline.children = []
+    state.push('container_close', 'div', -1)
+
+    state.line = closeLine < 0 ? endLine : closeLine + 1
+    return true
+  })
+}
+
+// Emits a list and a paragraph, both starting on the same line. The trailing
+// paragraph can be long enough to reach the list append-merge thresholds.
+function sameLineListPlugin(md: MarkdownIt) {
+  md.block.ruler.before('paragraph', 'same_line_list', (state: any, startLine: number, _endLine: number, silent: boolean) => {
+    const start = state.bMarks[startLine] + state.tShift[startLine]
+    const max = state.eMarks[startLine]
+    const match = /^@@list@@(.*)$/.exec(state.src.slice(start, max))
+    if (!match)
+      return false
+    if (silent)
+      return true
+
+    const listOpen = state.push('bullet_list_open', 'ul', 1)
+    listOpen.map = [startLine, startLine + 1]
+    listOpen.markup = '-'
+    const itemOpen = state.push('list_item_open', 'li', 1)
+    itemOpen.map = [startLine, startLine + 1]
+    const paragraphOpen = state.push('paragraph_open', 'p', 1)
+    paragraphOpen.map = [startLine, startLine + 1]
+    paragraphOpen.hidden = true
+    const inline = state.push('inline', '', 0)
+    inline.content = 'item'
+    inline.map = [startLine, startLine + 1]
+    inline.children = []
+    state.push('paragraph_close', 'p', -1)
+    state.push('list_item_close', 'li', -1)
+    state.push('bullet_list_close', 'ul', -1)
+
+    const rest = match[1].trim()
+    if (rest)
+      pushParagraph(state, rest, startLine)
+
+    state.line = startLine + 1
+    return true
+  })
+}
+
+const signature = (tokens: any[]) => tokens.map(token => `${token.type}:${token.content ?? ''}:${token.map ?? ''}`)
+
+const streamChunks = (chunks: string[], usePlugin: (md: MarkdownIt) => void) => {
+  const md = MarkdownIt({ stream: true }).use(usePlugin)
+  const reference = MarkdownIt().use(usePlugin)
+  let source = ''
+  for (const chunk of chunks) {
+    source += chunk
+    expect(signature(md.stream.parse(source)), `source ${JSON.stringify(source)}`).toEqual(signature(reference.parse(source, {})))
+  }
+}
+
 describe('stream parser: several top-level blocks on one line', () => {
   it('does not duplicate the earlier block while the trailing paragraph grows', () => {
     const md = MarkdownIt({ stream: true }).use(sameLineBlocksPlugin)
@@ -52,5 +151,13 @@ describe('stream parser: several top-level blocks on one line', () => {
       expect(countLeaves(tokens), `prefix ${JSON.stringify(prefix)}`).toBe(countLeaves(expected))
       expect(tokens.map(token => token.type), `prefix ${JSON.stringify(prefix)}`).toEqual(expected.map(token => token.type))
     }
+  })
+
+  it('keeps appending inside the container when a paragraph shares its line', () => {
+    streamChunks(['Intro\n\n@@container@@ lead\nbody line\n\n', 'next text\n\n', 'End\n'], sameLineContainerPlugin)
+  })
+
+  it('does not merge appended items into a list that is not the last block', () => {
+    streamChunks([`Intro\n\n@@list@@ ${'word '.repeat(200)}\n\n`, '- another item\n\n', 'End\n'], sameLineListPlugin)
   })
 })

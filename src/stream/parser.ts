@@ -62,6 +62,12 @@ interface StreamSegment {
   lineStart: number
   lineEnd: number
   srcOffset: number
+  /**
+   * True when the segment was widened backwards to cover earlier top-level
+   * blocks that start on the same line. `tokenStart` then names the first
+   * reparsed block, which is not the last block of the cached token stream.
+   */
+  expanded?: boolean
 }
 
 /** Coordinates of the last stream update. A zero token start invalidates the full tree. */
@@ -1172,7 +1178,9 @@ export class StreamParser {
     const postBlockSrc = directAppend && this.tokenMapsTrusted
       ? src
       : this.getNormalizedUpdatedSource(cached, src, knownAppend)
-    if (appended) {
+    // The container merges below assume `lastSegment.tokenStart` opens the last
+    // block; an expanded segment starts earlier, so fall back to the tail reparse.
+    if (appended && !lastSegment.expanded) {
       const merged = this.tryContainerTailAppendMerge(src, cached, env, md, lastSegment, appended, postBlockSrc)
       if (merged) {
         this.update = { tokenStart: lastSegment.tokenStart, coreSourceStart: 0 }
@@ -1236,6 +1244,7 @@ export class StreamParser {
           lineStart: parsedTail.mapsShifted ? localLastSegment.lineStart : lastSegment.lineStart + localLastSegment.lineStart,
           lineEnd: parsedTail.mapsShifted ? localLastSegment.lineEnd : lastSegment.lineStart + localLastSegment.lineEnd,
           srcOffset: lastSegment.srcOffset + localLastSegment.srcOffset,
+          expanded: localLastSegment.expanded,
         }
         cached.lastSegmentSource = directAppend ? nextTail.slice(localLastSegment.srcOffset) : undefined
       }
@@ -1612,11 +1621,24 @@ export class StreamParser {
         tokenStart: previous.tokenStart,
         tokenEnd: segment.tokenEnd,
         lineStart,
-        lineEnd: segment.lineEnd,
+        lineEnd: Math.max(previous.lineEnd, segment.lineEnd),
         srcOffset: skipSourceOffset ? -1 : this.getLineStartOffset(src, lineStart, knownSrcOffset, knownLineStart),
+        expanded: true,
       }
     }
     return segment
+  }
+
+  /**
+   * `segment.tokenStart` names the first reparsed block. When the segment was
+   * expanded it is an earlier block than the last one, so callers that branch
+   * on the *last* block type must resolve the real owner of the tail first.
+   */
+  private resolveLastBlockSegment(cache: StreamCache, segment: StreamSegment): StreamSegment {
+    if (!segment.expanded)
+      return segment
+
+    return this.getLastBlockSegment(cache.tokens, cache.src, 0, cache.tokens.length, undefined, undefined, true) ?? segment
   }
 
   private getLastBlockSegment(
@@ -1779,7 +1801,7 @@ export class StreamParser {
     if (!lastSegment)
       return false
 
-    const lastToken = cache.tokens[lastSegment.tokenStart]
+    const lastToken = cache.tokens[this.resolveLastBlockSegment(cache, lastSegment).tokenStart]
     switch (lastToken?.type) {
       case 'paragraph_open':
       case 'heading_open':
@@ -1936,6 +1958,9 @@ export class StreamParser {
     segment: StreamSegment,
     appended: string,
   ): Token[] | null {
+    if (segment.expanded)
+      return null
+
     const opening = cached.tokens[segment.tokenStart]
     if (opening?.type !== 'bullet_list_open' || !opening.map
       || appended.includes('\r') || this.mayContainReferenceDefinition(appended)) {
@@ -2289,7 +2314,7 @@ export class StreamParser {
     if (!lastSegment)
       return false
 
-    const lastToken = cache.tokens[lastSegment.tokenStart]
+    const lastToken = cache.tokens[this.resolveLastBlockSegment(cache, lastSegment).tokenStart]
     if (!this.tokenMapsTrusted)
       return verifiedUntrustedTail
 
