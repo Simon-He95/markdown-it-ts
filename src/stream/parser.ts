@@ -1117,8 +1117,15 @@ export class StreamParser {
     // retroactively change prior tokens.
     if (knownAppend !== undefined) {
       const lastSegment = this.ensureLastSegment(cache)
-      if (lastSegment && this.segmentHasFence(cache, lastSegment)) {
-        const scanStart = this.tokenMapsTrusted
+      // A missing segment still needs the fence scan: `getLastSegment` returns
+      // null when it cannot prove a safe tail (for example a map-less plugin
+      // token), and skipping the check would let an appended closing fence
+      // become a second fence token.
+      const hasFence = lastSegment
+        ? this.segmentHasFence(cache, lastSegment)
+        : this.cacheHasFenceMarker(cache)
+      if (hasFence) {
+        const scanStart = lastSegment && this.tokenMapsTrusted
           ? this.ensureSegmentSourceOffset(cache, lastSegment)
           : 0
         if (this.endsInsideOpenFence(prev, scanStart))
@@ -1156,7 +1163,10 @@ export class StreamParser {
       this.ensureSegmentSourceOffset(cached, lastSegment)
 
     // No reusable prefix means we'd just be reparsing the entire document again.
-    if (lastSegment.srcOffset <= 0 && lastSegment.tokenStart <= 0)
+    // `tokenStart > 0` with `srcOffset === 0` means the segment starts at the
+    // first line while earlier tokens stay cached (a map-less last block), so
+    // reusing the tail would duplicate the cached prefix.
+    if (lastSegment.srcOffset <= 0)
       return null
 
     if (!directAppend) {
@@ -1618,7 +1628,7 @@ export class StreamParser {
       const previous = this.getLastBlockSegment(tokens, src, tokenStart, segment.tokenStart, knownSrcOffset, knownLineStart, true)
       if (!previous)
         break
-      if (!this.blockTouchesLine(tokens, previous, segment.lineStart)) {
+      if (!this.blockTouchesLine(previous, segment.lineStart)) {
         // A plugin token without `map` has no usable line range, so a reparse
         // from `segment.lineStart` could emit it again. Refuse the tail segment
         // and let the caller fall back to a full parse.
@@ -1653,7 +1663,7 @@ export class StreamParser {
    * (`map = [L, L]`) touches only the line it names but is still emitted again
    * when that line is reparsed.
    */
-  private blockTouchesLine(tokens: Token[], block: StreamSegment, line: number): boolean {
+  private blockTouchesLine(block: StreamSegment, line: number): boolean {
     if (block.lineEnd > line)
       return true
     return block.lineStart === block.lineEnd && block.lineStart === line

@@ -174,6 +174,27 @@ function sameLineZeroHeightPlugin(md: MarkdownIt, useMap: boolean) {
   })
 }
 
+// Emits a paragraph followed by a marker token without `map`, so the last block
+// of the line carries no source lines (a plugin that cannot report them).
+function maplessTailPlugin(md: MarkdownIt) {
+  md.block.ruler.before('paragraph', 'mapless_tail', (state: any, startLine: number, _endLine: number, silent: boolean) => {
+    const start = state.bMarks[startLine] + state.tShift[startLine]
+    const max = state.eMarks[startLine]
+    if (state.src.slice(start, max).trim() !== '@@end@@')
+      return false
+    if (silent)
+      return true
+
+    pushParagraph(state, 'end', startLine)
+
+    const marker = state.push('line_marker', 'span', 0)
+    marker.block = true
+    marker.content = 'mapless'
+    state.line = startLine + 1
+    return true
+  })
+}
+
 const streamChunks = (chunks: string[], usePlugin: (md: MarkdownIt) => void, options: Record<string, unknown> = {}) => {
   const md = MarkdownIt({ stream: true, ...options }).use(usePlugin)
   const reference = MarkdownIt().use(usePlugin)
@@ -241,5 +262,31 @@ describe('stream parser: several top-level blocks on one line', () => {
       const prefix = doc.slice(0, end)
       expect(signature(prefixStream.stream.parse(prefix)), `prefix ${JSON.stringify(prefix)}`).toEqual(signature(reference.parse(prefix, {})))
     }
+  })
+
+  it('still sees an open fence when the last block has no source map', () => {
+    // `getLastSegment` refuses a map-less tail, which must not disable the
+    // open-fence check: the appended closing fence has to close the cached
+    // fence instead of starting a second one.
+    const doc = 'Intro\n\n@@end@@\n\n```\ncode\n'
+    for (const append of ['```\n\n', '```\n\nEnd\n']) {
+      const stream = MarkdownIt({ stream: true }).use(maplessTailPlugin)
+      const reference = MarkdownIt().use(maplessTailPlugin)
+      stream.stream.parse(doc)
+      expect(signature(stream.stream.append(append)), `append ${JSON.stringify(append)}`).toEqual(signature(reference.parse(doc + append, {})))
+    }
+  })
+
+  it('does not reuse a tail whose segment starts on the first line', () => {
+    // The map-less marker leaves the cached segment at line 0 while the earlier
+    // tokens stay cached; reusing that "tail" replays the whole document next to
+    // the cached prefix, so the update has to fall back to a full parse.
+    const stream = MarkdownIt({ stream: true }).use(maplessTailPlugin)
+    const reference = MarkdownIt().use(maplessTailPlugin)
+
+    stream.stream.parse('Intro\n\n')
+    stream.stream.append('@@end@@\n\n')
+    expect(signature(stream.stream.append('tail'))).toEqual(signature(reference.parse('Intro\n\n@@end@@\n\ntail', {})))
+    expect(stream.stream.stats().lastMode).toBe('full')
   })
 })
