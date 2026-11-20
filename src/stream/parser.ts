@@ -1596,6 +1596,38 @@ export class StreamParser {
     knownLineStart?: number,
     skipSourceOffset = false,
   ): StreamSegment | null {
+    let segment = this.getLastBlockSegment(tokens, src, tokenStart, tokenEnd, knownSrcOffset, knownLineStart, skipSourceOffset)
+    // Core block rules always end a block at a line boundary, but plugin rules
+    // may emit several top-level blocks from one line (for example display math
+    // followed by text: `$$x$$ text`). The tail is reparsed from the start of
+    // its first line, so every earlier block that shares a line with it must be
+    // part of the segment; otherwise the reparse emits those blocks again next
+    // to the cached copies.
+    while (segment && segment.tokenStart > tokenStart) {
+      const previous = this.getLastBlockSegment(tokens, src, tokenStart, segment.tokenStart, knownSrcOffset, knownLineStart, true)
+      if (!previous || previous.lineEnd <= segment.lineStart)
+        break
+      const lineStart = Math.min(previous.lineStart, segment.lineStart)
+      segment = {
+        tokenStart: previous.tokenStart,
+        tokenEnd: segment.tokenEnd,
+        lineStart,
+        lineEnd: segment.lineEnd,
+        srcOffset: skipSourceOffset ? -1 : this.getLineStartOffset(src, lineStart, knownSrcOffset, knownLineStart),
+      }
+    }
+    return segment
+  }
+
+  private getLastBlockSegment(
+    tokens: Token[],
+    src: string,
+    tokenStart = 0,
+    tokenEnd = tokens.length,
+    knownSrcOffset?: number,
+    knownLineStart?: number,
+    skipSourceOffset = false,
+  ): StreamSegment | null {
     if (tokenEnd <= tokenStart)
       return null
 
