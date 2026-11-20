@@ -62,6 +62,12 @@ interface StreamSegment {
   lineStart: number
   lineEnd: number
   srcOffset: number
+  /**
+   * True when the segment was widened backwards to cover earlier top-level
+   * blocks that start on the same line. `tokenStart` then names the first
+   * reparsed block, which is not the last block of the cached token stream.
+   */
+  expanded?: boolean
 }
 
 /** Coordinates of the last stream update. A zero token start invalidates the full tree. */
@@ -1111,8 +1117,15 @@ export class StreamParser {
     // retroactively change prior tokens.
     if (knownAppend !== undefined) {
       const lastSegment = this.ensureLastSegment(cache)
-      if (lastSegment && this.segmentHasFence(cache, lastSegment)) {
-        const scanStart = this.tokenMapsTrusted
+      // A missing segment still needs the fence scan: `getLastSegment` returns
+      // null when it cannot prove a safe tail (for example a map-less plugin
+      // token), and skipping the check would let an appended closing fence
+      // become a second fence token.
+      const hasFence = lastSegment
+        ? this.segmentHasFence(cache, lastSegment)
+        : this.cacheHasFenceMarker(cache)
+      if (hasFence) {
+        const scanStart = lastSegment && this.tokenMapsTrusted
           ? this.ensureSegmentSourceOffset(cache, lastSegment)
           : 0
         if (this.endsInsideOpenFence(prev, scanStart))
@@ -1150,7 +1163,10 @@ export class StreamParser {
       this.ensureSegmentSourceOffset(cached, lastSegment)
 
     // No reusable prefix means we'd just be reparsing the entire document again.
-    if (lastSegment.srcOffset <= 0 && lastSegment.tokenStart <= 0)
+    // `tokenStart > 0` with `srcOffset === 0` means the segment starts at the
+    // first line while earlier tokens stay cached (a map-less last block), so
+    // reusing the tail would duplicate the cached prefix.
+    if (lastSegment.srcOffset <= 0)
       return null
 
     if (!directAppend) {
@@ -1172,7 +1188,9 @@ export class StreamParser {
     const postBlockSrc = directAppend && this.tokenMapsTrusted
       ? src
       : this.getNormalizedUpdatedSource(cached, src, knownAppend)
-    if (appended) {
+    // The container merges below assume `lastSegment.tokenStart` opens the last
+    // block; an expanded segment starts earlier, so fall back to the tail reparse.
+    if (appended && !lastSegment.expanded) {
       const merged = this.tryContainerTailAppendMerge(src, cached, env, md, lastSegment, appended, postBlockSrc)
       if (merged) {
         this.update = { tokenStart: lastSegment.tokenStart, coreSourceStart: 0 }
@@ -1236,6 +1254,7 @@ export class StreamParser {
           lineStart: parsedTail.mapsShifted ? localLastSegment.lineStart : lastSegment.lineStart + localLastSegment.lineStart,
           lineEnd: parsedTail.mapsShifted ? localLastSegment.lineEnd : lastSegment.lineStart + localLastSegment.lineEnd,
           srcOffset: lastSegment.srcOffset + localLastSegment.srcOffset,
+          expanded: localLastSegment.expanded,
         }
         cached.lastSegmentSource = directAppend ? nextTail.slice(localLastSegment.srcOffset) : undefined
       }
@@ -1261,7 +1280,9 @@ export class StreamParser {
       return null
 
     const lastSegment = this.ensureLastSegment(cached)
-    if (!lastSegment || cached.tokens[lastSegment.tokenStart]?.type !== 'paragraph_open')
+    // An expanded segment starts at an earlier block than the one holding the
+    // trailing inline content this path anchors on.
+    if (!lastSegment || lastSegment.expanded || cached.tokens[lastSegment.tokenStart]?.type !== 'paragraph_open')
       return null
 
     const inlineToken = cached.tokens
@@ -1596,6 +1617,79 @@ export class StreamParser {
     knownLineStart?: number,
     skipSourceOffset = false,
   ): StreamSegment | null {
+    let segment = this.getLastBlockSegment(tokens, src, tokenStart, tokenEnd, knownSrcOffset, knownLineStart, skipSourceOffset)
+    // Core block rules always end a block at a line boundary, but plugin rules
+    // may emit several top-level blocks from one line (for example display math
+    // followed by text: `$$x$$ text`). The tail is reparsed from the start of
+    // its first line, so every earlier block that shares a line with it must be
+    // part of the segment; otherwise the reparse emits those blocks again next
+    // to the cached copies.
+    while (segment && segment.tokenStart > tokenStart) {
+      const previous = this.getLastBlockSegment(tokens, src, tokenStart, segment.tokenStart, knownSrcOffset, knownLineStart, true)
+      if (!previous)
+        break
+      if (!this.blockTouchesLine(previous, segment.lineStart)) {
+        // A plugin token without `map` has no usable line range, so a reparse
+        // from `segment.lineStart` could emit it again. Refuse the tail segment
+        // and let the caller fall back to a full parse.
+        if (!this.blockHasSourceMap(tokens, previous))
+          return null
+        break
+      }
+      const lineStart = Math.min(previous.lineStart, segment.lineStart)
+      segment = {
+        tokenStart: previous.tokenStart,
+        tokenEnd: segment.tokenEnd,
+        lineStart,
+        lineEnd: Math.max(previous.lineEnd, segment.lineEnd),
+        srcOffset: skipSourceOffset ? -1 : this.getLineStartOffset(src, lineStart, knownSrcOffset, knownLineStart),
+        expanded: true,
+      }
+    }
+    return segment
+  }
+
+  private blockHasSourceMap(tokens: Token[], block: StreamSegment): boolean {
+    for (let i = block.tokenStart; i < block.tokenEnd; i++) {
+      if (tokens[i].map)
+        return true
+    }
+    return false
+  }
+
+  /**
+   * Whether a block has to be reparsed together with a tail that starts on
+   * `line`. A block that ends after the line overlaps it; a zero-height token
+   * (`map = [L, L]`) touches only the line it names but is still emitted again
+   * when that line is reparsed.
+   */
+  private blockTouchesLine(block: StreamSegment, line: number): boolean {
+    if (block.lineEnd > line)
+      return true
+    return block.lineStart === block.lineEnd && block.lineStart === line
+  }
+
+  /**
+   * `segment.tokenStart` names the first reparsed block. When the segment was
+   * expanded it is an earlier block than the last one, so callers that branch
+   * on the *last* block type must resolve the real owner of the tail first.
+   */
+  private resolveLastBlockSegment(cache: StreamCache, segment: StreamSegment): StreamSegment {
+    if (!segment.expanded)
+      return segment
+
+    return this.getLastBlockSegment(cache.tokens, cache.src, 0, cache.tokens.length, undefined, undefined, true) ?? segment
+  }
+
+  private getLastBlockSegment(
+    tokens: Token[],
+    src: string,
+    tokenStart = 0,
+    tokenEnd = tokens.length,
+    knownSrcOffset?: number,
+    knownLineStart?: number,
+    skipSourceOffset = false,
+  ): StreamSegment | null {
     if (tokenEnd <= tokenStart)
       return null
 
@@ -1747,7 +1841,7 @@ export class StreamParser {
     if (!lastSegment)
       return false
 
-    const lastToken = cache.tokens[lastSegment.tokenStart]
+    const lastToken = cache.tokens[this.resolveLastBlockSegment(cache, lastSegment).tokenStart]
     switch (lastToken?.type) {
       case 'paragraph_open':
       case 'heading_open':
@@ -1904,6 +1998,9 @@ export class StreamParser {
     segment: StreamSegment,
     appended: string,
   ): Token[] | null {
+    if (segment.expanded)
+      return null
+
     const opening = cached.tokens[segment.tokenStart]
     if (opening?.type !== 'bullet_list_open' || !opening.map
       || appended.includes('\r') || this.mayContainReferenceDefinition(appended)) {
@@ -2257,7 +2354,7 @@ export class StreamParser {
     if (!lastSegment)
       return false
 
-    const lastToken = cache.tokens[lastSegment.tokenStart]
+    const lastToken = cache.tokens[this.resolveLastBlockSegment(cache, lastSegment).tokenStart]
     if (!this.tokenMapsTrusted)
       return verifiedUntrustedTail
 
