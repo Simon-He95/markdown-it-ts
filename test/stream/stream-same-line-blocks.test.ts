@@ -128,8 +128,54 @@ function sameLineListPlugin(md: MarkdownIt) {
 
 const signature = (tokens: any[]) => tokens.map(token => `${token.type}:${token.content ?? ''}:${token.map ?? ''}`)
 
-const streamChunks = (chunks: string[], usePlugin: (md: MarkdownIt) => void) => {
-  const md = MarkdownIt({ stream: true }).use(usePlugin)
+// Emits two paragraphs with identical inline text from one line, so a tail
+// anchor cannot rely on the trailing content alone.
+function doubleParagraphPlugin(md: MarkdownIt) {
+  md.block.ruler.before('paragraph', 'double_paragraph', (state: any, startLine: number, _endLine: number, silent: boolean) => {
+    const start = state.bMarks[startLine] + state.tShift[startLine]
+    const max = state.eMarks[startLine]
+    const match = /^@@double@@\s*(.*)$/.exec(state.src.slice(start, max))
+    if (!match)
+      return false
+    if (silent)
+      return true
+
+    pushParagraph(state, match[1].trim(), startLine)
+    pushParagraph(state, match[1].trim(), startLine)
+    state.line = startLine + 1
+    return true
+  })
+}
+
+// Emits a zero-height marker token (`map = [line, line]`) between a leaf and a
+// paragraph that both start on the same line.
+function sameLineZeroHeightPlugin(md: MarkdownIt, useMap: boolean) {
+  md.block.ruler.before('paragraph', 'same_line_zero_height', (state: any, startLine: number, _endLine: number, silent: boolean) => {
+    const start = state.bMarks[startLine] + state.tShift[startLine]
+    const max = state.eMarks[startLine]
+    const match = /^@@zero@@(.*)$/.exec(state.src.slice(start, max))
+    if (!match)
+      return false
+    if (silent)
+      return true
+
+    const leaf = state.push('same_line_leaf', 'div', 0)
+    leaf.block = true
+    leaf.content = 'zero'
+    leaf.map = [startLine, startLine + 1]
+
+    const marker = state.push('line_marker', 'span', 0)
+    marker.block = true
+    marker.map = useMap ? [startLine, startLine] : null
+
+    pushParagraph(state, match[1].trim(), startLine)
+    state.line = startLine + 1
+    return true
+  })
+}
+
+const streamChunks = (chunks: string[], usePlugin: (md: MarkdownIt) => void, options: Record<string, unknown> = {}) => {
+  const md = MarkdownIt({ stream: true, ...options }).use(usePlugin)
   const reference = MarkdownIt().use(usePlugin)
   let source = ''
   for (const chunk of chunks) {
@@ -158,6 +204,42 @@ describe('stream parser: several top-level blocks on one line', () => {
   })
 
   it('does not merge appended items into a list that is not the last block', () => {
-    streamChunks([`Intro\n\n@@list@@ ${'word '.repeat(200)}\n\n`, '- another item\n\n', 'End\n'], sameLineListPlugin)
+    // The first chunk deliberately ends inside the line so the next parse goes
+    // through the tail reparse instead of the append fast path.
+    streamChunks([`Intro\n\n@@list@@ ${'word '.repeat(200)}\n`, '\n- another item\n\n', 'End\n'], sameLineListPlugin)
+  })
+
+  it('does not duplicate blocks split by a zero-height token on the same line', () => {
+    const doc = 'Intro\n\n@@zero@@ tail text\n\nEnd'
+    for (const useMap of [true, false]) {
+      const md = MarkdownIt({ stream: true })
+      md.use(md => sameLineZeroHeightPlugin(md, useMap))
+      const reference = MarkdownIt()
+      reference.use(md => sameLineZeroHeightPlugin(md, useMap))
+      for (let end = 1; end <= doc.length; end++) {
+        const prefix = doc.slice(0, end)
+        expect(signature(md.stream.parse(prefix)), `useMap=${useMap} prefix ${JSON.stringify(prefix)}`).toEqual(signature(reference.parse(prefix, {})))
+      }
+    }
+  })
+
+  it('keeps both same-line blocks on the untrusted tail path', () => {
+    // A post-block core rule makes token maps untrusted; the tail anchor then
+    // has to cope with two paragraphs whose inline content is identical.
+    const untrusted = { streamTailLocalPostBlockRules: true } as Record<string, unknown>
+    const stream = MarkdownIt({ stream: true, ...untrusted }).use(doubleParagraphPlugin)
+    stream.core.ruler.after('inline', 'noop_post', () => {})
+    const reference = MarkdownIt().use(doubleParagraphPlugin)
+
+    stream.stream.parse('Intro\n\n@@double@@ sa')
+    expect(signature(stream.stream.append('m'))).toEqual(signature(reference.parse('Intro\n\n@@double@@ sam', {})))
+
+    const doc = 'Intro\n\n@@double@@ sam\n\nEnd'
+    const prefixStream = MarkdownIt({ stream: true, ...untrusted }).use(doubleParagraphPlugin)
+    prefixStream.core.ruler.after('inline', 'noop_post', () => {})
+    for (let end = 1; end <= doc.length; end++) {
+      const prefix = doc.slice(0, end)
+      expect(signature(prefixStream.stream.parse(prefix)), `prefix ${JSON.stringify(prefix)}`).toEqual(signature(reference.parse(prefix, {})))
+    }
   })
 })

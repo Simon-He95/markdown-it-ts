@@ -1270,7 +1270,9 @@ export class StreamParser {
       return null
 
     const lastSegment = this.ensureLastSegment(cached)
-    if (!lastSegment || cached.tokens[lastSegment.tokenStart]?.type !== 'paragraph_open')
+    // An expanded segment starts at an earlier block than the one holding the
+    // trailing inline content this path anchors on.
+    if (!lastSegment || lastSegment.expanded || cached.tokens[lastSegment.tokenStart]?.type !== 'paragraph_open')
       return null
 
     const inlineToken = cached.tokens
@@ -1614,8 +1616,16 @@ export class StreamParser {
     // to the cached copies.
     while (segment && segment.tokenStart > tokenStart) {
       const previous = this.getLastBlockSegment(tokens, src, tokenStart, segment.tokenStart, knownSrcOffset, knownLineStart, true)
-      if (!previous || previous.lineEnd <= segment.lineStart)
+      if (!previous)
         break
+      if (!this.blockTouchesLine(tokens, previous, segment.lineStart)) {
+        // A plugin token without `map` has no usable line range, so a reparse
+        // from `segment.lineStart` could emit it again. Refuse the tail segment
+        // and let the caller fall back to a full parse.
+        if (!this.blockHasSourceMap(tokens, previous))
+          return null
+        break
+      }
       const lineStart = Math.min(previous.lineStart, segment.lineStart)
       segment = {
         tokenStart: previous.tokenStart,
@@ -1627,6 +1637,26 @@ export class StreamParser {
       }
     }
     return segment
+  }
+
+  private blockHasSourceMap(tokens: Token[], block: StreamSegment): boolean {
+    for (let i = block.tokenStart; i < block.tokenEnd; i++) {
+      if (tokens[i].map)
+        return true
+    }
+    return false
+  }
+
+  /**
+   * Whether a block has to be reparsed together with a tail that starts on
+   * `line`. A block that ends after the line overlaps it; a zero-height token
+   * (`map = [L, L]`) touches only the line it names but is still emitted again
+   * when that line is reparsed.
+   */
+  private blockTouchesLine(tokens: Token[], block: StreamSegment, line: number): boolean {
+    if (block.lineEnd > line)
+      return true
+    return block.lineStart === block.lineEnd && block.lineStart === line
   }
 
   /**
